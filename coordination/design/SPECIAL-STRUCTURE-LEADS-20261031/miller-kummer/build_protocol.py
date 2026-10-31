@@ -1,0 +1,129 @@
+import json
+TODAY="2026-10-31"
+def inst(extra=None):
+    return {"repo":"crypto-autoresearcher","commit":None,
+            "build":[["cargo","build","--release","--manifest-path","experiments/EXP-<alloc>/impl/Cargo.toml"]],
+            "binary_sha256":None,"flags":{},"env":{"RAYON_NUM_THREADS":"4"},"threads":4}
+def arm(i,role,desc,params,same=None):
+    a={"id":i,"role":role,"description":desc,"instrument":inst(),"parameters":params}
+    if same: a["same_instrument_as"]=same
+    return a
+SEEN=[{"path":"designs/miller-kummer/probe_k1k2.py","measured":"feasibility probe on ONE curve (p=1009,a=1,b=14,N=1013): K1 holds with constant sign -1 on 2742 pairs, K2 telescoped constant 113 on all k; not a result"}]
+def pred(i,metric,direction,eff,status,role,scope=None):
+    pv={"written_at":TODAY,"data_seen":SEEN if status!="out_of_sample" else [],"sample_status":status}
+    if scope: pv["decisive_scope"]=scope
+    return {"id":i,"metric":metric,"direction":direction,"minimum_effect":eff,"provenance":pv,"role":role}
+P={
+"schema":"experiment.protocol/v1","protocol_id":"PROTO-miller-kummer-spectrum-20261031","version":1,"created":TODAY,
+"repository":"crypto-autoresearcher","study_dir":"experiments/EXP-<alloc>",
+"authors":["design agent for LEAD-EXO-miller-pairing-cocycle and LEAD-TRF-miller-cocycle-nonhom-transfer"],
+"links":{"leads":"knowledge/leads/ecdlp/exotic/LEAD-EXO-miller-pairing-cocycle.yaml; knowledge/leads/ecdlp/transfer/LEAD-TRF-miller-cocycle-nonhom-transfer.yaml",
+ "idea":"ledger/proposals/IDEA-20261017-e3a6f1.yaml (hypotheses K1, K2, H1)","design":"designs/miller-kummer/design.md",
+ "note":"Not frozen. Freezing and approval belong to the Coordinator. The lead predicts a NULL."},
+"question":"For prime-order E/F_p with N not dividing p-1, is the canonical Miller primitive U(kP)=f_{N,P}(kP)^(1/N) (K1: unique primitive of the line-function cocycle; K2: U((k+1)P)=gamma*U(kP)/(x_P-x_kP), the elliptic-net/EDS ratio form) character-flat in k over Z/N and equidistributed in F_p^*, as a random function would be, when the same detector finds the planted character at N | p-1?",
+"claims":[
+ {"id":"C0","text":"U=f^(1/N) is a degree-N rational function on E/G, the Kummer generator of F_p(E/G)/F_p(E) (textbook Kummer theory; Hilbert 90 for mu_N over F_p). Recalled, not decided by this experiment; the ideation report's test (a) (evaluate on a Velu model of E/G) is circular or infeasible at toy cost and is dropped.","class":"out_of_scope","decided_by":[],"if_supported":None,"if_not_supported":None},
+ {"id":"C1","text":"K1: for every sampled admissible pair (R,S) on every cell, U(R)U(S)/U(R+S) = eps * g_{R,S}(P) with g=line(R,S)/vertical(R+S) evaluated at P and eps a single sign fixed per curve.","class":"exact_computation","decided_by":[]},
+ {"id":"C2","text":"K2: on every cell, U((k+1)P)(x_P-x_{kP})/U(kP) is one constant gamma for all admissible k (telescoped form), and the division-polynomial form U(kP)=c*r_k*gamma^k with r_k=psi_{k-1}(P)/psi_k(P) holds with c,gamma fitted from k=2,3.","class":"exact_computation","decided_by":[]},
+ {"id":"C3","text":"On candidate cells (N not dividing p-1) the non-DC Fourier spectrum of chi_a(U(kP)) over the k-window, maximised over the frozen multiplier set, is not above the random-function null, and the DC (marginal) channel is not above it either.","class":"comparative","decided_by":["C-null","C-hash"],"if_supported":"closure of both leads at toy scale is recommended (U behaves as a hash of the point beyond the EDS recursion)","if_not_supported":"a flagged cell goes to fresh-seed replication; two replicated flags reopen the leads and need independent review before any reading"},
+ {"id":"C4","text":"The same code path finds the Tate-character peak at N | p-1 on every positive-control cell, and finds planted linear-phase amplitude eps>=eps_min on candidate sequences; otherwise a null on C3 is invalid, not a null.","class":"comparative","decided_by":["C-pos","C-plant"],"if_supported":"the C3 null is admissible, with minimum detectable amplitude reported","if_not_supported":"instrument blind: C3 verdict is invalid_measurement"},
+ {"id":"C5","text":"The smooth-(p-1) instrument makes the 48/56/64-bit windows computable; results there are local-window statements (contiguous and strided windows of 2^16 points of a group of order ~2^48..2^64), not full-group spectra.","class":"heuristic_estimate","decided_by":[]}],
+"hypotheses":[
+ {"id":"H0","statement":"U is a hash of the point beyond the closed EDS recursion: K1 and K2 hold exactly and the spectrum of chi_a(U(kP)) is flat (add-one empirical p >= alpha/m on every candidate cell and channel). This is what the lead's own analysis predicts.","mechanism":"U is a degree-N function on E/G whose divisor is supported on non-rational points; Weil/Perel'muter bounds are vacuous at degree N~p, so flatness is measured, not proved; K2 shows log U is a prefix sum of -log(x_P-x_kP)+const, an inversion of a pseudo-random walk.",
+  "predictions":[
+   pred("P1","k1_rate","equal_within","100% of pairs on every cell, one sign per curve","partially_in_sample","decisive","every cell except the single probed curve p=1009,a=1,b=14"),
+   pred("P2","k2_rate","equal_within","100% of admissible k on every cell for the telescoped form","partially_in_sample","decisive","every cell except the single probed curve p=1009,a=1,b=14"),
+   pred("P3","p_ac","higher","no candidate cell has empirical p_ac below alpha/m = 0.05/208","out_of_sample","decisive"),
+   pred("P4","p_dc","higher","no candidate cell has empirical p_dc below alpha/m = 0.05/208","out_of_sample","decisive"),
+   pred("P5","pos_detect","equal_within","15 of 15 positive-control cells flagged at the predicted bin","out_of_sample","decisive")]},
+ {"id":"H1","statement":"Some cell shows a non-flat k-dependent spectrum: an AC peak (j not 0) with empirical p_ac < alpha/m that replicates on fresh-seed cells of the same class and on the base-point-changed A/A arm at the transformed frequency, and is absent from the shuffled arm.","mechanism":"log U(kP) would carry a character of Z/N beyond the hash model, i.e. r_k would be removable or batchable without k (the lead's reopen branch).",
+  "predictions":[pred("P6","p_ac","lower","p_ac < alpha/m on a cell and on >=2 of 8 fresh-seed cells of its class","out_of_sample","decisive")]}],
+"arms":[
+ arm("cand-miller-U","candidate","Miller value f_{N,P}(kP) by the projective binary Miller loop, N-th root by exponent N^-1 mod p-1, F_p^* log by Pohlig-Hellman (table for p<=2^20), K1/K2 checks, windowed spectrum",{"u":"f^(N^-1 mod p-1)","window":"T1 contiguous k=2..2^s+1; T2 contiguous and strided"}),
+ arm("ref-recursion","reference","The same U computed by the K2 recursion U((k+1)P)=gamma U(kP)/(x_P-x_kP) from two Miller seeds: an independent algorithm for the same values (no rho comparison applies)",{"u":"recursion"},"cand-miller-U"),
+ arm("base-point-hash","baseline","Spectrum of chi_a(H(x(kP))) with H a keyed PRF of the point x-coordinate: a function of the point with no Miller structure (the lead's own 'U is a hash' model)",{"u":"PRF(x(kP))"},"cand-miller-U"),
+ arm("aa-second-base","control_aa","Candidate pipeline on the same curve and group with base point sP (s from the seed) and the next primitive root as log base: nuisance factors only",{"base_point":"sP","dlog_base":"g2"},"cand-miller-U"),
+ arm("pos-k1-tate","control_positive","k=1 Cocks-Pinch j=0 curves with E[N] in E(F_p), N | p-1, U:=f_{N,P}(kP) (no root exists), P chosen with t(P,P)!=1; the order-N character is the exact linear phase e(u*j_t*k/N); same functions miller_value, dlog, spectrum",{"N_divides_p_minus_1":True,"cells":15},"cand-miller-U"),
+ arm("pos-planted","control_positive","Candidate sequences with a fraction eps in {0.008,0.016,0.032,0.064} of positions replaced by a planted linear phase at a seeded bin: measures the minimum detectable amplitude",{"eps":[0.008,0.016,0.032,0.064]},"cand-miller-U"),
+ arm("neg-random-fn","control_negative","Independent uniform ell in Z/(p-1) per k, same M, L, multiplier-set size, FFT path: the null draws for every empirical p-value",{"draws_per_class":10000},"cand-miller-U"),
+ arm("neg-shuffle","control_negative","Candidate ell values permuted over the window (marginal kept, k-structure destroyed): separates marginal bias from k-dependence",{"shuffles_per_cell":1},"cand-miller-U")],
+"controls":{
+ "aa":{"present":True,"comparison":"C-aa","not_applicable_reason":None},
+ "positive":{"present":True,"arm":"pos-k1-tate","expected_detection":"on each of 15 cells the order-N-character channel has p_ac below alpha/m (power exceeds all 10000 null draws of its class, at least 0.5*M) at the bin predicted from log t(P,P) within +-1 bin; any miss makes the C3 verdict invalid_measurement","not_applicable_reason":None},
+ "negative":{"present":True,"arm":"neg-random-fn","null_population":{"description":"ell_k independent uniform on Z/(p-1), k in the window, with the cell's multiplier set A and padded length L=2M","generator":"counter-mode PRF (ChaCha20-style) keyed by sha256(protocol_sha256 | class | draw index)","n":10000,"why_n":"2/(n+1)=1.9998e-4 < alpha/m=0.05/208=2.404e-4, the smallest n that resolves the Bonferroni level for the 208-test family","matched_on":["window length M and padded length L (one null per size class)","multiplier-set size |A|=24","spectrum, DC removal and max code path","F_p^* log range Z/(p-1)"]},"not_applicable_reason":None}},
+"variable_ledger":{
+ "independent":[{"name":"sequence_source","levels":["miller_U","recursion_U","point_hash","random_function","shuffled","planted"]},{"name":"p_form_T1","levels":["smooth","generic"]},{"name":"size_class","levels":["s10","s12","s14","s16","s18","T2_48","T2_56","T2_64"]}],
+ "factors":[
+  {"name":"curve and prime","treatment":"randomized","how":"cell seed from protocol hash picks p (smooth or generic class) then the first (a,b) with prime #E=N, N>=2^s+8 (T1) or N prime (T2), gcd(N,p-1)=1; independent of arm"},
+  {"name":"base point P","treatment":"randomized","how":"seeded; aa-second-base replaces P by sP"},
+  {"name":"normalisation of f and sign eps","treatment":"fixed","value":"Miller product of line/vertical, no extra constant; eps fitted once per curve and recorded","how":"one convention in the runner, a different chain in the checker"},
+  {"name":"Miller addition chain","treatment":"fixed","value":"binary MSB first; collision points (k in +-chain) recomputed on a second chain","how":"collisions listed per cell with the rule that resolved them"},
+  {"name":"log base g","treatment":"fixed","value":"smallest primitive root","how":"aa-second-base uses the next one"},
+  {"name":"window","treatment":"fixed","how":"T1 k=2..2^s+1; T2 contiguous start k0 and stride seeded from the protocol hash"},
+  {"name":"multiplier set A","treatment":"fixed","how":"rule: {1,2,N mod p-1} + (p-1)/q^v(q) and (p-1)/q for primes q|p-1 ascending, + seeded random fill to 24 distinct"},
+  {"name":"FFT","treatment":"fixed","value":"radix-2, f64, L=next pow2 >= 2M","how":"same function for all arms; checker recomputes sampled bins directly"},
+  {"name":"threads and build","treatment":"fixed","how":"4 threads, one binary sha256; cell results are thread-count independent by construction"},
+  {"name":"arm order","treatment":"randomized","how":"cells processed in seeded order; null draws indexed by counter, not by order"},
+  {"name":"host","treatment":"measured","how":"recorded per row; no clock is a metric"}],
+ "comparisons":[
+  {"id":"C-exact","arms":["cand-miller-U","ref-recursion"],"differs_in":["sequence_source"],"design":"one_factor"},
+  {"id":"C-null","arms":["cand-miller-U","neg-random-fn"],"differs_in":["sequence_source"],"design":"one_factor"},
+  {"id":"C-hash","arms":["cand-miller-U","base-point-hash"],"differs_in":["sequence_source"],"design":"one_factor"},
+  {"id":"C-shuf","arms":["cand-miller-U","neg-shuffle"],"differs_in":["sequence_source"],"design":"one_factor"},
+  {"id":"C-aa","arms":["cand-miller-U","aa-second-base"],"differs_in":[],"design":"aa"},
+  {"id":"C-pos","arms":["pos-k1-tate"],"differs_in":[],"design":"absolute","threshold":"15/15 cells flagged at the predicted bin"},
+  {"id":"C-plant","arms":["pos-planted"],"differs_in":[],"design":"absolute","threshold":"detection rate per eps reported; eps_min = smallest eps with >=90% detection"}],
+ "aa_not_applicable":None,"crosses_map":False},
+"randomization":{"arm_order":"randomized","arm_order_reason":None,
+ "seed_derivation":{"method":"protocol_hash_sha256","note":"seed = first 8 bytes of sha256(protocol_sha256 \\n arm \\n instance \\n replicate); instance ids are T1-s<S>-<smooth|generic>-<i>, T2-<bits>-<i>-<contig|stride>, POS-s<S>-<i>, REP-<cell>-<i>, exact-s20-<i>"},
+ "instance_sampling":{"rule":"cell lists fixed by the size grid; curve, base point, window start, multiplier fill, null draws all from the cell seed; independent of arm","independent_of_arm":True},
+ "blinding":{"analysis_labels_masked":False,"how":"the analysis is a fixed script with fixed thresholds; arm labels are not steering anything. Unmasked."}},
+"sample_size":{"instances":104,"replicates":1,"warmups":0,
+ "power":{"method":"rank_test","alpha":0.05,"tests_in_family":208,"correction":"bonferroni","rank_test_n":10000,"min_attainable_two_sided_p":2.0/10001,"passes":True,
+  "note":"Family = 104 candidate cells (80 T1 + 24 T2 windows) x 2 channels (AC, DC) = 208. Empirical add-one p with doubled tail from 10000 random-function null draws per size class: min p = 2/10001 = 1.9998e-4 < alpha/m = 2.404e-4, so a cell must exceed all 10000 draws of its class to be flagged. This is resolution only. Detection power is argued separately: a linear-phase component of amplitude eps adds eps^2*M to the Exp(1)-mean power, the critical power is about ln(|A|*M)+ln(10000) (max of 24 x M Exp(1) bins, then the 1e-4 tail), i.e. 19.3, 22.1, 23.5, 24.9 at M=2^10, 2^14, 2^16, 2^18, so eps_min ~= 1.1*sqrt(t_crit/M): about 0.15, 0.04, 0.02, 0.011; the planted arm measures this directly. Outside that amplitude the null is silent."},
+ "preflight_runtime":{"fixed_seconds":120,"per_sample_seconds":1.65,"threads":4,"estimated_total_seconds":5400,"measured_on":"estimate from operation counts (24 radix-2 FFTs of length 2^(s+1) per null draw, summed over 5 size classes ~1.65 core-s; 10000 draws /4 threads ~4100 s; cells, positive and planted arms ~1100 s). Not measured: only a sub-minute Python probe of K1/K2 at p=1009 was run. Time one call per arm first."}},
+"metrics":{
+ "primary":[
+  {"id":"k1_rate","name":"K1 pass rate","unit":"pairs passed / pairs tested","kind":"rate","definition":"over sampled admissible (R,S) with R,S,R+S not in {O,P} and no Miller collision, U(R)U(S)/U(R+S)=eps*g_{R,S}(P) with one eps per curve; 2000 pairs per cell","source":"rows.jsonl k1.pass, k1.n","aggregation":"sum","resolution":"1/n","uncertainty":"clopper_pearson_ci95"},
+  {"id":"k2_rate","name":"K2 pass rate","unit":"k passed / k tested","kind":"rate","definition":"over every admissible k in the window (T1: all) or the 2^16 window plus 2000 random k (T2): telescoped constancy of U((k+1)P)(x_P-x_kP)/U(kP), and the division-polynomial form after fitting c,gamma from k=2,3","source":"rows.jsonl k2.pass, k2.n","aggregation":"sum","resolution":"1/n","uncertainty":"clopper_pearson_ci95"},
+  {"id":"t_ac","name":"max normalised AC power","unit":"|sum_k chi_a(U(kP)) e(-jk/L)|^2 / M, dimensionless","kind":"derived","definition":"max over a in A and bins j not in {0,L/2} of the mean-removed padded DFT power; mean power 1 under the null","source":"rows.jsonl spec.t_ac, spec.a_arg, spec.bin_arg","formula":"max_{a,j} |DFT_L(z^(a) - mean)(j)|^2 / M, z^(a)_k = exp(2 pi i a ell_k/(p-1))","aggregation":"per_row","resolution":"1e-9 (f64)","uncertainty":"none_exact"},
+  {"id":"p_ac","name":"empirical AC p-value","unit":"probability","kind":"derived","definition":"2*(1+#{null draws of the class with t_ac >= observed})/(n+1), capped at 1, n=10000","source":"analysis output cells.csv","formula":"2*(1+k)/(n+1)","aggregation":"per_row","resolution":"2/(n+1)=1.9998e-4","uncertainty":"none_exact"},
+  {"id":"p_dc","name":"empirical DC p-value","unit":"probability","kind":"derived","definition":"same construction for the DC power |sum_k z^(a)_k|^2/M maximised over A","source":"analysis output cells.csv","formula":"2*(1+k)/(n+1)","aggregation":"per_row","resolution":"1.9998e-4","uncertainty":"none_exact"},
+  {"id":"pos_detect","name":"positive-control detections","unit":"cells flagged at predicted bin / 15","kind":"rate","definition":"order-N-character channel p_ac < alpha/m and argmax bin within +-1 of the bin predicted by log t(P,P)","source":"analysis output pos.csv","aggregation":"sum","resolution":"1/15","uncertainty":"clopper_pearson_ci95"}],
+ "secondary":[
+  {"id":"collisions","name":"U value collisions","unit":"pairs k<k' with U equal","kind":"counted","definition":"count over the window, against Poisson mean M^2/(2(p-1)); stands in for the 'ratio success' of the lead, whose definition the lead text does not give","source":"rows.jsonl collisions","aggregation":"per_row","resolution":"1","uncertainty":"none_exact"},
+  {"id":"field_ops","name":"charged field operations","unit":"M+S+I counts","kind":"counted","definition":"Montgomery mul (M), sqr (S), inversion (I, one count whatever the algorithm) called through the Fp type in Miller, root exponentiation, PH log and curve arithmetic; FFT flops and PRF calls listed uncharged","source":"rows.jsonl field_ops.{m,s,i}","aggregation":"sum","resolution":"1","uncertainty":"none_exact"},
+  {"id":"planted_power","name":"planted detection rate","unit":"detected / runs, per eps","kind":"rate","definition":"fraction of planted runs with p_ac < alpha/m, 6 cells (2 each in classes s14,s16,s18) x 4 eps x 5 seeds","source":"analysis output planted.csv","aggregation":"sum","resolution":"1/30","uncertainty":"clopper_pearson_ci95"}]},
+"measurement":{"isolation_required":"none","warmups":0,"order":"randomized","clock":"counted",
+ "counters":["field_ops.m","field_ops.s","field_ops.i","miller_calls","dlog_calls","fft_calls_uncharged","prf_calls_uncharged"],
+ "record":["cpu_model","kernel_release","binary_sha256","threads","cell_seed","p","a","b","N","P","window","multiplier_set","collision_list"],
+ "timed_primary_justification":None},
+"execution":{"backend":"local","queue":None,"placement":{"cpus":4,"note":"one 4-core host"},"measurement_class":"throughput","timeout_seconds":14400,
+ "checkpoint":{"policy":"application","interval_seconds":600,"grace_seconds":60,"restore_validation":"manifest_sha256","after_restore":{"wall_time":"invalid","counted_units":"valid"}},
+ "retries":{"infrastructure_only":True,"max_attempts":2}},
+"stopping_rules":[
+ {"rule":"fixed design: 104 candidate cells, 4 exact-only s20 cells, 15 positive-control cells, 24 A/A cells, 24 planted runs x 5 seeds, 10000 null draws x 5 classes, then stop","kind":"fixed_n","preregistered":True},
+ {"rule":"conditional replication stage: only if a candidate cell has p_ac or p_dc below alpha/m, run its 8 pre-listed REP cells (same class, seeds from the protocol hash), then stop","kind":"preregistered_sequential","preregistered":True},
+ {"rule":"a failed K1 or K2 check on any cell stops the spectrum stage for that curve only and is reported; a positive-control miss marks the whole spectrum verdict invalid_measurement","kind":"invalidation","preregistered":True}],
+"invalidation_rules":["rows where both Miller chains collide are excluded from spectrum and counted (cap 1% of the window, else the cell is excluded and reported)","a cell whose recorded #E or order of P fails the checker is excluded and replaced by the next seed index, logged","wall-clock values are descriptive only"],
+"decision_rule":{"text":"Instrument gate first: pos_detect must be 15/15 and the neg-random-fn null must pass its calibration (analytic-vs-empirical tail comparison reported; no neg-shuffle cell flagged) or the verdict is invalid_measurement. Then K1/K2: any failure withdraws K1 (record) or K2 (EDS form) per the idea's own rule and leaves the leads open. Then spectrum: a cell is FLAGGED if p_ac or p_dc < 0.05/208 (it exceeds all 10000 null draws). No flag: closure_confirmed. A DC-only flag is reported as marginal non-uniformity with no k-dependence (not a reopen). An AC flag triggers the 8 REP cells; reopen_candidate iff >=2 of 8 REP cells flag at p_ac < 0.01 (Bonferroni 8) AND the aa-second-base arm shows the peak at the frequency transformed by s^-1 AND neg-shuffle on that cell is not flagged. Reopen needs independent review before any reading.",
+ "comparison_ids":["C-null","C-hash","C-pos","C-plant","C-exact"],"threshold":"empirical p < alpha/m = 2.404e-4 (add-one, n=10000) per cell and channel","statistic":"t_ac and DC power per cell against the size-class random-function null","interval":"Clopper-Pearson 95% for rates; none for exact checks","multiple_comparison_correction":"bonferroni","effect_size_measure":"t_ac in null-mean units, and for planted runs the smallest eps detected at >=90%","verdict_vocabulary":["closure_confirmed","reopen_candidate","identity_withdrawn","invalid_measurement","inconclusive"]},
+"analysis_plan":{"script":{"path":"experiments/EXP-<alloc>/analysis/spectrum_decision.py","sha256":None},"inputs":["rows.jsonl","null_draws_<class>.bin","cells.csv"],"outputs":["cells.csv","pos.csv","planted.csv","aa.csv","verdict.json"],"blinded":False,"frozen_before_data":True},
+"reporting":{"export_schema":"experiment.export/v1","review_schema":"experiment.review/v1","graphs":["t_ac per cell against the null quantile by size class","positive-control spectra with the predicted bin","planted detection rate against eps with eps_min"],"report_dir":"reports"},
+"inadmissible":[
+ "regressing out gamma^k or any k-linear term before the DFT (it breaks N-periodicity of the genuine function; the AC spectrum already shows a shifted peak if one exists)",
+ "choosing, adding or dropping multipliers, windows, size classes, null draws or the alpha after seeing any p-value",
+ "reading a DC-only flag, or a single unreplicated flag, as a transfer signal",
+ "reading a flat toy spectrum as a statement about cryptographic sizes, or a 2^16 window of a 2^64 group as a full-group spectrum",
+ "any wall-clock claim, any rho comparison, any cost claim: none is made here",
+ "dropping positive-control misses, collision cells, or K1/K2 failures",
+ "reading p from the analytic Exp(1) cross-check instead of the empirical null"],
+"literature":[
+ {"ref":"ledger/proposals/IDEA-20261017-e3a6f1.yaml and .notes.md","provenance":"internal","claim":"K1, K2 and H1 as stated by the proposal","verified_by":"read 2026-10-31; probe on one curve only"},
+ {"ref":"Miller 2004, The Weil pairing and its efficient calculation; Silverman AEC (Kummer theory, isogenies with mu_N kernel); Cocks-Pinch k=1 construction","provenance":"recalled","claim":"Miller identity f_{ab,P}=f_{a,P}^b f_{b,aP}; mu_N-torsors classified by Pic[N]; E[N] rational iff pi=1 mod N*End","verified_by":None},
+ {"ref":"knowledge/leads/ecdlp/transfer/LEAD-TRF-one-point-self-pairing.yaml, LEAD-TRF-mov-small-embedding-degree.yaml","provenance":"internal","claim":"self-pairing needs E[N] rational (k_emb=1); k_emb is a class invariant, generically ~N","verified_by":"read 2026-10-31"}],
+"amendments":[],
+"freeze":{"status":"draft","protocol_sha256":None,"commit":None,"frozen_at":None,"filed_before_affected_data":None},
+"extensions":{"leads":["LEAD-EXO-miller-pairing-cocycle","LEAD-TRF-miller-cocycle-nonhom-transfer"],"counted_unit":"field M/S/I as charged by the Fp type; no rho comparison"}
+}
+json.dump(P,open("protocol.json","w"),indent=1)
