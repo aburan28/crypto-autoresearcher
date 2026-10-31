@@ -1,0 +1,15 @@
+default(parisizemax,512000000);
+default(nbthreads,1);
+setrand(1);
+cv(z)={if(z==0,return([]));vector(poldegree(z)+1,k,lift(polcoef(z,k-1)))};
+observe(id,idx,l,p,A,B,kv)={my(d=(l-1)/2,K=Mod(Polrev(kv,x),p),xp,g,xf,yf,u,v,un,vn,s,invD,ym=List(),xy=List(),first=0,denoms=0,shape);if(poldegree(K)!=d || polcoef(K,d)!=1,error("invalid kernel degree"));if(poldegree(gcd(K,deriv(K)))!=0,error("repeated kernel"));xp=Mod(Mod(x,p),K);g=xp^3+A*xp+B;if(g==0,error("zero g"));xf=xp^p;yf=g^((p-1)/2);u=xp;v=Mod(Mod(1,p),K);for(k=1,d,if(g*v^2!=u^3+A*u+B,error("point formula",id,k));if(v==yf,listput(ym,k);if(first==0,first=k);if(u==xf,listput(xy,k)));if(-v==yf,listput(ym,l-k);if(first==0,first=l-k);if(u==xf,listput(xy,l-k)));if(k<d,if(k==1,invD=1/(2*g);denoms++;s=3*xp^2+A;un=s^2*invD/2-2*xp;vn=s*invD*(xp-un)-1,invD=1/(u-xp);denoms++;s=(v-1)*invD;un=g*s^2-xp-u;vn=s*(xp-un)-1);u=un;v=vn));shape=[poldegree(gcd(K,deriv(K))),poldegree(gcd(K,Mod(x^3+A*x+B,p)))];ym=vecsort(Vec(ym));xy=vecsort(Vec(xy));print([0,id,idx,l,p,A,B,kv,lift(-polcoef(K,d-1)),cv(lift(xf)),cv(lift(yf)),ym,xy,first,d,denoms,shape]);[#ym,#xy,lift(-polcoef(K,d-1))]};
+positive()={my(p=103,E=ellinit([Mod(0,103),Mod(1,103)]),f,F,Ksplit=Mod(1,103),cubics=List(),r0,r1);f=elldivpol(E,7);F=factor(f);for(i=1,matsize(F)[1],if(poldegree(F[i,1])==1,Ksplit*=F[i,1]);if(poldegree(F[i,1])==3,listput(cubics,F[i,1])));if(poldegree(Ksplit)!=3 || #cubics!=1,error("CM constructor factor pattern"));print([1,103,0,1,7,cv(f),vector(matsize(F)[1],i,[cv(F[i,1]),F[i,2]])]);r0=observe(0,-1,7,p,0,1,cv(Ksplit));r1=observe(1,-1,7,p,0,1,cv(cubics[1]));if(r0[1]!=3 || r1[1]!=3 || r0[2]!=1 || r1[2]!=1 || r0[3]!=0 || r1[3]!=0,error("CM ambiguity control failure"))};
+positive();
+neg=observe(2,-2,7,101,1,1,[10,47,70,1]);
+if(neg[1]!=1 || neg[2]!=1 || neg[3]!=31,error("regular control failure"));
+print("CONTROLS_COMPLETE");
+cases=readvec("native-inputs.gp");
+for(i=1,#cases,z=cases[i];observe(z[1],z[2],z[3],z[4],z[5],z[6],z[7]));
+aa=observe(414,-2,7,101,1,1,[10,47,70,1]);if(aa!=neg,error("AA control failure"));
+print("Y_MATCH_COMPLETE 415");
+quit;

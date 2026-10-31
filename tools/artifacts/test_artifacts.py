@@ -24,6 +24,17 @@ def sh(cwd, *argv, check=True, env=None):
     return subprocess.run(argv, cwd=cwd, capture_output=True, text=True, check=check, env=env)
 
 
+class PlaceCopy(unittest.TestCase):
+    def test_creates_missing_parent_directories(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            src = base / "src.bin"
+            src.write_bytes(b"abc")
+            dest = base / "docs" / "reports" / "x" / "report.pdf"
+            artifacts.place_copy(src, dest)
+            self.assertEqual(dest.read_bytes(), b"abc")
+
+
 class RoundTrip(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -239,6 +250,21 @@ class Policy(unittest.TestCase):
         self.assertTrue(f("x/fb.tar.part-0001", 100_000, self.P))
         self.assertFalse(f("x/.artifacts.json", 5 << 20, self.P))
         self.assertFalse(f("docs/browser/data.json", 30 << 20, {**self.P, "keep": ["docs/browser/data.json"]}))
+
+
+class NeededPaths(unittest.TestCase):
+    def test_sibling_doc_does_not_pull_whole_docs_tree(self):
+        sys.path.insert(0, str(TOOL.parent))
+        import wire_workflows as w
+        moved = {"docs/reports/ecdlp-lead-discovery-20261024/report.pdf",
+                 "knowledge/leads/ecdlp/coverage.tsv"}
+        dirs = {"docs", "docs/reports", "docs/reports/ecdlp-lead-discovery-20261024",
+                "knowledge", "knowledge/leads", "knowledge/leads/ecdlp"}
+        self.assertEqual(w.needed("see docs/ci-tiers.md and .github/scripts/x.py", moved, dirs), [])
+        self.assertEqual(
+            w.needed("python3 tools/lead_atlas.py  # knowledge/leads/ecdlp/coverage.tsv", moved, dirs),
+            ["knowledge/leads/ecdlp/coverage.tsv"],
+        )
 
 
 class S3Argv(unittest.TestCase):

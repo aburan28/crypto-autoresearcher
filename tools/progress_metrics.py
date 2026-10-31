@@ -9,6 +9,8 @@ Sources (committed, read at --ref):
   experiments/*/runs/*/manifest.json         run manifests by status
   coordination/portfolio_health/latest.json  funnel KPIs (approved-unrun, conversions); history via git log
   claims/*.json                              structured speedup claims (progress-fidelity)
+  analysis/semaev-degree-five-quotient-lift/reports/highmem-progress-*/progress.json
+                                             reported continuation input/stage counts
   experiments/EXP-ECDLP-d6d8e8/runs/RUN-ECDLP-ea49a6/verification.json
                                              completed finite Prym census counts/ranks
   experiments/EXP-ECDLP-a9b6a5/runs/RUN-ECDLP-967315/verification.json
@@ -20,6 +22,7 @@ Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 # problem, unit, better (higher|lower|neutral), kind (gauge|event), label, source.
 # Reads committed state at --ref via `git show`; never the working tree. stdlib only.
 import argparse
+import hashlib
 import datetime as dt
 import json
 import math
@@ -651,6 +654,155 @@ def prime_field_holdout_panel(ref, since):
             emit(prefix+'.'+c['cell_id']+'.prefix'+str(c['prefix'])+'.'+k,c[k],unit=unit,label='Exact held-out curve/prefix observation',**common)
 
 
+def degree_five_continuation(ref, since):
+    """Latest committed high-memory snapshot per day, including capped inputs.
+
+    Count reported records only: this does not replay certificates, infer a
+    solving-degree result from a cap, or turn pending work into an observation.
+    """
+    root = "analysis/semaev-degree-five-quotient-lift/reports/"
+    latest = {}
+    for path in ls(ref, root):
+        if not re.fullmatch(re.escape(root) + r"highmem-progress-\d+/progress\.json", path):
+            continue
+        try:
+            data = json.loads(show(ref, path))
+            stamp = dt.datetime.fromisoformat(data["created_at"])
+            if stamp.tzinfo is None:
+                return
+            stamp = stamp.astimezone(dt.timezone.utc)
+        except (ValueError, TypeError, KeyError):
+            return
+        date = stamp.date().isoformat()
+        if date < since:
+            continue
+        old = latest.get(date)
+        if old is not None and stamp == old[0] and data != old[2]:
+            return  # Ambiguous same-time snapshots are not a choice of evidence.
+        if old is None or stamp > old[0]:
+            latest[date] = (stamp, path, data)
+    terminal_statuses = {"certificate_verified", "projection_kills_one", "resource_capped"}
+    for date, (_, path, data) in sorted(latest.items()):
+        try:
+            rows = data["rows"]
+            if not isinstance(rows, list) or data["missing_publications"] != []:
+                continue
+            if type(data["planned"]) is not int or data["planned"] != len(rows):
+                continue
+            if (any(not isinstance(row["id"], str) or not row["id"] for row in rows)
+                    or len({row["id"] for row in rows}) != len(rows)):
+                continue
+            counts = collections.Counter(row["status"] for row in rows)
+            if set(counts) - terminal_statuses - {"pending"}:
+                continue
+            if (any(type(v) is not int for v in data["statuses"].values())
+                    or dict(counts) != data["statuses"]
+                    or type(data["terminal"]) is not int
+                    or data["terminal"] != sum(counts[s] for s in terminal_statuses)):
+                continue
+            stages = []
+            for row in rows:
+                if not isinstance(row["stages"], list):
+                    raise ValueError("invalid stage records")
+                if row["status"] == "pending" and row["stages"]:
+                    raise ValueError("pending input has reported stages")
+                for stage in row["stages"]:
+                    if (type(stage["degree"]) is not int or stage["degree"] < 0
+                            or type(stage["certified_codimension"]) is not int
+                            or stage["certified_codimension"] < 0
+                            or type(stage["exact_solutions"]) is not int
+                            or stage["exact_solutions"] < 0
+                            or not isinstance(stage["certificate_sha256"], str)
+                            or re.fullmatch(r"[0-9a-f]{64}", stage["certificate_sha256"]) is None):
+                        raise ValueError("invalid reported certificate record")
+                    stages.append(stage)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            continue
+        common = dict(date=date, problem="semaev-degree-five-quotient-lift", better="neutral",
+                      source=f"{path}@{ref}")
+        prefix = "semaev.degree_five.highmem."
+        emit(prefix + "terminal_inputs", data["terminal"], unit="inputs",
+             label="Reported terminal inputs, including resource caps", **common)
+        for status in sorted(terminal_statuses | {"pending"}):
+            emit(prefix + status + "_inputs", counts[status], unit="inputs",
+                 label=f"Reported continuation inputs: {status}", **common)
+        for degree in (4, 5):
+            emit(prefix + f"degree{degree}_certificate_records",
+                 sum(stage["degree"] == degree for stage in stages), unit="stage records",
+                 label=f"Reported degree-{degree} certificate records; not a fresh replay", **common)
+
+
+def semaev_panel_snapshots(ref, since):
+    """Report hash-bound panel inventories; never replay or infer upper bounds."""
+    root = "analysis/semaev-degree-five-quotient-lift/"
+    latest = {}
+    ambiguous = set()
+    for path in ls(ref, root + "runtime/"):
+        if not re.fullmatch(re.escape(root) + r"runtime/panel-remaining-after-local\d+\.json", path):
+            continue
+        try:
+            d = json.loads(show(ref, path))
+            stamp = dt.datetime.fromisoformat(d["created_at"])
+            if stamp.tzinfo is None:
+                continue
+            stamp = stamp.astimezone(dt.timezone.utc)
+            date = stamp.date().isoformat()
+            if date < since:
+                continue
+            if date in latest and stamp == latest[date][0]:
+                ambiguous.add(date)  # Refuse a tie only if it remains newest.
+            if date not in latest or stamp > latest[date][0]:
+                latest[date] = (stamp, path, d)
+                ambiguous.discard(date)
+        except (ValueError, TypeError, KeyError):
+            continue
+    for date, (_, path, d) in sorted(latest.items()):
+        if date in ambiguous:
+            continue
+        try:
+            parent = show(ref, root + d["parent_inventory"])
+            if hashlib.sha256(parent.encode()).hexdigest() != d["parent_sha256"]:
+                continue
+            planned = [x["prior_id"] for x in json.loads(parent)["items"]]
+            pending = [x["prior_id"] for x in d["items"]]
+            terminal = d["terminal_inputs"]
+            if (len(set(planned)) != len(planned) or len(set(pending)) != len(pending)
+                    or set(pending) & set(terminal)
+                    or set(planned) != set(pending) | set(terminal)):
+                continue
+            certified = 0
+            for name, entry in terminal.items():
+                raw = show(ref, root + entry["path"])
+                if hashlib.sha256(raw.encode()).hexdigest() != entry["result_sha256"]:
+                    raise ValueError("result hash mismatch")
+                result = json.loads(raw)
+                if result["prior_id"] != name or result["status"] != entry["status"]:
+                    raise ValueError("result identity mismatch")
+                if result["status"] not in {"certificate_verified", "producer_contains_one", "resource_capped"}:
+                    raise ValueError("not a terminal panel result")
+                bound = result.get("last_fall_degree_lower_bound")
+                if bound != entry.get("last_fall_degree_lower_bound"):
+                    raise ValueError("bound mismatch")
+                if bound is not None:
+                    q, count = result["certified_codimension_lower_bound"], result["exact_solutions"]
+                    if (bound != 5 or result["status"] != "certificate_verified"
+                            or type(q) is not int or type(count) is not int or not q > count >= 0):
+                        raise ValueError("reported lower bound is unsupported")
+                    certified += 1
+            if d["terminal_count"] != len(terminal) or d["certified_lfd_at_least5"] != certified:
+                continue
+        except (ValueError, TypeError, KeyError, AttributeError):
+            continue
+        for suffix, value, label in [
+            ("terminal_inputs", len(terminal), "Reported terminal original panel inputs, including caps"),
+            ("pending_inputs", len(pending), "Original panel inputs without terminal records"),
+            ("certified_lfd_at_least5_inputs", certified, "Reported checked named-instance lower bounds; not a fresh certificate replay"),
+        ]:
+            emit("semaev.degree_four.panel." + suffix, value, date=date,
+                 problem="semaev-degree-five-quotient-lift", unit="inputs", better="neutral",
+                 label=label, source=f"{path}@{ref}")
+
+
 def main():
     a = args()
     census(a.ref, a.since)
@@ -668,6 +820,8 @@ def main():
     prime_field_residual_panels(a.ref, a.since)
     prime_field_direct_panel(a.ref, a.since)
     prime_field_holdout_panel(a.ref, a.since)
+    degree_five_continuation(a.ref, a.since)
+    semaev_panel_snapshots(a.ref, a.since)
 
 
 if __name__ == "__main__":
