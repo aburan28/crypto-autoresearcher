@@ -15,8 +15,18 @@ the tests assert that the same plan is held to the same requirements under
 either spelling.
 """
 
+import copy
+import hashlib
+import io
+import sys
+import tempfile
 import textwrap
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
+from unittest.mock import patch
+
+import yaml
 
 import check_review_independence as C
 
@@ -196,6 +206,65 @@ class TestExplicitJointIdsDoNotWeakenTheCheck(unittest.TestCase):
         plan, reports = self.fixture()
         reports[0][1]["sources_read"] = [self.protected]
         self.assertTrue(any("blind_from path" in problem for problem in C.check(plan, reports)))
+
+    def test_multi_joint_scalar_verdict_is_rejected(self):
+        plan, reports = self.fixture()
+        reports[1][1]["verdict"] = "holds"
+        self.assertTrue(any("per-joint verdict mapping" in problem
+                            for problem in C.check(plan, reports)))
+
+    def test_explicit_id_requires_nonempty_statement(self):
+        for statement in ("", "   ", "P3", None):
+            with self.subTest(statement=statement):
+                plan, reports = self.fixture()
+                plan["joints"][2]["joint"] = statement
+                self.assertTrue(any("full statement" in problem
+                                    for problem in C.check(plan, reports)))
+
+    def test_single_joint_scalar_verdict_still_passes(self):
+        plan, reports = self.fixture()
+        plan["joints"] = plan["joints"][:1]
+        reports = reports[:1]
+        reports[0][1]["joints_owned"] = ["P1"]
+        reports[0][1]["verdict"] = "holds"
+        self.assertEqual(C.check(plan, reports), [])
+
+    def test_cli_requires_external_plan_pin_and_rejects_statement_swap(self):
+        plan, reports = self.fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            plan_path = root / "plan.yaml"
+            report_paths = []
+            for index, (_, attestation) in enumerate(reports):
+                path = root / f"report-{index}.yaml"
+                path.write_text(yaml.safe_dump({"review_attestation": attestation}), encoding="utf-8")
+                report_paths.append(str(path))
+
+            def run_with_pin(expected=None):
+                argv = ["check_review_independence.py", "--plan", str(plan_path),
+                        "--reports", *report_paths]
+                if expected:
+                    argv.extend(["--expected-plan-sha256", expected])
+                output, errors = io.StringIO(), io.StringIO()
+                with patch.object(sys, "argv", argv), redirect_stdout(output), redirect_stderr(errors):
+                    result = C.main()
+                return result, output.getvalue() + errors.getvalue()
+
+            plan_path.write_text(yaml.safe_dump({"review_plan": plan}), encoding="utf-8")
+            original_digest = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+            code, output = run_with_pin()
+            self.assertEqual(code, 2, output)
+            self.assertIn("expected-plan-sha256", output)
+            code, output = run_with_pin(original_digest)
+            self.assertEqual(code, 0, output)
+
+            swapped = copy.deepcopy(plan)
+            swapped["joints"][2]["joint"], swapped["joints"][3]["joint"] = (
+                swapped["joints"][3]["joint"], swapped["joints"][2]["joint"])
+            plan_path.write_text(yaml.safe_dump({"review_plan": swapped}), encoding="utf-8")
+            code, output = run_with_pin(original_digest)
+            self.assertEqual(code, 2, output)
+            self.assertIn("SHA-256 mismatch", output)
 
     def test_top_level_sealed_validator_schema_is_not_inferred(self):
         self.assertIsNone(C._attestation_of({
