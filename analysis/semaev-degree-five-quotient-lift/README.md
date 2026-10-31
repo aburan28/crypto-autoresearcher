@@ -60,8 +60,15 @@ Seven of 47 original high-memory inputs have terminal records; 40 remain
 unfinished. The next original input, n47 random02, has a published accepted
 D4 seed and a [dimension profile](reports/rand02-envelope-001/report.md).
 Its D5 cascade remains unfinished. The calculated blocked allocation envelope
-is recorded in runtime/rand02-blocked-envelope-arithmetic-001.json; this is
-allocation arithmetic, not observed memory use. No independently checked
+is recorded in runtime/rand02-blocked-envelope-arithmetic-001.json. The
+additional-workspace term in that record omitted the native stride padding;
+the write-once [correction](runtime/blocked-envelope-correction-001.json)
+gives 94,262,240,264 bytes for both random02 and random03, with
+8,816,974,840 bytes below the 96 GiB child limit. These are source-derived
+allocation bounds, not observed memory use. The random03
+[dimension profile](validation/rand03-envelope-001/result.json) independently
+agrees with the random02 counts: 126,387 border coordinates and 187,583
+working coordinates. No independently checked
 LFD-at-least-six result has yet been obtained.
 
 The dense producer works in every monomial of degree at most five. This
