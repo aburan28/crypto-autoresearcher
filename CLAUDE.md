@@ -29,3 +29,8 @@ Claude Code; their full requirements and limits are stated there.
 resume the effort from it alone. The hooks push it to S3 with the specs,
 leads and unpushed work, and refuse run launchers until that succeeds.
 AGENTS.md, "Resume checkpoints in S3 before every run".
+
+Look up curve facts and existing measurements in the lab's curve database
+before computing them: MCP server `ecdb` (export `ECDB_TOKEN` from secret
+`ecdb/api` first) or `scripts/ecdb.sh`. AGENTS.md, "Querying the curve
+database (ecdb)".
