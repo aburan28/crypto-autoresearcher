@@ -26,6 +26,7 @@ import os
 import platform
 import re
 import resource
+import shlex
 import shutil
 import subprocess
 import sys
@@ -285,7 +286,7 @@ def cmd_trial(a: argparse.Namespace) -> int:
         "validity": {"status": status, "reason": reason or "run.py recorded no invalidation; check.py "
                      "and independent review decide validity", "failure_class": None},
         "code": {"commit": commit, "dirty": dirty, "branch": None,
-                 "command": " ".join([sys.executable, *sys.argv]), "code_sha256": code_hashes(),
+                 "command": shlex.join(getattr(sys, "orig_argv", None) or [sys.executable, *sys.argv]), "code_sha256": code_hashes(),
                  "trial_plan_sha256": _sha256(a.plan), "working_directory": os.getcwd()},
         "environment": {"host": platform.node(), "operating_system": platform.platform(),
                         "python_version": sys.version.split()[0], "rustc_version": _version(["rustc", "--version"]),
