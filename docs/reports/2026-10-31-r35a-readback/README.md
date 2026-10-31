@@ -2,6 +2,8 @@
 
 This is a read-only custody and certificate audit of the named R35a degree-4 Boolean closure result, selected as a concrete candidate for the [finite-profile problem](../../../problems/lastfall-finite-profile-completeness.md). It does not rerun the closure producer, the unsatisfiability count, or the branching upper-bound check.
 
+The [evidence diagram](custody.svg) and [one-page PDF](report.pdf) show the verified custody and checker chain separately from the open exact-degree obligations. The PDF was generated from [report.typ](report.typ) with Typst 0.15.0, rendered to an image, visually inspected at page scale, and text-extracted before publication. Its 44,161 bytes are below the repository's 64 KiB direct-file threshold.
+
 ## Inputs and reproducible check
 
 - Repository records: [R35a publication](../../../analysis/semaev-m2-last-fall-degree/submission-20261029/archive/R35a.publication.json) and [R35a receipt](../../../analysis/semaev-m2-last-fall-degree/submission-20261029/archive/R35a.receipt.json), whose source commit is `a084a6417cdd4bed187f07479333aa4285547c1b` and producer binary SHA-256 is `f7f920e697b263129e91b44814e18c32b228392496770c29869ab4d00a9e6f04`.
