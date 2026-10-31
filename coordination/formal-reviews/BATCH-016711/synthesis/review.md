@@ -27,3 +27,5 @@ The reviewers did not reproduce the Lean build locally because the shared host w
 ## Record and visuals
 
 The frozen plan is in `review-plan.yaml`, reviewer handoffs in `handoffs/`, raw packets in `reviews/`, receipt in `docs/reports/2026-10-31-hosted-formal-receipts/receipts/`, and this synthesis has `structure.svg` plus an inspected `report.pdf`. Existing performance graphs and dashboard metrics have no new performance measurement from this proof review; their source data remain the prior run records.
+
+The first Python 3.9 baseline attempt produced an empty stdout file; it is archived byte-for-byte as `producer-baseline-stdout.empty.txt` so JSON readers do not mistake it for a valid result. The successful Python 3.11 baseline is separately retained and hashed.
