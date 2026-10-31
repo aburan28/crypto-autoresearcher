@@ -1,0 +1,474 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage[margin=1.1in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[hyphens]{url}
+\usepackage{hyperref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\FF}{\mathbb{F}}
+\newcommand{\Sfe}{S_{\mathrm{fe}}}
+\newcommand{\Dff}{D_{\mathrm{ff}}}
+\newcommand{\Dfake}{D'_{\mathrm{ff}}}
+\newcommand{\red}{\operatorname{red}}
+\newcommand{\lean}[1]{\path{#1}}
+\urlstyle{tt}
+\emergencystretch=3em
+
+\title{Machine-checked first-fall-degree reasoning\\ in Weil-descent ECDLP}
+\author{Anonymous}
+\date{31 October 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Subexponential estimates for the elliptic-curve discrete logarithm problem over
+small-characteristic fields rest on the claim that the polynomial systems from
+Weil descent have a small \emph{first fall degree}. Several arguments in this
+line replace the true first fall degree with a quantity that is easier to
+compute, and the replacement is where errors enter. We give three results,
+each checked in Lean~4 with Mathlib, and we state for each exactly what the
+kernel checked and what it did not.
+(i)~Lemma~4 of Nagao (ePrint 2015/984) asserts that the first fall degree is
+at most a ``fake'' first fall degree computed modulo the field equations.
+Under the equality reading of the paper's definition, we give two systems over
+$\FF_2$, in two and three variables, with true first fall degree~3 and fake
+first fall degree~2. A short argument shows when the inference can be
+recovered for a given instance, and the paper's own applications satisfy it.
+(ii)~We formalize Theorem~2.8 of Caminata and Gorla: if a system has a degree
+fall and its last fall degree is finite, the last fall degree is the largest
+degree at which a fall occurs. A single exhibited fall therefore gives a lower
+bound and no upper bound.
+(iii)~On a fixed Boolean Semaev $S_3$ system over $\FF_{2^4}$, the direct
+Macaulay-row statistic and the degree-bounded closure agree on the first
+degree with a new class but disagree on its multiplicity: 1~new class against
+12 at degree three. Over 80 archived draws they agree on the grade of every
+draw and disagree on the multiplicity for 77. The same audit withdraws an
+earlier internal inference that every such system falls at degree two.
+Nothing here gives an ECDLP algorithm or changes a published complexity
+estimate.
+\end{abstract}
+
+\section{Introduction}
+
+Semaev's summation polynomials~\cite{semaev04} turn a point decomposition on an
+elliptic curve over $\FF_{q^n}$ into a polynomial system. Weil descent turns
+that system into one over $\FF_q$ in more variables. Gr\"obner-basis
+algorithms solve it in time governed by the degree they must reach, and the
+\emph{first fall degree}, introduced in the HFE setting by Dubois and
+Gama~\cite{duboisgama}, became a common proxy for that degree. Petit and
+Quisquater~\cite{petitquisquater} conjectured that first fall degree tracks
+solving degree for these systems. That conjecture, and its variants, underlie
+the subexponential estimates of Semaev~\cite{semaev15} and
+Nagao~\cite{nagao13,nagao15}. Huang, Kosters and Yeo~\cite{hky} and Kosters and
+Yeo~\cite{kostersyeo} gave evidence against the assumption, and Caminata and
+Gorla~\cite{cg} put the related invariants on a rigorous footing.
+
+The arguments in this area pass between several quantities that differ
+slightly: falls measured before or after reduction by the field equations;
+field equations as generators of the system or as relations of the ring; row
+spans of a Macaulay matrix or their multiplicative closure. Each step is easy
+to get wrong and hard to check by eye. We used a proof assistant to check
+three such steps. One check refutes a published lemma under a stated reading.
+The second formalizes a known theorem in a form that makes the direction of
+valid inference explicit. The third shows that two statistics with the same
+name agree on one number and disagree on another.
+
+\paragraph{What the kernel checked.} Every Lean statement cited here builds
+against a pinned Mathlib and depends only on the axioms \texttt{propext},
+\texttt{Classical.choice} and \texttt{Quot.sound}. No \texttt{sorry},
+\texttt{admit}, custom axiom or \texttt{unsafe} declaration appears. Section~\ref{sec:status}
+gives each statement's hosted CI receipt and the status of its independent
+statement review, which is a separate check that the Lean proposition says
+what the prose claims. The last-fall theorem, the concrete Semaev witness and
+the trace identity of Section~\ref{sec:semaev} have passed that review at their
+stated scope. The counterexample certificate and the Semaev rank family have
+not.
+
+\paragraph{What this paper does not claim.} We say nothing about Nagao's
+Proposition~5 or about Semaev's first-fall assumption in general. We give no
+complexity estimate and no algorithm, and no measurement here bears on
+ECDLP cost at any cryptographic size.
+
+\section{Definitions}\label{sec:defs}
+
+Let $k$ be a field and $R=k[X_1,\dots,X_N]$. Write $\deg$ for total degree.
+
+\begin{definition}[First fall degree, equality reading]\label{def:ff}
+Let $S=\{s_1,\dots,s_M\}\subset R$. A \emph{fall at degree $D$} is a tuple
+$(g_1,\dots,g_M)$ of polynomials with
+\begin{enumerate}
+\item $\deg(g_i s_i)\le D$ for every $i$, with equality for at least one $i$;
+\item $\sum_i g_i s_i\neq 0$;
+\item $\deg\bigl(\sum_i g_i s_i\bigr)<D$.
+\end{enumerate}
+The \emph{first fall degree} $\Dff(S)$ is the least $D\ge 1$ at which a fall
+exists.
+\end{definition}
+
+Over $\FF_p$ let $\Sfe=\{X_i^p-X_i\}$ and write $\red(h)$ for the reduction of
+$h$ modulo $\Sfe$, which over $\FF_2$ clamps every exponent to at most one.
+
+\begin{definition}[Fake first fall degree]\label{def:fake}
+$\Dfake(S)$ is defined as $\Dff(S)$ except that cofactors are reduced
+(multilinear over $\FF_2$), every product and the sum are replaced by their
+reductions, generators that reduce to zero are dropped, and condition~(2)
+asks for a nonzero reduced sum.
+\end{definition}
+
+\begin{remark}[Which reading]\label{rem:reading}
+Definitions~5 and~6 of~\cite{nagao15} print condition~(1) as
+$\max_i\deg(g_is_i)\ge D$. Under that literal reading, padding the cofactors
+makes condition~(1) free. The first fall degree then collapses to one more
+than the least degree of a nonzero element of the ideal, and Lemma~4 holds
+for reasons unrelated to the paper's argument. Nagao's earlier paper~\cite{nagao13} prints
+equality in its Definition~1, and the standard definition used
+in~\cite{cg} is the degree at which the fall happens. We adopt the equality
+reading throughout. It is a declared interpretation of an ambiguous text. We
+make no claim about the author's intent.
+\end{remark}
+
+\begin{definition}[Caminata--Gorla~\cite{cg}, Definition~1.5]\label{def:V}
+For $F\subset R$ and $i\in\mathbb N$, let $V_{F,i}$ be the smallest
+$k$-subspace of $R$ that contains every $f\in F$ with $\deg f\le i$ and is
+closed under $f\mapsto fg$ whenever $f\in V_{F,i}$ and
+$\deg f+\deg g\le i$. For $f$ in the ideal $(F)$ let
+$d_f=\min\{d: f\in V_{F,d}\}$, so $d_f\ge\deg f$. Say $f$ \emph{has a degree
+fall} if $d_f>\deg f$. The \emph{last fall degree} is
+\[
+d_F=\min\{d:\ f\in V_{F,\max(d,\deg f)}\ \text{for every } f\in(F)\}.
+\]
+\end{definition}
+
+The Lean formalization writes the closure condition as
+$\deg f+\deg g\le i$ rather than $\deg g\le i-\deg f$. On natural numbers the
+second form truncates and would admit degree-zero multipliers of any $f$ with
+$\deg f>i$.
+
+\section{A counterexample to Lemma 4 of ePrint 2015/984}\label{sec:nagao}
+
+Lemma~4 of~\cite{nagao15} states $\Dff\le\Dfake$, so that a bound on the easily
+computed fake quantity would bound the true one. Two placements of $\Sfe$ are
+possible on the true side. The printed lemma takes $\Dff$ of
+$\{f_1,\dots,f_M\}$ alone. The \emph{inside form} takes both quantities of
+the same system $S=F\cup\Sfe$, which is the form the paper's arguments
+need. Lean checks the refutation of the inside form. The printed form fails
+on the same witnesses: without $\Sfe$, $X^2Y+X(XY+X)=X^2$ and
+$X_3(X_1X_2+X_3)+X_2(X_1X_3+X_2)=X_2^2+X_3^2$ are falls at degree~3, and the
+degree-2 argument below applies unchanged. That check is by hand and by
+exhaustive search, not in Lean.
+
+\begin{theorem}\label{thm:nagao}
+Over $\FF_2$, with $\Sfe$ among the generators of the true system, let
+\begin{align*}
+\text{(A)}\quad & F_A=\{X^2Y,\ XY+X\}\subset\FF_2[X,Y],\\
+\text{(B)}\quad & F_B=\{X_1X_2+X_3,\ X_1X_3+X_2\}\subset\FF_2[X_1,X_2,X_3].
+\end{align*}
+For $S=F_A\cup\Sfe$ and for $S=F_B\cup\Sfe$ we have $\Dff(S)=3$ and
+$\Dfake(S)=2$. Hence $\Dff\le\Dfake$ fails, and the universal statement over
+finite systems over $\FF_2$ is false.
+\end{theorem}
+
+\begin{proof}
+\emph{Fake side.} For (A), $\red(X^2Y)=XY$, and
+$\red(1\cdot X^2Y)+\red(1\cdot(XY+X))=X$ has degree $1<2$, so there is a fake
+fall at degree~2. For (B),
+$\red\bigl((X_1+1)(X_1X_3+X_2)\bigr)=X_1X_2+X_2$, and adding $X_1X_2+X_3$ gives
+$X_2+X_3$, again a fake fall at degree~2. No fake fall exists at degree~1,
+because every reduced generator has degree~2.
+
+\emph{True side, degree 3.} For (A), $X^2Y+X\cdot(XY+X)=X^2$. For (B),
+$X_3\,(X_1X_3+X_2)+X_1\,(X_3^2+X_3)=X_2X_3+X_1X_3$. Each is a fall at degree~3.
+
+\emph{True side, no fall below 3.} At $D=1$ every generator has degree at
+least~2, so no product has degree exactly~1. At $D=2$ a product of degree at
+most~2 needs a constant cofactor on a quadratic generator and the zero
+cofactor on a cubic one. A fall then needs the degree-2 parts to cancel.
+For (A) those parts are $XY$, $X^2$, $Y^2$, and for (B) they are $X_1X_2$,
+$X_1X_3$, $X_1^2$, $X_2^2$, $X_3^2$. Both sets are linearly independent, so
+no fall exists.
+\end{proof}
+
+The Lean module \lean{CryptoResearch.Nagao.Lemma4Witness} checks all of these
+facts by \texttt{decide +kernel} in a model where a polynomial over $\FF_2$ is
+a duplicate-free list of exponent vectors and cofactors range over polynomials
+whose monomials have degree at most $D$ (multilinear on the fake side). The
+named theorem \lean{lemma4_inside_false} states
+$\neg\,\forall n\,S,\ \mathrm{Lemma4Inside}\ n\ S$. A separate Python
+implementation, written from the definitions without reference to the
+first, reproduces both witnesses. It also finds the lemma violated on 94 of
+400 random pairs of multilinear quadratics in three variables
+(23.5\%)~\cite{artifacts}. We reproduced both witnesses a third time by
+exhaustive search over cofactor tuples while preparing this paper.
+
+\subsection{When the inference survives}
+
+The failure has one cause. Reduction modulo $\Sfe$ can lower the degree of an
+individual product $g_is_i$, so a fake fall need not come from any true fall
+at the same degree. The paper's Lemma~3 controls the degree of the sum and
+says nothing about the products whose maximum defines $\Dff$. The following
+proposition makes the repair explicit.
+
+\begin{proposition}[Instance-wise recovery]\label{prop:recovery}
+Over $\FF_2$, let $S=F\cup\Sfe$ and let $(g_i)$ be a fake fall at degree $v$
+for the generators in $F$. If every unreduced product satisfies
+$\deg(g_if_i)\le v$, then $\Dff(S)\le v$.
+\end{proposition}
+
+\begin{proof}
+Let $s=\sum_ig_if_i$ and $r=\red(s)$, so $r\neq0$ and $\deg r<v$. Reduce $s$
+one monomial at a time, replacing $X_j^2m$ by $X_jm$. Each step adds
+$m(X_j^2+X_j)$, whose degree is at most the degree of the monomial being
+reduced, and degrees never increase along the way. So
+$r=s+\sum_jh_j(X_j^2+X_j)$ with $\deg\bigl(h_j(X_j^2+X_j)\bigr)\le\deg s\le v$.
+This is a combination of the generators of $S$ in which every product has
+degree at most $v$ and the sum $r$ is nonzero of degree less than $v$. Some
+reduced product $\red(g_if_i)$ has degree exactly $v$, and the unreduced
+product has at least that degree, so by hypothesis it has degree exactly $v$.
+Hence there is a fall at degree $v$, and $\Dff(S)\le v$.
+\end{proof}
+
+Proposition~\ref{prop:recovery} is not formalized in Lean; the proof above is
+the only check. It needs two hypotheses that neither~\cite{nagao13}
+nor~\cite{nagao15} states as such: the field equations are generators of the
+true system, and the fake witness loses no degree under reduction. In both
+witnesses of Theorem~\ref{thm:nagao} the second hypothesis fails: $X^2Y$ drops
+from degree~3 to~2, and $(X_1+1)(X_1X_3+X_2)$ drops from~3 to~2.
+
+According to our reading of the source, the only use of Lemma~4
+in~\cite{nagao15} is in the proof of its Lemma~6. That proof puts $\Sfe$ on
+the true side and tracks product degrees with explicit cofactors of degree at
+most one on reduced generators. Both hypotheses of
+Proposition~\ref{prop:recovery} can be checked there.
+\cite{nagao13} does not state Lemma~4 and counts the field equations among
+its $n+N$ equations. In our reading, the published uses survive. What fails
+is the lemma as a general tool: a later argument that cites Lemma~4 for a
+fake-degree bound is relying on a false statement.
+
+\section{The last fall degree is the largest fall}\label{sec:lastfall}
+
+\begin{theorem}[Caminata--Gorla~\cite{cg}, Theorem~2.8; formalized]\label{thm:lastfall}
+Let $k$ be a field and $F\subset k[X_1,\dots,X_N]$. Suppose $d_F$ is finite
+and some $f\in(F)$ has a degree fall. Then
+\[
+d_F=\max\{\,d_f:\ f\in(F),\ d_f>\deg f\,\}.
+\]
+\end{theorem}
+
+The Lean statement
+\begin{center}\lean{CryptoResearch.FallDegree.lastFallDegree_eq_max_degreeFall}\end{center}
+is over Mathlib's \texttt{MvPolynomial} for an arbitrary variable type and
+arbitrary field. It asserts that $d_F$ is the greatest element of the set of
+fall degrees. Finiteness of $d_F$ is an explicit hypothesis: Caminata and
+Gorla obtain it from the existence of a Gr\"obner basis, and we did not
+reprove that. The hypothesis that a fall exists is also explicit. The
+formalization does not construct a system satisfying both. The source review
+works through $F=\{x^2,\ x^2+x\}$, whose last fall degree is~2, on paper only.
+The same review noted a local wording slip (``$f\in F$'') in the published
+proof and supplied a direct derivation; the theorem is unaffected.
+
+The module also proves the lower-bound direction on its own: if some $f$ in
+the ideal has $d_f>\deg f$, then $d_F\ge d_f$. This is the direction an
+experiment can use. Observing one fall certifies that the last fall degree is
+at least the degree of that fall. It certifies nothing in the other
+direction. An upper bound needs a closure argument covering every element of
+the ideal, which a finite computation of a Macaulay rank profile does not
+provide unless it is proved to compute the spaces $V_{F,i}$ and some bound
+rules out later falls. Lemma~4 of~\cite{nagao15} was an attempt to get an
+upper bound cheaply, in the first-fall setting. Section~\ref{sec:nagao} shows
+that the shortcut fails.
+
+\section{Two first-fall statistics on a Boolean Semaev system}\label{sec:semaev}
+
+The third result is about finite computation. It shows how two statistics,
+both reasonably called ``first fall'', separate on a real system.
+
+\paragraph{The system.} Take the curve $y^2+xy=x^3+x^2+1$ over
+$\FF_{2^4}=\FF_2[t]/(t^4+t+1)$ and the third summation polynomial
+$S_3=e_2^2+e_3+1$ in the elementary symmetric functions of three abscissae.
+Fix the target abscissa $x_R=1$ and restrict the two free abscissae to an
+$\FF_2$-subspace with encoded basis $[9,3,2,12]$. Weil descent yields four
+Boolean equations in eight variables $u_0,\dots,u_7$, in
+$\FF_2[u]/(u_i^2-u_i)$. The archived equations have SHA-256
+\path{89ab8e66...ba6eb}~\cite{artifacts}.
+
+\paragraph{Two statistics.} The \emph{direct-row} statistic at degree $D$ is
+the number of new low-degree classes,
+$\dim(\mathrm{rows}_D\cap R_{<D})-\dim\mathrm{rows}_{D-1}$, where
+$\mathrm{rows}_D$ is the span of the multiplier-times-equation rows of degree
+at most $D$. The \emph{closure} statistic replaces $\mathrm{rows}_D$ by the
+least subspace containing the equations and closed under multiplication
+within the degree budget, the Boolean-quotient analogue of $V_{F,D}$.
+
+\begin{theorem}[finite certificates]\label{thm:semaev}
+For this system the direct-row ranks at degrees $1,2,3$ are $1,11,53$, with
+top-degree projection ranks $1,10,41$, so the direct-row new-class counts are
+$0,0,1$. There is an explicit vector in $\mathrm{rows}_3$ of degree at most two
+that lies outside $\mathrm{rows}_2$.
+\end{theorem}
+
+Lean checks these ranks and the witness. The witness is an XOR of selected
+degree-three rows, whose coefficient sum at monomial masks~80 and~192 vanishes
+on every degree-two row but equals one on the witness. The modules are
+\lean{CryptoResearch.Semaev.BooleanParity*} and
+\lean{CryptoResearch.Semaev.ConcreteFirstFallWitness}, and they also check
+that the four transcribed equations match a direct evaluation of $S_3$ on all
+256 Boolean assignments.
+
+An independent code review then computed the closure statistic on the same
+system and, separately, on all 80 archived draws~\cite{artifacts}. Three
+fixed-point methods agree on the closed spaces, checked by joint rank.
+
+\begin{center}
+\begin{tabular}{@{}rccc@{}}
+\toprule
+$D$ & direct rank / top / low & closed rank / top / low & new classes (direct, closed)\\
+\midrule
+1 & 1 / 1 / 0 & 1 / 1 / 0 & --\\
+2 & 11 / 10 / 1 & 11 / 10 / 1 & 0,\ 0\\
+3 & 53 / 41 / 12 & 79 / 56 / 23 & 1,\ 12\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+On this draw the two statistics agree that the first new class appears at
+degree three and disagree on how many appear: 1 against~12. Across the 80
+draws they agree on the first degree with a positive count for every draw
+(68 at degree two, 12 at degree three) and disagree on the count at degree
+three for 77 draws. At degrees one and two, seven direct-row spaces contain
+rows outside the closure. The direct-row policy admits a product based on
+its degree after cancellation, even when the multiplier exceeds the degree
+budget of the closure definition.
+
+\paragraph{A withdrawn inference.} An earlier internal note proved in Lean a
+trace identity: for $x_R\neq0$ and $\mu=x_R^{-2}$, one has
+$\mu^{1/2}+\mu x_R=0$ in $\FF_{2^n}$
+(\lean{trace_witness_annihilates_degree_two_part}). It cited the identity for
+a nontrivial first fall at degree two for every admissible parameter choice.
+The identity is correct. The inference does not follow, because the theorem
+contains no statement about membership in a lower row space, and the zero map
+satisfies its premises. The draw above has $x_R\neq0$ and no new class at
+degree two, which refutes the uniform claim in this finite model. The same
+review found that the historical counting code combined Boolean monomials by
+set union where coefficients over $\FF_2$ must cancel in pairs; correcting
+this changes the archived split of first-fall grades over the 80 draws from
+70/10 to 68/12. Kosters and Yeo~\cite{kostersyeo} describe degree-two first
+falls as usual, which is consistent with 68 of 80.
+
+\section{Verification status}\label{sec:status}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{0.34\linewidth}p{0.22\linewidth}p{0.36\linewidth}@{}}
+\toprule
+Statement & Kernel & Independent statement review\\
+\midrule
+Thm.~\ref{thm:nagao} (\lean{lemma4_inside_false}) & hosted receipt, CI run 41155781140 & not yet reviewed; producer caps fidelity at partial (two scoping rows)\\
+Prop.~\ref{prop:recovery} & not formalized & paper proof only\\
+Thm.~\ref{thm:lastfall} & hosted receipt, CI run 41191503149 & validated at stated scope (three-joint review)\\
+Thm.~\ref{thm:semaev}, concrete witness & hosted receipt, CI run 41155781140 & validated at scope, one draw\\
+Thm.~\ref{thm:semaev}, rank family & hosted receipts, CI run 41155781140 & integrity audit only\\
+Trace identity (\S\ref{sec:semaev}) & hosted receipt, CI run 41155781140 & identity valid; uniform inference withdrawn\\
+Closure counts (\S\ref{sec:semaev}) & not formalized & independent code review\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A hosted receipt records that the workspace built, the per-theorem audit
+found the named declaration with only the three standard axioms, and the
+target specification and module hashes matched the frozen inventory. Each
+receipt's own field for semantic review reads \emph{pending}; reviews are
+filed separately and are summarized in the last column.
+
+\section{Discussion}
+
+The three results point one way. In first-fall arguments the dangerous
+step is moving between a quantity that is easy to measure and the one
+that matters: reduced against unreduced products, row spans against their
+closure, one observed fall against a bound on all of them. A kernel catches a
+false lemma only once someone writes the lemma down precisely enough to
+check. An independent statement review catches a true theorem that is cited
+for more than it says. We needed both: the first for Theorem~\ref{thm:nagao},
+the second for the withdrawn trace inference.
+
+Three items would strengthen this note. The first is a Lean proof of the
+printed (outside) form of the counterexample and of
+Proposition~\ref{prop:recovery}. The second is a bridge from the
+list-of-monomials model to \texttt{MvPolynomial}. The third is an independent
+review of the Lean statement of Theorem~\ref{thm:nagao}.
+
+\begin{thebibliography}{99}
+
+\bibitem{cg}
+A.~Caminata and E.~Gorla.
+\newblock Solving degree, last fall degree, and related invariants.
+\newblock \emph{J. Symbolic Comput.}; IACR ePrint 2021/1611; arXiv:2112.05579.
+
+\bibitem{duboisgama}
+V.~Dubois and N.~Gama.
+\newblock The degree of regularity of {HFE} systems.
+\newblock In \emph{ASIACRYPT 2010}, LNCS 6477, 2010.
+
+\bibitem{hky}
+M.-D. Huang, M.~Kosters, and S.~L. Yeo.
+\newblock Last fall degree, {HFE}, and {W}eil descent attacks on {ECDLP}.
+\newblock In \emph{CRYPTO 2015}; IACR ePrint 2015/573.
+
+\bibitem{kostersyeo}
+M.~Kosters and S.~L. Yeo.
+\newblock Notes on summation polynomials.
+\newblock arXiv:1503.08001, 2015.
+
+\bibitem{nagao13}
+K.~Nagao.
+\newblock Equations system coming from {W}eil descent and subexponential
+  attack for algebraic curve cryptosystem.
+\newblock IACR ePrint 2013/549.
+
+\bibitem{nagao15}
+K.~Nagao.
+\newblock Complexity of {ECDLP} under the first fall degree assumption.
+\newblock IACR ePrint 2015/984.
+
+\bibitem{petitquisquater}
+C.~Petit and J.-J. Quisquater.
+\newblock On polynomial systems arising from a {W}eil descent.
+\newblock In \emph{ASIACRYPT 2012}, LNCS 7658, 2012.
+
+\bibitem{semaev04}
+I.~Semaev.
+\newblock Summation polynomials and the discrete logarithm problem on
+  elliptic curves.
+\newblock IACR ePrint 2004/031.
+
+\bibitem{semaev15}
+I.~Semaev.
+\newblock New algorithm for the discrete logarithm problem on elliptic
+  curves.
+\newblock IACR ePrint 2015/310; arXiv:1504.01175.
+
+\bibitem{artifacts}
+Artifact repository for this note (anonymized for review). Lean sources
+under \path{formal/CryptoResearch/}; counterexample certificate
+\path{tools/lemma4_inside_form.py}; closure audit
+\path{docs/reports/2026-10-26-semaev-closure-review/}; hosted receipts
+\path{docs/reports/2026-10-31-hosted-formal-receipts/}.
+
+\end{thebibliography}
+
+\end{document}
