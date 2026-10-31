@@ -1,6 +1,6 @@
 # Small-prime splitting of the NIST/ANSI prime-field curves: prime-order null, cutoff sweep, frozen held-out test
 
-**Date:** 2026-10-29 UTC. **Report PDF:** [report.pdf](report.pdf) (source [report.typ](report.typ)). **Manuscript draft:** [`papers/nist-seed-split-null/`](../../papers/nist-seed-split-null/paper.md). **Procedural deviations:** [DEVIATIONS.md](DEVIATIONS.md) (D1–D3).
+**Date:** 2026-10-29 UTC. **Report PDF:** [report.pdf](report.pdf) (source [report.typ](report.typ)). **Manuscript draft:** [`papers/nist-seed-split-null/`](../../papers/nist-seed-split-null/paper.tex). **Procedural deviations:** [DEVIATIONS.md](DEVIATIONS.md) (D1–D3).
 **Question:** Do the published 1997–98 prime-field curves have fewer split small primes (`Δ = t²−4p` a nonzero square mod odd `ℓ ≤ 691`) than unpublished prime-order seed candidates, and does that survive the prime-order confound, the cutoff choice and a held-out sample?
 
 **Result:**
