@@ -16,7 +16,8 @@ from pathlib import Path
 TOOL = Path(__file__).resolve().parent / "artifacts.py"
 sys.path.insert(0, str(TOOL.parent))
 import artifacts  # noqa: E402
-from wire_workflows import explicitly_pulled_and_verified  # noqa: E402
+import wire_workflows  # noqa: E402
+from wire_workflows import explicitly_pulled_and_verified, metadata_only, wire  # noqa: E402
 
 
 def sh(cwd, *argv, check=True, env=None):
@@ -91,6 +92,50 @@ class RoundTrip(unittest.TestCase):
         self.art("pull", cwd=clone)
         self.assertEqual((clone / "research/r1/runs/a.jsonl").read_bytes(), self.big)
 
+    def test_sparse_private_manifest_keeps_metadata_checks_credential_free(self):
+        manifest = self.repo / "docs/reports/private/.artifacts.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text(json.dumps({
+            "schema": "artifacts.manifest/v1",
+            "files": {"report.pdf": {
+                "sha256": hashlib.sha256(self.big).hexdigest(), "bytes": len(self.big),
+            }},
+        }) + "\n")
+        workflows = self.repo / ".github/workflows"
+        workflows.mkdir(parents=True)
+        metadata = workflows / "metadata.yml"
+        original = ("# artifact-store: no-pull (checks descriptors, not report bytes)\n"
+                    "jobs:\n  metadata:\n    steps:\n"
+                    "      - uses: actions/checkout@v4\n"
+                    "      - run: python tools/check_metadata.py docs/reports/private\n")
+        metadata.write_text(original)
+        consumer = workflows / "consumer.yml"
+        consumer.write_text("jobs:\n  content:\n    steps:\n"
+                            "      - uses: actions/checkout@v4\n"
+                            "      - run: cat docs/reports/private/report.pdf\n")
+        self.git("add", ".github", "docs")
+        self.git("commit", "-qm", "private pointer and separate metadata/content consumers")
+        self.git("sparse-checkout", "set", "--no-cone", "/.github/")
+        self.assertFalse(manifest.exists())
+        self.assertFalse((manifest.parent / "report.pdf").exists())
+        fork_env = {k: v for k, v in self.env.items()
+                    if not k.startswith(("AWS_", "ARTIFACTS_"))}
+        fork_env["GITHUB_EVENT_NAME"] = "pull_request"
+        script = str(TOOL.parent / "wire_workflows.py")
+        result = sh(self.repo, sys.executable, script, "--check",
+                    ".github/workflows/metadata.yml", env=fork_env)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(metadata.read_text(), original)
+        # The same excluded private pointer still requires hydration when read.
+        required = sh(self.repo, sys.executable, script, "--check",
+                      ".github/workflows/consumer.yml", env=fork_env, check=False)
+        self.assertEqual(required.returncode, 1)
+        sh(self.repo, sys.executable, script, ".github/workflows/consumer.yml",
+           env=fork_env)
+        self.assertIn("artifacts.py pull --jobs 16 docs/reports/private/report.pdf",
+                      consumer.read_text())
+        self.assertEqual(metadata.read_text(), original)
+
     def test_corrupt_remote_object_is_refused(self):
         self.art("push", "research/r1/runs/a.jsonl")
         digest = hashlib.sha256(self.big).hexdigest()
@@ -133,6 +178,16 @@ class RoundTrip(unittest.TestCase):
         self.assertEqual((self.repo / "research/r1/runs/a.jsonl").read_bytes(), self.big)
         self.assertEqual(self.git("status", "--porcelain"), "")
 
+    def test_pull_into_absent_sparse_directory_preserves_bytes_and_clean_tree(self):
+        self.art("push", "research/r1/runs/a.jsonl")
+        self.git("commit", "-qm", "archive fixture")
+        (self.repo / "research/r1/runs/a.jsonl").unlink()
+        self.git("sparse-checkout", "set", "--no-cone", "/*", "!/research/")
+        self.assertFalse((self.repo / "research").exists())
+        self.art("pull", "research/r1/runs/a.jsonl")
+        self.assertEqual((self.repo / "research/r1/runs/a.jsonl").read_bytes(), self.big)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+
     def test_check_gate(self):
         base = self.git("rev-parse", "HEAD").strip()
         (self.repo / "new.jsonl").write_bytes(os.urandom(100_000))
@@ -148,6 +203,27 @@ class RoundTrip(unittest.TestCase):
         self.art("push", "new.jsonl")
         self.git("commit", "-qm", "move it")
         self.assertEqual(self.art("check", base).returncode, 0)
+
+    def test_migrate_from_subdirectory_resolves_root_level_candidates(self):
+        base = self.git("rev-parse", "HEAD").strip()
+        payload = os.urandom(100_000)
+        (self.repo / "new.jsonl").write_bytes(payload)
+        self.git("add", "new.jsonl")
+        self.git("commit", "-qm", "add root-level data")
+        caller = self.repo / "research"
+
+        dry = self.art("migrate", base, "--dry-run", cwd=caller)
+        self.assertIn("new.jsonl", dry.stdout)
+        self.assertEqual(self.art("migrate", base, cwd=caller).returncode, 0)
+
+        tracked = self.git("ls-files").splitlines()
+        self.assertNotIn("new.jsonl", tracked)
+        manifest = self.repo / ".artifacts.json"
+        self.assertTrue(manifest.is_file())
+        entry = json.loads(manifest.read_text())["files"]["new.jsonl"]
+        digest = hashlib.sha256(payload).hexdigest()
+        self.assertEqual(entry, {"sha256": digest, "bytes": len(payload)})
+        self.assertEqual((self.remote / "sha256" / digest[:2] / digest).read_bytes(), payload)
 
 
 class Policy(unittest.TestCase):
@@ -189,6 +265,31 @@ class S3Argv(unittest.TestCase):
 class WorkflowWiring(unittest.TestCase):
     PATH = "examples/experiment-protocol/ecbench-l2-smoke-subset/session"
 
+    def test_comment_only_data_path_does_not_require_pull(self):
+        from wire_workflows import needed
+        text = "# See docs/ci-tiers.md for the policy.\nrun: echo checked\n"
+        moved = {"docs/reports/one/figure.png"}
+        dirs = {"docs", "docs/reports", "docs/reports/one"}
+        self.assertEqual(needed(text, moved, dirs), [])
+        self.assertEqual(needed("run: echo docs/reports-s3.md\n", moved, dirs), [])
+        self.assertEqual(needed("run: cat docs/reports/one/figure.png\n", moved, dirs),
+                         ["docs/reports/one/figure.png"])
+
+    def test_scope_only_checkout_stays_unwired(self):
+        workflow = ("jobs:\n  changes:\n    steps:\n"
+                    "      - uses: actions/checkout@v4\n"
+                    "        with:\n          sparse-checkout: .github/scripts\n"
+                    "      - run: python3 .github/scripts/ci_scope.py\n")
+        wired, _ = wire(workflow, ["coordination", "docs"])
+        self.assertEqual(wired, workflow)
+
+    def test_data_reading_checkout_still_gets_pull(self):
+        workflow = ("jobs:\n  ledger:\n    steps:\n"
+                    "      - uses: actions/checkout@v4\n"
+                    "      - run: python3 tools/check_merge_hygiene.py\n")
+        wired, _ = wire(workflow, ["coordination", "docs"])
+        self.assertIn("artifacts.py pull --jobs 16 coordination docs", wired)
+
     def workflow(self):
         return ("jobs:\n"
                 "  changes:\n"
@@ -215,6 +316,44 @@ class WorkflowWiring(unittest.TestCase):
         other = f"  second-consumer:\n    steps:\n      - run: cat {self.PATH}/records.jsonl\n"
         self.assertFalse(explicitly_pulled_and_verified(self.workflow() + other, [self.PATH]))
 
+    def test_only_documented_metadata_workflows_skip_private_hydration(self):
+        self.assertTrue(metadata_only("# artifact-store: no-pull (metadata-only checks)\n"))
+        self.assertFalse(metadata_only(self.workflow()))
+
+
+
+class WorkflowBootstrap(unittest.TestCase):
+    def test_sparse_clone_can_load_tool_and_remote_configuration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sh(root, "git", "init", "-q", "-b", "main")
+            for name, content in {".github/scripts/scope.py": "", "tools/artifacts/artifacts.py": TOOL.read_text(), ".artifacts/config.json": '{"remote":"file:///test-store"}'}.items():
+                p = root / name
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(content)
+            sh(root, "git", "add", ".")
+            sh(root, "git", "-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture")
+            block = ["      - uses: actions/checkout@v4", "        with:", "          sparse-checkout: .github/scripts"]
+            wired = wire_workflows.add_sparse_pattern(block, "      ")
+            patterns = [line.strip() for line in wired[3:]]
+            sh(root, "git", "sparse-checkout", "set", "--cone", *patterns)
+            self.assertTrue((root / "tools/artifacts/artifacts.py").is_file())
+            self.assertEqual(artifacts.Config.load(root).remote, "file:///test-store")
+
+    def test_conditional_full_checkout_is_preserved(self):
+        block = ["      - uses: actions/checkout@v4", "        with:", "          sparse-checkout: ${{ needs.changes.outputs.full_checkout != 'true' && env.SPARSE_RULES || '' }}", "          sparse-checkout-cone-mode: false"]
+        self.assertEqual(wire_workflows.add_sparse_pattern(block, "      "), block)
+
+    def test_rewiring_refreshes_paths_and_keeps_checkout_condition(self):
+        source = "jobs:\n  test:\n    steps:\n      - uses: actions/checkout@v4\n        if: needs.changes.outputs.run == 'true'\n      - run: make check\n"
+        once, _ = wire_workflows.wire(source, ["data/new"])
+        self.assertEqual(once, wire_workflows.wire(once, ["data/new"])[0])
+        stale = once.replace("pull --jobs 16 data/new", "pull data/old")
+        self.assertEqual(once, wire_workflows.wire(stale, ["data/new"])[0])
+        self.assertEqual(once.count("if: needs.changes.outputs.run == 'true'"), 2)
+        self.assertIn("shell: bash", once)
+        self.assertIn("working-directory: ${{ github.workspace }}", once)
+        self.assertIn('export ARTIFACTS_AWS="$artifacts_cli_aws"', once)
 
 if __name__ == "__main__":
     unittest.main()

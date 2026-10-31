@@ -1,0 +1,152 @@
+# IDEA RECORD -- IDEA-20261018-c09848
+# RQ-SLHDSA-001 / GOAL-SLHDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-c09848
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Depth-limited parallel Grover cost tables per FIPS 205 hash role: multi-target preimage
+    cost under MAXDEPTH and processor count
+  class: tooling
+  claim: >-
+    For each FIPS 205 parameter set and each hash role (F, H, T_len, H_msg, PRF), the cost
+    of the best generic quantum multi-target attack depends on the number of exposed targets
+    t, the depth cap D and the processor count P as G = sqrt(2^n / t) total iterations split
+    across P machines, giving total gates ~ 2^n / (t * D) per machine-depth product when D
+    binds. A machine-checked table over D in {2^40, 2^64, 2^96} and t from the transcript
+    exposure counts shows at least one parameter set whose depth-capped quantum margin falls
+    below its category floor by >= 4 bits when t is taken as the full exposed target count;
+    or none does, which is the comfortable-margin outcome.
+  mechanism: >-
+    Grover parallelises badly: splitting the search space over P machines saves only sqrt(P)
+    in depth while multiplying width by P. Under a depth cap D the attacker must use P = 2^n/(t
+    D^2) machines, and total cost scales as 2^n/(t D), so multi-target gain t is fully realised
+    in the quantum setting under depth limits. Tweaks and per-key PK.seed limit t to targets
+    sharing one tweak domain; the table must count t per tweak domain, not per transcript,
+    which is exactly where conventions disagree.
+  tracked_object: >-
+    A table T[param_set][role][D][t_convention] -> (log2 total gates, log2 qubit-width, log2
+    depth) with interval bounds from the oracle-cost range.
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-7077
+    provenance: kb
+    claim: >-
+      the SPHINCS+ paper quotes quantum generic costs per role; this tabulates them under
+      depth caps and t conventions with intervals
+    verified_by: knowledge/literature/KN-LIT-7077.md (opened by the drafting session)
+  - ref: null
+    provenance: recalled
+    claim: NIST PQC Call for Proposals (2016), MAXDEPTH guidance (recalled)
+    verified_by: null
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Amy, Di Matteo, Gheorghiu, Mosca, Parent, Schanck, 'Estimating the cost of generic quantum
+      pre-image attacks on SHA-2 and SHA-3', SAC 2016 (recalled)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: minimum over roles of category margin under D=2^64, t = per-domain exposure
+    direction: lower
+    minimum_effect: '>= 4 bits below the category floor for at least one set'
+    falsified_by: every set within 4 bits of its floor
+  - id: P2
+    metric: spread of log2 cost across t conventions (per-transcript vs per-tweak-domain)
+    direction: higher
+    minimum_effect: '>= 10 bits for at least one role'
+    falsified_by: spread under 10 bits for every role
+  - id: P3
+    metric: toy statevector success probability vs formula at n<=20
+    direction: different
+    minimum_effect: agreement within 2 SE (validation, not a discovery)
+    falsified_by: disagreement beyond 3 SE
+  minimal_test:
+    design: >-
+      Compute the table from closed forms with interval oracle costs; validate the multi-target
+      parallel Grover success formula by statevector simulation at n = 12..20 bits with t
+      in {1,4,16} and depth caps forcing P in {1,4,16}.
+    controls:
+    - >-
+      null: single-target (t=1) row, which must reproduce the standard 2^{n/2} quantum preimage
+      cost
+    - >-
+      positive: a planted role with t = 2^{n/2} targets in one domain, where the table must
+      show the collapse to depth-limited constant
+    - 'A/A: statevector validation run under two seed blocks of target placement'
+  falsification_conditions:
+  - statevector success curves disagree with the closed form beyond 3 SE
+  - table entries do not reduce to known single-target costs at t=1
+  confounders:
+  - oracle cost per hash call varies by role and implementation
+  - t counting convention
+  - assumption that targets are uniformly placed
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate. Statevector validation is at n<=20; the table
+    itself is a computation at FIPS 205 sizes and is a cost-model statement, not a measured
+    attack.
+  - Depends on the MAXDEPTH convention; reported as a range, never a point.
+  heuristic_assumptions:
+  - id: H1
+    statement: >-
+      Grover with t marked items in 2^n needs ~ (pi/4) sqrt(2^n/t) iterations, and splitting
+      into P parts costs sqrt(P) depth reduction
+    rigorous_support: Boyer-Brassard-Hoyer-Tapp analysis; Zalka optimality
+    validation_plan: statevector simulation at n<=20
+  - id: H2
+    statement: Per-call oracle cost is within the interval quoted per role
+    rigorous_support: resource estimates for SHA-2/SHA-3 circuits in the literature
+    validation_plan: sensitivity rows at both interval ends
+  target_complexity:
+    time_exponent: 2^n/(t D) total gates under depth cap D; 2^{n/2}/sqrt(t) depth unconstrained
+    memory_exponent: qubit width P*w_oracle
+    best_known: generic quantum preimage search, multi-target variant
+    hidden_overhead: oracle circuit size, QRAM-free target comparison cost t per iteration
+      or table structure
+    tradeoff_note: more targets lower iterations but enlarge the comparison circuit; charged
+      explicitly
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-7077
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        the SPHINCS+ paper quotes quantum generic costs per role; this tabulates them under
+        depth caps and t conventions with intervals
+    internal_neighbours:
+    - IDEA-20260805-88ecef
+    - IDEA-20260801-009
+    - IDEA-20260816-466631
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-SLHDSA-84ed4d
+    experiment_id: EXP-SLHDSA-bc381e

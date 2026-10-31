@@ -119,19 +119,36 @@ def _count_dir(root: Path, sub: str) -> int:
     return len(list(path.glob("*.yaml"))) if path.is_dir() else 0
 
 
-def _run_statuses(root: Path) -> collections.Counter:
+def run_manifest_paths(root: Path) -> list[Path]:
+    """One canonical manifest per run directory, preferring the YAML record.
+
+    Some archived runs have both a JSON summary and a YAML run record. Other
+    ``manifest.*`` files belong to nested attempts or preparation artifacts,
+    rather than to the run itself.
+    """
+    experiments = root / "experiments"
+    by_run_dir: dict[Path, Path] = {}
+    for name in ("manifest.json", "manifest.yaml"):
+        for path in experiments.glob(f"EXP-*/runs/*/{name}"):
+            by_run_dir[path.parent] = path
+    return [by_run_dir[d] for d in sorted(by_run_dir)]
+
+
+def run_statuses(root: Path) -> collections.Counter:
     counts: collections.Counter = collections.Counter()
-    for manifest in (root / "experiments").glob("EXP-*/runs/*/manifest.yaml"):
-        body = _load(manifest, "run")
-        counts[str((body or {}).get("status") or "unknown")] += 1
-    for manifest in (root / "experiments").glob("EXP-*/runs/*/manifest.json"):
-        try:
-            doc = json.loads(manifest.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+    for manifest in run_manifest_paths(root):
+        if manifest.suffix == ".yaml":
+            body = _load(manifest, "run")
+        else:
+            try:
+                doc = json.loads(manifest.read_text(encoding="utf-8"))
+                body = doc.get("run", doc) if isinstance(doc, dict) else None
+            except (OSError, ValueError):
+                body = None
+        if not isinstance(body, dict):
             counts["unparseable"] += 1
-            continue
-        body = doc.get("run", doc) if isinstance(doc, dict) else {}
-        counts[str(body.get("status") or "unknown")] += 1
+        else:
+            counts[str(body.get("status") or "unknown")] += 1
     return counts
 
 
@@ -168,7 +185,7 @@ def funnel(root: Path = REPO, rows: list[dict[str, Any]] | None = None) -> dict[
     rows = scan_experiments(root) if rows is None else rows
     by_status: collections.Counter = collections.Counter(str(r["status"]) for r in rows)
     backlog = approved_unrun(root, rows)
-    runs = _run_statuses(root)
+    runs = run_statuses(root)
     ideas = _count_dir(root, "proposals")
     hyps = _count_dir(root, "hypotheses")
     evidence = _count_dir(root, "evidence")

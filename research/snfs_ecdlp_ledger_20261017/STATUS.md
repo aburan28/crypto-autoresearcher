@@ -2,7 +2,9 @@
 
 This page tracks execution and outstanding work. It is not a scientific review or a claim that the original 23 full protocols are complete. Canonical proposal and hypothesis statuses are unchanged.
 
-PR: https://github.com/aburan28/crypto-autoresearcher/pull/2382
+Merged tracking PR: https://github.com/aburan28/crypto-autoresearcher/pull/2382
+
+[Continuation report](continuation-20261017/REPORT.md) · [Continuation PDF](continuation-20261017/report.pdf)
 
 [PDF inventory of all 23 historical pilot scopes and limitations](reports/historical-inventory-20261017/report.pdf) · [Research direction and next obligations](NEXT-ACTIONS.md)
 
@@ -19,9 +21,11 @@ The original source, all local bounded observations, all 23 corrected designs an
 
 Existing overlapping p-adic, pairing and special-polynomial runs have been located and are linked from the canonical map; existing failed/invalid attempts are not repeated without a distinct authorized retry.
 
-For D1, a [candidate 31-point input from the existing rank campaign](dependencies/d1-rank-campaign/source-index.json) has now been located and hash-pinned. This read-only inventory is not a new independence/rank verification, a height matrix, or a saturated MW basis. Those obligations and the separate rank-30 input remain to be reconciled before its count experiment.
+For D1, the original [31-point campaign pointer](dependencies/d1-rank-campaign/source-index.json) remains immutable. The [continuation](continuation-20261017/d1-inputs/README.md) now locates separate 30- and 31-point source lists, checks all 61 exact equation memberships, and matches the 31-point list against the archived ICARM snapshot. Neither input is promoted to a newly certified independent or saturated MW basis; full Gram matrices, error bounds and the actual generated subgroup remain execution dependencies.
 
 [Terminal attempt inventory](execution-status-terminal.json) pins the four original archived bundles and their literal supervisor receipts. The earlier initial snapshot is retained unchanged.
+
+The [new E3 coefficient encoder and kernel verifier](continuation-20261017/e3-projective/README.md) pass 13 deterministic engineering fixtures, including denominator sections and specialization to O at finite fibres and infinity. No blind solver or new scientific grid has run through these components.
 
 ## All 23 leads
 
@@ -57,7 +61,7 @@ Only existing, admitted frozen plans launch through the ordinary supervisor. Mis
 
 The prospective manifest transport component has seven fixture checks, including compatibility with the current run schema and refusal to overwrite a sealed run. This is software preparation, not a scientific trial. The [repair packet](../../coordination/design/SNFS-INSTRUMENT-REPAIR-20261017/README.txt) lists the remaining exact-byte routing, binding and authority obligations.
 
-The configured Coordinator backend remains unavailable: the [readiness log](toolchain/coordinator-backend-readiness.log) reports absent configured credentials and unverified model identifiers; no live probe or substitution approval occurred. This reuses the [existing access impediment](../../problems/prime-field-arity3-relation-oracle.md). It is an execution limitation, not evidence against the affected leads.
+The earlier [configured API readiness log](toolchain/coordinator-backend-readiness.log) remains unchanged. A later [native Codex doctor](../../coordination/design/SNFS-ADDITIVE-ADMISSION-20261017/native-doctor-readiness.json) reports inherited authentication and HTTP reachability working; this is not a model/session attestation. Supported exact-session persistence/probing and a lawful approval route remain unresolved. No substitution approval occurred. This refines the [existing access impediment](../../problems/prime-field-arity3-relation-oracle.md); it is not evidence against the mathematics.
 
 [Mathematical software readiness](toolchain/math-readiness/README.md) now records the isolated Sage/Pari/Singular/fplll/mwrank/CryptoMiniSat environment, pinned msolve source build and 71 passing upstream software tests. These are preparation checks; no additional lead protocol or G1 retry was executed through them.
 

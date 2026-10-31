@@ -1,3 +1,4 @@
+# artifact-store: no-pull (runs checked-in harness suites, not stored research report PDFs)
 name: weekly-evals
 
 # docs/track-record-review-20261006.md item P2.12: run the harness's own eval
@@ -40,7 +41,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -72,10 +72,13 @@ jobs:
           stamp="$(date -u +%Y%m%d)"
           for suite in evals/suites/*.yaml; do
             name="$(basename "$suite" .yaml)"
+            baseline_args=()
+            if [ -f "evals/baselines/${name}.json" ]; then
+              baseline_args=(--baseline "evals/baselines/${name}.json")
+            fi
             python3 -m orchestration.eval run --suite "$suite" \
               --backend "$EVAL_BACKEND" --trials "$EVAL_TRIALS" \
-              --out "evals/results/${stamp}/${name}" \
-              $( [ -f "evals/baselines/${name}.json" ] && echo "--baseline evals/baselines/${name}.json" )
+              --out "evals/results/${stamp}/${name}" "${baseline_args[@]}"
           done
 
       - name: Upload results

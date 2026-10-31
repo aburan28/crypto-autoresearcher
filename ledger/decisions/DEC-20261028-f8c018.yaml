@@ -1,0 +1,112 @@
+# DEC-20261028-f8c018 -- Coordinator record of the LGN-1 schema-registry repair
+# and the corrected validate_ledger counts, for sheriff case SHF-20261028-0f3f64
+# (findings LGN-1, LGN-2, LGN-3, LGN-8). Zero runs. No research status changes.
+# Written on branch claude/fix-shf-0f3f64-ledger-gates from origin/main
+# 7b16f392d3.
+coordinator_decision:
+  id: DEC-20261028-f8c018
+  id_provenance: >-
+    python3 tools/allocate_id.py --next coordinator_decision --date 20261028,
+    then --check DEC-20261028-f8c018: well-formed and free across the union
+    (46,394 identifier-bearing paths scanned).
+  recorded_at: '2026-10-28'
+  decided_at: '2026-10-28'
+  decided_by: coordinator
+  recorded_by: coordinator
+  mode: integrity_remediation
+  decision: record
+  decision_label: >-
+    The three entries merge 21acbaab63 folded together in
+    tools/schema_supersession_registry.yaml are separate, effective entries
+    again on main. Record that repair and the measured counts, and gate the
+    registries against duplicate keys so a merge cannot fold entries again.
+  target_ids:
+    - TASK-20261017-2d324f
+    - TASK-20261017-4d744d
+    - DEC-20261019-624f64
+  related_records:
+    sheriff_case: SHF-20261028-0f3f64
+    findings: [LGN-1, LGN-2, LGN-3, LGN-8]
+    supersession_decision: DEC-20261023-5c9671
+    commits:
+      - {sha: 21acbaab63, what: "PR #2497 merge resolution that dropped the '- kind: ledger' and 'registered:' lines of the TASK-20261017-2d324f and -4d744d entries (case finding LGN-1)"}
+      - {sha: 0265593c57, what: "PR #2497 merge into main carrying that registry"}
+      - {sha: 63cea870d2, what: "merge of PR #2536, 'restore unambiguous hash-pinned schema routes', 2026-10-27: re-adds the two '- kind: ledger' and 'registered:' lines and refuses duplicate keys in load_schema_supersessions"}
+
+  registry_repair:
+    state_on_main: >-
+      At origin/main 7b16f392d3 the registry parses with a duplicate-key
+      refusing loader. DEC-20261019-624f64, TASK-20261017-2d324f and
+      TASK-20261017-4d744d are separate list items with their original
+      superseded and superseding hashes (lines 1873-1896). The repair entered
+      main in 63cea870d2, after the audited commit b7d5e65b9f. It changed no
+      hash and no record: it restored the list markers and 'registered:' values
+      the PR #2497 tip (f450a6cce3) already carried. This branch makes no
+      further registry edit.
+    gate_added: >-
+      tools/validate_ledger.py loads the run supersession registry through the
+      same duplicate-key refusing loader as the schema registry, and
+      tools/check_merge_hygiene.py fails on a duplicate key in either
+      registry. Tests: tools/test_run_supersession.py and
+      tools/test_check_merge_hygiene.py (a folded entry in each registry).
+
+  measurement:
+    method: >-
+      python3 tools/validate_ledger.py (each commit's own copy and baseline)
+      in this full checkout, each commit checked out in place, without
+      CRYPTO_AR_ALLOW_SPARSE. Not a sparse worktree; no placeholders.
+    pr2497:
+      merge_first_parent_692b54f1f4: 115
+      merge_0265593c57_as_merged: 100
+      merge_0265593c57_with_registry_repair_only: 98
+      note: >-
+        The case's 115 -> 100 reproduces exactly. Applied to the merge tree,
+        the 63cea870d2 registry hunk alone removes the two LGN-1 errors
+        (DEC-20261019-624f64 knowledge_promotion, TASK-20261017-2d324f budget)
+        and adds none. The true delta of PR #2497 is 115 -> 98 (-17). Every
+        error at 98 is also present at 115, so the merge itself added none.
+    main:
+      audited_b7d5e65b9f_per_case: 67
+      origin_main_7b16f392d3: 65
+      this_branch: 65
+      note: >-
+        The 65 errors on 7b16f392d3 are the case's 67 minus exactly the two
+        LGN-1 errors. This branch's code changes add or remove no error: the
+        error lists are line-for-line identical. No run manifest on main loads
+        as an empty document, so the new empty-manifest check reports nothing
+        today.
+    lgn8_rulings: >-
+      The 26 errors from RUN-ICPERF-943efa, RUN-ICPERF-b09be8 and
+      RUN-ECDLP-9f18c9 stay as recorded. No superseding manifest is filed
+      here; any such manifest must transcribe archived bytes, as PR #2497's
+      did.
+
+  lgn8_route: >-
+    PRs #2452 and #2579 were merged by hand while their ledger and
+    ledger-and-harness checks were red or still running. In #2452 the merge
+    came before ledger finished (it was cancelled afterwards). In #2579 ledger
+    had failed and ledger-and-harness was still running. tools/ci_ledger_gate.py
+    was right both times; the check was not enforced. On this branch
+    tools/check_merge_hygiene.py --base runs check_run on every run manifest a
+    PR adds or changes, so the failure also shows in the merge-hygiene job
+    every PR runs. A branch-protection rule requiring ledger-and-harness (and
+    merge-hygiene) is a repository setting this branch cannot change; it is
+    reported to the owner.
+
+  rationale:
+    - >-
+      AGENTS.md core rule 4: records are immutable and corrections are new
+      records. The repair touched only the mutable routing index, and no
+      archived record changed.
+    - >-
+      AGENTS.md core rule 9: every count above was measured on this host by
+      this session; the case's numbers are cited as the case's.
+  tests_run: >-
+    tests/test_experiment_execution.py: 64 passed, 2 skipped.
+    tools/test_run_supersession.py: 93 passed. tools/test_check_merge_hygiene.py
+    and tools/test_schema_supersession.py: 38 passed.
+    tools/check_merge_hygiene.py --base origin/main: PASS.
+  knowledge_promotion:
+    promoted: []
+    not_warranted: Integrity remediation; it records no research result.
+  amazon_bedrock: NOT SELECTED

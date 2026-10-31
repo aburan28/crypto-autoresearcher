@@ -95,7 +95,9 @@ import glob
 import hashlib
 import os
 import re
+import subprocess
 import sys
+from functools import lru_cache
 
 import yaml
 
@@ -151,9 +153,57 @@ def _valid_task(value, *, native=False):
     return isinstance(value, str) and bool(pattern.fullmatch(value))
 
 
+class InvalidGitSource(ValueError):
+    """A Git source must not silently become an unrelated filesystem path."""
+
+
+@lru_cache(maxsize=128)
+def _git_source_commit(repo, abbreviation):
+    """Resolve only hexadecimal object identities, never branch/tag names."""
+    def git(*args):
+        try:
+            result = subprocess.run(
+                ["git", "-C", repo, *args], capture_output=True, text=True,
+                timeout=10, env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"})
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise InvalidGitSource(f"cannot resolve Git commit {abbreviation!r}: {error}") from error
+        if result.returncode:
+            raise InvalidGitSource(f"cannot resolve Git commit {abbreviation!r}")
+        return result.stdout.strip()
+
+    objects = git("rev-parse", "--disambiguate="+abbreviation).splitlines()
+    if (len(objects) != 1 or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", objects[0])
+            or not objects[0].startswith(abbreviation)):
+        raise InvalidGitSource(f"unknown or ambiguous Git commit {abbreviation!r}")
+    if git("cat-file", "-t", objects[0]) != "commit":
+        raise InvalidGitSource(f"Git identity {abbreviation!r} is not a commit")
+    return objects[0]
+
+
 def _read_path(value):
-    """Canonical comparison only; this does not read the declared artifact."""
-    return os.path.realpath(os.path.join(REPO, str(value).strip().replace("\\", "/")))
+    """Compare path scopes across Git revisions; do not authenticate blob bytes.
+
+    A Git citation is an existing commit (or unambiguous hexadecimal prefix)
+    plus an exact repository-relative path. Version custody is checked by the
+    archive verifier, separately. All revisions obey the same read restrictions.
+    """
+    raw = str(value)
+    source = raw.strip()
+    if source.lower().startswith("git:"):
+        match = re.fullmatch(r"git:([0-9a-f]{7,40}|[0-9a-f]{64}):(.+)", source)
+        if not match or source != raw:
+            raise InvalidGitSource(f"malformed Git citation {raw!r}")
+        revision, path = match.groups()
+        if (os.path.isabs(path) or any(c in path for c in "\\*?[]:")
+                or any(ord(c) < 32 or ord(c) == 127 for c in path)
+                or any(part in ("", ".", "..") for part in path.split("/"))):
+            raise InvalidGitSource(f"invalid Git source path {path!r}")
+        _git_source_commit(REPO, revision)
+        canonical = os.path.realpath(os.path.join(REPO, path))
+        if not _within(canonical, os.path.realpath(REPO)):
+            raise InvalidGitSource(f"Git source path escapes repository: {path!r}")
+        return canonical
+    return os.path.realpath(os.path.join(REPO, source.replace("\\", "/")))
 
 
 def _within(path, directory):
@@ -831,6 +881,16 @@ def _rel(path: str) -> str:
 
 
 def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
+    # Recheck abbreviations on every invocation: Git may have gained objects
+    # since an earlier check in this process, changing their uniqueness.
+    _git_source_commit.cache_clear()
+    try:
+        return _check(plan, reports)
+    except InvalidGitSource as error:
+        return [f"invalid Git source identity: {error}"]
+
+
+def _check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
     problems: list[str] = list(plan.get("_composition_errors") or [])
     if _replacement_locations(plan):
         problems.append("blind_phase_replacement belongs only at review_plan_addendum top level")
@@ -943,6 +1003,11 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
         read = attestation.get("sources_read", [])
         if not isinstance(read, list) or any(not isinstance(value, str) or not value.strip() for value in read):
             problems.append(f"{task_id}: sources_read must be a list of nonempty paths/source strings")
+        elif read:
+            # Validate even a broadly lifted/non-blind reviewer's Git reads.
+            # Malformed citations cannot bypass the later scope comparisons.
+            for value in read:
+                _read_path(value)
 
     # --- blindness ----------------------------------------------------------
     blindness = plan.get("blindness")

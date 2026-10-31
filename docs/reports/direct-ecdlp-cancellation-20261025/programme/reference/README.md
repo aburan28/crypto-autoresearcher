@@ -1,0 +1,19 @@
+# Tagged-parity development reference
+
+This is C++20 correctness scaffolding for the classical tagged-response specification in `PLAN.md`. It enumerates all canonical scalars and is **not a new ECDLP algorithm**. No performance experiment, cancellation discovery, scientific admission, or hypothesis transition is represented by these tests.
+
+Run `./test.sh`, `./test.sh ubsan`, or `./test.sh asan-ubsan`. The script compiles with warnings treated as errors and creates its executable in a disposable temporary directory. The only executable interface is `--self-test`; it does not accept an external key or target.
+
+`fixtures.tsv` records the three fixed synthetic curves. Field and subgroup primality are checked by exhaustive trial division; complete point enumeration checks whole-curve order. An affine implementation using a scanned field inverse is compared with a separately coded Jacobian implementation using exponentiation for normalization. Both share field reduction and the same short Weierstrass curve model; this is an independent arithmetic implementation check, not independent-session validation or a formal proof.
+
+The tests cover all 1,181 point-pair additions on those curves, all 44 scalar bit strings (including rejected canonical-range values), the 29 subgroup targets, and all 24 on-curve targets outside the selected subgroups. They check all 58,054 candidate intermediate/output witness pairs for one-step point-level transitions, and all 2,362 incoming/outgoing boundaries for one- and two-step tagged blocks against the known fixed-window identity. Infinity, inverses, doubling at y=0, both target signs, scalars 0/1/r-1, noncanonical encodings, singular/composite parameters, and incorrect subgroup orders are included.
+
+The ring tests include every product of two distinct or equal nilpotent tags. A duplicated auxiliary witness is shown to erase both the parity and scalar coefficients; an explicitly unconstrained auxiliary policy is rejected. Point traces are deterministic, and 428 single-state mutations are rejected.
+
+The passing reference reports 13,731 assertions. These are assertions inside one development suite, not 13,731 scientific trials. Fixture parameters, counts, commands, compiler identity, source digest, and the failed attempts are in `development-validation.json` and `development-validation.txt`.
+
+The default AddressSanitizer/UndefinedBehaviorSanitizer launch encountered a platform LeakSanitizer failure under tracing. The same binary passed with `ASAN_OPTIONS=detect_leaks=0`, which disables leak detection only; a separate UBSan launch also passed. Leak checking remains unavailable in this environment. The initial strict compilation reported a signed-conversion warning in the bit-width assignment; an explicit checked-domain cast fixed it before any test execution.
+
+Limits: scalar computation and witness checking currently operate on points, not Boolean gates, carries, or polynomial constraints. Unique point-level transitions do not establish unique extensions of a future bit-level encoding. Parameters are deliberately limited to p<=1000 and r<=1000 to keep all signed arithmetic bounded and exhaustive development checks small. A p=5, j=0 fixture is explicitly a special-curve exception control. No cryptographic-size fixture, scaling ladder, learned rule, held-out experiment, generic compiler comparison, or rho comparison was run. The one/two-step fixed-window identity is known prior art.
+
+The functions `step_block` and `block_response` provide exact finite-domain boundary references for future candidate rewrites. A candidate must preserve the constant coefficient and every tag on every declared boundary; testing a few successful final scalars would not meet that condition. A passing comparison on these fixtures would establish only that finite-domain equality.
