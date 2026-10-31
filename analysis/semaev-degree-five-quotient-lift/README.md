@@ -26,6 +26,12 @@ The [latest observation](validation/rand02-blocked-frontier-progress-004/observa
 records completion of phase-zero variable 0 and entry into variable 1;
 the latest snapshot is 1,826,505,616 bytes, with S3 object size checked.
 This is resumable computation state, not an accepted D5 certificate.
+The [restore-only job](runtime/rand02-blocked-restore-job-001.json) is
+prepared against the original run's immutable checkpoint prefix. It has not
+been submitted. A restore is eligible only after the original Job is terminal
+and its final output, owner state, and newest compatible checkpoint are
+reconciled; the worker rejects an unavailable or mismatched restore instead
+of silently starting D5 from scratch.
 
 A separate [RREF exporter](RREF-EXPORT.md) for later D4 inputs passed all
 14 fixed equivalence controls. Its 12 completed certificates match the
