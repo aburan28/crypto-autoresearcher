@@ -138,12 +138,12 @@ def fake_cli(path: Path, body: str) -> Path:
 def test_run_fails_over_on_budget_stop(repo, tmp_path):
     seen = tmp_path / "seen.txt"
     claude = fake_cli(tmp_path / "fake-claude", f"""
-        echo "claude got: $1" >> {seen}
+        echo "claude got: ${{@: -1}}" >> {seen}
         echo "Claude usage limit reached. Your limit will reset at 3pm"
         exit 1
     """)
     codex = fake_cli(tmp_path / "fake-codex", f"""
-        echo "codex got: $1" >> {seen}
+        echo "codex got: ${{@: -1}}" >> {seen}
         echo done
     """)
     env = {"RELAY_CLAUDE_CMD": str(claude), "RELAY_CODEX_CMD": str(codex)}
@@ -167,7 +167,7 @@ def test_run_does_not_fail_over_on_ordinary_failure(repo, tmp_path):
 
 def test_out_prints_launch_command(repo):
     out = relay(repo, "--runtime", "claude", "out", "--no-push").stdout
-    assert "codex 'You are taking over work from a claude session" in out
+    assert "codex -- 'You are taking over work from a claude session" in out
 
 
 def test_doctor_reports_gaps_in_bare_repo(repo):
@@ -207,3 +207,13 @@ def test_run_stops_when_no_runtime_is_installed(repo, tmp_path):
 def test_restore_announcement_exits_zero_without_handoff():
     body = (RELAY.parent / "checkpoint.sh").read_text()
     assert '[ -f "$dest/.resume/HANDOFF.md" ] && echo' not in body
+
+
+def test_prompt_survives_multi_value_flags(repo, tmp_path):
+    # claude -p --allowedTools A B <prompt> would read the prompt as a tool name.
+    seen = tmp_path / "argv.txt"
+    cli = fake_cli(tmp_path / "fake-claude", f'printf "%s\\n" "$@" > {seen}\n')
+    r = relay(repo, "run", "--no-push", "--", "do", "it",
+              env={"RELAY_CLAUDE_CMD": f"{cli} -p --allowedTools Read Bash"})
+    assert r.returncode == 0, r.stderr
+    assert seen.read_text().splitlines()[-2:] == ["--", "do it"]

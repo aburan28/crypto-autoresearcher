@@ -1,5 +1,10 @@
 # prime239v1's L(1, χ) proxy stays extreme, but only through primes already seen
 
+> **Consolidated with `research/nist_seed_lvalue_20261030/`** (see [CROSSCHECK.md](CROSSCHECK.md)).
+> That study is the canonical measurement (x = 10⁸, exact D_K); this one is an independent replication.
+> On the 61 curves they share, log L at 10⁶ agrees to 2.9 × 10⁻¹⁴, and prime239v1 is at the 0.246th/0.247th
+> percentile in both.
+
 **Date:** 2026-10-30 UTC. **Report PDF:** [report.pdf](report.pdf) (source [report.typ](report.typ)).
 **Protocol:** [PROTOCOL.md](PROTOCOL.md) and [protocol.json](protocol.json), frozen with sha256
 `039665e8…` and merged in PR #2763 before any target curve was evaluated. The
@@ -52,3 +57,4 @@ map or cost edge, so no ECDLP frontier graph changes.
 | `posthoc.py` → `runs/posthoc.json` | the post-hoc checks above |
 | `export.json`, `runs/rows.jsonl` | `experiment.export/v1` bundle (`from-rows`); remaining `check-export` findings in [EXPORT_DEVIATION.md](EXPORT_DEVIATION.md) |
 | `figures.py` → `fig_null.svg` | null density per field with all 69 curves |
+| [CROSSCHECK.md](CROSSCHECK.md), `crosscheck.py` → `runs/crosscheck.json` | per-curve agreement with `nist_seed_lvalue_20261030` |
