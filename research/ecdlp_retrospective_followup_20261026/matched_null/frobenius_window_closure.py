@@ -17,8 +17,10 @@ This program tests only that structural premise, from the statement alone:
     describes), count the unordered pairs {w, w'} of distinct window abscissae
     with w' = w^(2^k) for some 1 <= k < n,
 
-and compares the count with the number a random 2^env-subset of GF(2^n) of the
-same size would give.  It does not read PR #2591's receipts, so it does not
+and compares the count with the expectation for a uniform subset of the
+2^n - 2 non-F_2 elements.  Because n is prime, every element in this universe
+has exactly n - 1 distinct non-self Frobenius conjugates, so the probability
+for an unordered pair is (n - 1)/(2^n - 3).  It does not read PR #2591's receipts, so it does not
 reproduce "30 of 34"; it shows whether a window that closed would exist at all.
 
 Usage: python3 frobenius_window_closure.py --out OUTPUT.json
@@ -101,6 +103,16 @@ def square(a: int, f: int) -> int:
     return pmulmod(a, a, f)
 
 
+def random_frobenius_pair_expectation(size: int, n: int) -> float:
+    """Expected conjugate pairs in a uniform size-subset of GF(2^n) minus F_2."""
+    universe_size = 2 ** n - 2
+    if size < 0 or size > universe_size or n < 2:
+        raise ValueError("invalid subset size or field degree")
+    if any(n % divisor == 0 for divisor in range(2, n)):
+        raise ValueError("the formula assumes prime field degree")
+    return size * (size - 1) / 2 * (n - 1) / (universe_size - 1)
+
+
 def poly_str(f: int) -> str:
     return " + ".join(("x^%d" % i if i > 1 else ("x" if i == 1 else "1"))
                       for i in range(pdeg(f), -1, -1) if f >> i & 1)
@@ -151,8 +163,9 @@ def window_closure(n: int, env: int, a_coef: int, small: int) -> dict:
                 pairs.add(pair)
                 ks.setdefault(pair, k)
     size = len(W)
-    # random model: P(w' = w^(2^k) for some k) <= (n-1)/(2^n - 2) per ordered pair
-    rand_pairs = size * (size - 1) / 2 * (2 * (n - 1)) / (2 ** n - 2)
+    # Every non-F_2 element has n-1 distinct non-self conjugates when n is prime.
+    # For an unordered pair from M=2^n-2 elements, the probability is (n-1)/(M-1).
+    rand_pairs = random_frobenius_pair_expectation(size, n)
     # points in window involved in at least one conjugate pair
     involved = {a for p in pairs for a in p}
     deg_hist = {}
@@ -201,6 +214,7 @@ def main() -> int:
     a = ap.parse_args()
     res = dict(program=dict(file="frobenius_window_closure.py", python=platform.python_version(),
                             argv=sys.argv),
+               random_expectation_formula="C(size, 2) * (n - 1) / (2^n - 3); n is prime and the sampled universe excludes F_2",
                cells=[window_closure(int(n), a.env, AA[int(n)], SM[int(n)])
                       for n in a.ns.split(",")])
     json.dump(res, open(a.out, "w"), indent=1, sort_keys=True)

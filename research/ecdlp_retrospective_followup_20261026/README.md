@@ -55,6 +55,29 @@ the certificate results. The PR #2591 `n = 31` effect is a different observable
 (Frobenius-conjugate abscissae); `matched_null/frobenius_window_closure.py`
 shows 30 of its 34 merges are forced by the window geometry (460 large
 abscissae with a point, 30 exact Frobenius merges; the PR's `L` is 460).
+**Correction, 2026-10-31 (`CORR-20261031-855c68`):** the earlier random-window
+expectation double-counted conjugates by using `2 * (n - 1) / (2^n - 2)` for
+the pair probability. For a uniform size-`s` subset of the `2^n - 2`
+non-`F_2` elements at prime degree `n`, each element has `n - 1` distinct
+non-self conjugates, so the expected unordered conjugate-pair count is
+`C(s, 2) * (n - 1) / (2^n - 3)`. The observed counts and exact forced-merge
+counts are unchanged; the corrected expectations are:
+
+| n | observed conjugate pairs | random-subset expectation | ratio |
+| ---: | ---: | ---: | ---: |
+| 17 | 128 | 63.6893 | 2.01 |
+| 19 | 60 | 17.9123 | 3.35 |
+| 23 | 54 | 1.3683 | 39.47 |
+| 29 | 70 | 0.0272 | 2,572.55 |
+| 31 | 338 | 0.0073 | 46,374.44 |
+
+Thus the `n = 17, 19, 23` windows are **not** at the random-window rate. These
+are window-level comparisons to a uniform-subset model, not a reanalysis of the
+producer's trial stream. The corrected expectation does not change the
+separate statement that 30 of 34 `n = 31` observed merges are exact Frobenius
+images. The matched-null plot and PDF are generated from `output.json` by
+`plot_matched_null.py`; they do not plot this window-closure expectation and
+were not regenerated for this correction.
 
 Files: `matched_null/matched_null_check.py`, `output.json`, `summary.txt`,
 `frobenius_window_closure.py`, `frobenius_window_closure.json`,
@@ -81,6 +104,7 @@ keys. I did not open the producer's field and curve code.
 | existence and status of every cross-referenced ledger record | read at `6a69b2d02e` |
 | `EV-BINSTD-769c7c` numbers, the matched null, `V'_0` | reproduced by the independent program |
 | window-geometry premise of the `n = 31` merges | computed (30 exact merges, `L` = 460) |
+| uniform-subset expectation for Frobenius-conjugate window pairs | corrected and unit-tested in `CORR-20261031-855c68`; not a replay of producer trials |
 | accepted-trial superset (2 of 25 pairs differ in accepted count, 6 of 25 in histogram) | counted from 50 receipts of crypto #2591 |
 | CryptoMiniSat medians, estimator algebra, FES solver share | read from crypto files / derived arithmetic |
 | registry counts (267 / 266, and 111 more) | computed from `ledger/proposals` and `tools/ecc_priority.py` |
