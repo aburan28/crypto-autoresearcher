@@ -123,7 +123,7 @@ jobs:
           python -m pytest tests/test_lean_live.py tests/test_formal_research_lane.py \
             tests/test_formal_verification_session.py \
             tests/test_formal_targets.py tests/test_formal_frontier_integration.py \
-            tests/test_mathcode_formalizer.py -q --junitxml=lean-controls.xml
+            tests/test_mathcode_formalizer.py tests/test_lean_dependency_pins.py -q --junitxml=lean-controls.xml
       - uses: actions/upload-artifact@v4
         if: always() && env.RUN_KERNEL == 'true'
         with:
@@ -244,6 +244,9 @@ jobs:
         if: env.BUILD_WORKSPACE == 'true'
         working-directory: formal
         run: lake exe cache get
+      - name: Verify actual installed dependency source pins before proof checks
+        if: env.BUILD_WORKSPACE == 'true'
+        run: python3 tools/check_lean_dependency_pins.py --workspace formal --artifact-out formal-receipts/dependency-pins-before.json
       # setup.sh's next step, and its own step here on purpose: when lake fails
       # this prints lake's error where someone triaging a red build will read
       # it, instead of only inside the verifier's receipt artifact.
@@ -258,6 +261,9 @@ jobs:
       - name: Machine-check every discharged formal target
         if: env.BUILD_WORKSPACE == 'true'
         run: python3 tools/verify_formal_targets.py --artifact-dir formal-receipts
+      - name: Verify installed dependency source pins after proof checks
+        if: env.BUILD_WORKSPACE == 'true'
+        run: python3 tools/check_lean_dependency_pins.py --workspace formal --artifact-out formal-receipts/dependency-pins-after.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
