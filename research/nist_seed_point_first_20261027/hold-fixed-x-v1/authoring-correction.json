@@ -1,0 +1,121 @@
+{
+  "task": "TASK-20261027-82d8a8",
+  "source_revision_accepted": true,
+  "scientific_runs": 0,
+  "filesystem_writes": 0,
+  "source_patch": {
+    "path": "research/nist_seed_point_first_20261027/hold-fixed-x-v1/check_fixed_x.py",
+    "expected_original_sha256": "b85f9275bd80ba46984e328d39ee2ce70691195afb3748614244f74f6310acc7",
+    "expected_revised_sha256": "7c70b0b9e4843efa19c7301cb1884229621a525812528ace70bf913eb4580de1",
+    "replacement_policy": "Require each old string to occur exactly once, then replace it with its new string. Preserve all other bytes.",
+    "replacements": [
+      {
+        "old": "def git(root, *args):\n    return subprocess.run([\"git\", \"-C\", str(root), *args], check=True, capture_output=True, text=True).stdout.strip()\n\n\ndef main():",
+        "new": "def git(root, *args):\n    return subprocess.run([\"git\", \"-C\", str(root), *args], check=True, capture_output=True, text=True).stdout.strip()\n\n\ndef committed_bytes(root, commit, path):\n    relative = Path(path).resolve().relative_to(root.resolve()).as_posix()\n    return subprocess.run([\"git\", \"-C\", str(root), \"show\", commit+\":\"+relative], check=True, capture_output=True).stdout\n\n\ndef main():"
+      },
+      {
+        "old": "            require(not observed_dirty, \"execution requires a clean committed source checkout\")\n            protocol = json.loads(args.protocol.read_bytes())",
+        "new": "            protocol_bytes = args.protocol.read_bytes()\n            require(protocol_bytes == committed_bytes(root, observed_commit, args.protocol), \"protocol differs from observed committed bytes\")\n            protocol = json.loads(protocol_bytes)"
+      },
+      {
+        "old": "            code_sha = sha(Path(__file__).read_bytes())",
+        "new": "            code_bytes = Path(__file__).read_bytes()\n            require(code_bytes == committed_bytes(root, observed_commit, Path(__file__)), \"checker differs from observed committed bytes\")\n            code_sha = sha(code_bytes)"
+      },
+      {
+        "old": "            blobs = {p:(root/p).read_bytes() for p in PINS}\n            docs = [bound_json(blobs[p], digest) for p,digest in PINS.items()]",
+        "new": "            blobs = {p:(root/p).read_bytes() for p in PINS}\n            for path, data in blobs.items():\n                require(data == committed_bytes(root, observed_commit, root/path), \"input differs from observed committed bytes: \" + path)\n            docs = [bound_json(blobs[p], digest) for p,digest in PINS.items()]"
+      }
+    ]
+  },
+  "protocol_json_patch": [
+    {
+      "op": "replace",
+      "path": "/metrics/primary/0/uncertainty",
+      "value": "none_exact"
+    },
+    {
+      "op": "replace",
+      "path": "/metrics/secondary/0/uncertainty",
+      "value": "none_exact"
+    },
+    {
+      "op": "replace",
+      "path": "/arms/0/instrument/binary_sha256",
+      "value": "7c70b0b9e4843efa19c7301cb1884229621a525812528ace70bf913eb4580de1"
+    },
+    {
+      "op": "replace",
+      "path": "/arms/1/instrument/binary_sha256",
+      "value": "7c70b0b9e4843efa19c7301cb1884229621a525812528ace70bf913eb4580de1"
+    },
+    {
+      "op": "replace",
+      "path": "/arms/2/instrument/binary_sha256",
+      "value": "7c70b0b9e4843efa19c7301cb1884229621a525812528ace70bf913eb4580de1"
+    },
+    {
+      "op": "replace",
+      "path": "/arms/3/instrument/binary_sha256",
+      "value": "7c70b0b9e4843efa19c7301cb1884229621a525812528ace70bf913eb4580de1"
+    },
+    {
+      "op": "replace",
+      "path": "/variable_ledger/factors/2/value",
+      "value": "7c70b0b9e4843efa19c7301cb1884229621a525812528ace70bf913eb4580de1"
+    },
+    {
+      "op": "replace",
+      "path": "/analysis_plan/script/sha256",
+      "value": "7c70b0b9e4843efa19c7301cb1884229621a525812528ace70bf913eb4580de1"
+    },
+    {
+      "op": "replace",
+      "path": "/invalidation_rules/1",
+      "value": "Checker source, requested protocol or bound input differs from its bytes at the observed Git commit, or a required bound path is not committed inside the repository."
+    },
+    {
+      "op": "add",
+      "path": "/extensions/bound_source_admission",
+      "value": "Before membership evaluation, require the checker source, requested protocol and all three pinned input files to equal their exact bytes at the observed Git commit. The requested protocol must resolve inside the repository. Retain the frozen protocol hash, analysis and instrument source hashes, input pins and ancestral commit checks. Record the initial dirty state in started.json; unrelated dirty paths do not invalidate admission and are never modified."
+    }
+  ],
+  "documentation_patches": [
+    {
+      "path": "research/nist_seed_point_first_20261027/hold-fixed-x-v1/PROTOCOL.md",
+      "replacements": [
+        {
+          "old": "The program refuses an existing output path, a dirty initial checkout, an unfrozen protocol, missing source or analysis pins, or mismatched exact inputs.",
+          "new": "The program refuses an existing output path, an unfrozen protocol, uncommitted or modified bound checker/protocol/input files, missing source or analysis pins, or mismatched exact inputs. It records unrelated dirty paths without changing them or treating them as study blockers."
+        }
+      ]
+    },
+    {
+      "path": "research/nist_seed_point_first_20261027/hold-fixed-x-v1/DESIGN_NOTE.md",
+      "replacements": [
+        {
+          "old": "b85f9275bd80ba46984e328d39ee2ce70691195afb3748614244f74f6310acc7",
+          "new": "7c70b0b9e4843efa19c7301cb1884229621a525812528ace70bf913eb4580de1"
+        },
+        {
+          "old": "Use a clean committed checkout and a new output directory, retain every failure and exact invocation, and preserve source, input, inference and environment metadata.",
+          "new": "Use committed, byte-identical bound checker, protocol and inputs and a new output directory; record unrelated dirty paths without changing them, retain every failure and exact invocation, and preserve source, input, inference and environment metadata."
+        }
+      ]
+    }
+  ],
+  "preserved_boundaries": {
+    "protocol_status": "draft",
+    "freeze_deferred": true,
+    "approval_deferred": true,
+    "new_memberships_evaluated": 0,
+    "main_rows": 24,
+    "canonical_omission_rows": 11,
+    "published_self_rows": 10,
+    "alternate_sign_sensitivity_rows": 3,
+    "alternate_sign_x_transport": "none",
+    "advisory_estimated_total_seconds": 60,
+    "advisory_estimate_measured_on": null,
+    "other_owner_files_modified": false,
+    "official_research_transition": false
+  }
+}
