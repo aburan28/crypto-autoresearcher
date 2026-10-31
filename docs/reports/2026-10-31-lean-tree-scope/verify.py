@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import gzip
 import hashlib
 import json
 import os
@@ -16,9 +17,9 @@ import subprocess
 
 HERE = Path(__file__).resolve().parent
 SNAPSHOTS = {
-    'crypto': ('192e5eec8b16fc7ce632c00f2a6d65fb9e60fb8c', 'crypto.json'),
-    'cryptanalysis': ('d3673ee089dd2a3a4ba15da087b95ebf2fb8e123', 'cryptanalysis.json'),
-    'auto-researcher': ('7a40243d9db4de7c1310e2534897b7d6e7d02929', 'auto-researcher.json'),
+    'crypto': ('192e5eec8b16fc7ce632c00f2a6d65fb9e60fb8c', 'crypto.json.gz'),
+    'cryptanalysis': ('d3673ee089dd2a3a4ba15da087b95ebf2fb8e123', 'cryptanalysis.json.gz'),
+    'auto-researcher': ('7a40243d9db4de7c1310e2534897b7d6e7d02929', 'auto-researcher.json.gz'),
 }
 ARCHIVE = '6d83c09bc224472fedbfa5c1baa7e65b20502573'
 RECEIPT = 'reports/lean-current-corpus-20261025-main-update/receipt.json'
@@ -66,7 +67,8 @@ def build(repos: dict[str, Path]) -> dict:
     trees = {}
     for name, (commit, filename) in SNAPSHOTS.items():
         repo = repos[name]
-        data = (HERE / filename).read_bytes()
+        archive = (HERE / filename).read_bytes()
+        data = gzip.decompress(archive)
         inv = json.loads(data)
         lean, blobs, nonblobs, tree_oid = tree(repo, commit)
         require(inv['source_commit'] == commit and inv['source_tree'] == tree_oid,
@@ -80,7 +82,8 @@ def build(repos: dict[str, Path]) -> dict:
         require(len(recorded) == len(inv['lean_files']), f'{name}: duplicate Lean path')
         snapshots[name] = {
             'commit': commit, 'tree': tree_oid, 'inventory': filename,
-            'inventory_sha256': digest(data), 'tracked_blobs': blobs,
+            'inventory_sha256': digest(data), 'archive_sha256': digest(archive),
+            'tracked_blobs': blobs,
             'tracked_lean_files': len(lean),
             'lexical_theorem_lemma_pointers': inv['counts']['lexical_theorem_lemma_pointers'],
             'tracked_study_directories': inv['counts']['tracked_study_directories'],
