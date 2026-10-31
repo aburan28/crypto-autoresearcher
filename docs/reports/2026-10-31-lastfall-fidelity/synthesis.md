@@ -73,7 +73,11 @@ The source reviewer also found that the producer note's adjacent Theorem 2.9
 restatement omitted the paper's fall-existence condition. A subsequent scoped
 documentation correction restores it and narrows the target note and
 measurement bridge to the finite-profile evidence actually available. The
-formal Theorem 2.8 declaration and its hypotheses are unchanged.
+formal Theorem 2.8 declaration and its hypotheses are unchanged. A later
+comment-only correction to `LastFall.lean` removes its residual finite-profile
+overclaim and fixes two closure explanations; no declaration or proof term is
+edited. The original reviewer reports and input bindings still refer to the
+pre-correction producer tree.
 
 The report PDFs and SVGs are explanatory diagrams, not benchmark plots. No
 measured performance figure or public dashboard value changes as a result of
