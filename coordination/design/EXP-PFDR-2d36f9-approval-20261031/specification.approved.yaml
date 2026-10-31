@@ -165,6 +165,78 @@ experiment:
       The IDEA's Stage 1 (slope of log kappa on log N over bits 16..22 of EXP-PFDR-ca5e01) reads data whose cell
       outcome is already known (O-MIXED). It is kept as a descriptive secondary trial on the committed
       analysis.json and main-jobs.jsonl and never enters the reading.
+  variable_ledger:
+    independent:
+      - name: rung_bits
+        levels: [16, 20, 24, 28, 32]
+      - name: line
+        levels: ['theta=0.30,d=1', 'theta=0.30,d=2', 'theta=0.30,d=3', 'theta=0.35,d=1', 'theta=0.35,d=2', 'theta=0.35,d=3']
+      - name: gamma
+        levels: [0, 0.1666666667, 0.3333333333, 0.5]
+    factors:
+      - name: curve
+        treatment: randomized
+        how: frozen seed rule block_offset + c, c < 4000; cells at one rung share the curve set of their block
+      - name: base_builder
+        treatment: fixed
+        value: window_base, gap_base, null_base, gamma_plant_base, zn_interval_base
+        how: one implementation, sha256-bound in trial-plan.json
+      - name: null
+        treatment: randomized
+        value: 20 uniform symmetric bases of exactly b points
+        how: seeded per (kind, block, rung, theta, d or gamma, curve index)
+      - name: kernel
+        treatment: fixed
+        value: paircount.c with the p < 2^32 key-bound fix
+        how: one build for every arm; selftest gate
+      - name: seed_block
+        treatment: fixed
+        value: pilot 6000000; main 6100000; replication 6200000; selftest 6900000
+        how: disjoint blocks; no cell crosses a block
+      - name: null_replicate
+        treatment: randomized
+        how: 20 seeded uniform symmetric bases; replicate 0 is an A/A pseudo-line
+      - name: host_and_load
+        treatment: measured
+        how: recorded per job; affects wall time only, never a primary metric
+    comparisons:
+      - id: C-line-slope
+        arms: [six preregistered lines]
+        differs_in: []
+        design: absolute
+        note: each line's delta is read against delta* = 1/3
+      - id: C-aa-null
+        arms: [null-replicate-0, null-replicates]
+        differs_in: [null_replicate]
+        design: aa
+      - id: C-plant-recovery
+        arms: [gamma 0, gamma 1/6, gamma 1/3, gamma 1/2]
+        differs_in: [gamma]
+        design: one_factor
+        note: each plant is compared with its realized design slope
+      - id: C-zn
+        arms: [Z/N interval base]
+        differs_in: []
+        design: absolute
+        note: slope 1 - theta within 0.05
+    crosses_map: false
+  prediction_provenance:
+    - prediction: P-delta-star
+      first_recorded_in: ledger/decisions/DEC-20261031-e8e84b.yaml
+      written_at: '2026-10-31'
+      data_seen:
+        - path: experiments/EXP-PFDR-ca5e01/specification.yaml
+          measured: The predecessor contract fixes the pair-sum census; no 2d36f9 rung data has been observed.
+      sample_status: out_of_sample
+      scope: Toy, bits 16-32, h=2; no transfer beyond 32 bits.
+    - prediction: P-control-slopes
+      first_recorded_in: experiments/EXP-PFDR-2d36f9/specification.yaml
+      written_at: '2026-10-31'
+      data_seen:
+        - path: experiments/EXP-PFDR-ca5e01/runs/
+          measured: Historical ca5e01 census is used only for the descriptive reanalysis-ca5e01 trial (R5); no plant or Z/N slope has been observed at these rungs.
+      sample_status: out_of_sample
+      scope: Control and calibration predictions for the frozen builders only.
   controls:
   - id: C1
     name: kernel and builder selftest
