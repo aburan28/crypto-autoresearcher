@@ -82,12 +82,21 @@ Its calculated admission envelope is 21,372,163,527 bytes under the unchanged
 
 The request launched locally at 23:12:36 UTC after polynomial03 terminated.
 Both campaign locks and unchanged memory admission passed; all three worker
-controls passed, and fresh counting returned 2 solutions. D4 production is
-active. Closed records are in `validation/rand03-d4-local-progress-001`.
-An accepted D4 seed prepares the original D5 continuation; it neither completes
-that frontier input nor adds an input to the separate 32-input D4 panel.
-The remaining original panel inputs stay pending and resume after this seed
-preparation. No field, target, subspace, or sample was redrawn.
+controls passed, and fresh counting returned 2 solutions. The original
+independent checker accepted the completed D4 certificate with codimension
+at least 61,196, so this exact input has LFD at least 5. The collector
+verified all 47 worker artifacts and the successful terminal record in
+`validation/rand03-d4-local-final-001`. The [report](reports/rand03-d4-local-001/report.md)
+records the exact evidence and public readback. This accepted seed prepares
+the original D5 continuation; it neither completes that frontier input nor
+adds an input to the separate 32-input D4 panel. No field, target, subspace,
+or sample was redrawn.
+
+The next original D4 panel input, n45 polynomial04, passed bounded memory
+admission after 535.5 seconds at 00:35:53 UTC on October 31. Its three
+worker controls passed, fresh exact counting found zero solutions, and D4
+production is active. The five remaining n45 random-subspace input systems,
+plans, and protocols are committed and frozen in inventory order behind it.
 After a local D4 attempt is terminal, `collect_panel_result.py` verifies its
 pinned artifacts, controls, exact count, and original checker transcript.
 `normalize_local_certificate.py` then creates a write-once publication view
