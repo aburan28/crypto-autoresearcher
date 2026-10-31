@@ -84,9 +84,99 @@ def native_status(record):
     return {"completed": "succeeded", "timed_out": "timeout", "interrupted": "interrupted",
             "native_nonzero": "failed", "invalid_output": "infra_error", "infrastructure_error": "infra_error"}.get(record["status"], "infra_error")
 
+def native_rows_for_export(manifest_path, manifest, item):
+    """Hash the complete stream while retaining valid rows before bad lines.
+
+    A malformed final line is retained as an explicit infrastructure finding;
+    it must not erase other children or the original stream's custody record.
+    """
+    root = manifest_path.parent
+    if (root / item["path"]).is_file():
+        parts = [item]
+    else:
+        prefix = item["path"] + ".parts/"
+        parts = sorted((p for p in manifest["files"] if p["path"].startswith(prefix)), key=lambda p: p["path"])
+        analysis.require(parts, "native original and exact parts unavailable")
+    digest, size, rows, findings, line_number = hashlib.sha256(), 0, [], [], 0
+    for part in parts:
+        path = root / part["path"]
+        analysis.require(path.stat().st_size == part["bytes"] and analysis.sha(path) == part["sha256"],
+                         "native stream/part bytes differ")
+        with path.open("rb") as stream:
+            for line in stream:
+                digest.update(line)
+                size += len(line)
+                line_number += 1
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                    if not isinstance(row, dict) or row.get("scope") != analysis.SCOPE:
+                        raise ValueError("unexpected native row scope/type")
+                    rows.append(row)
+                except (UnicodeDecodeError, ValueError, TypeError) as error:
+                    findings.append({"path": item["path"], "line": line_number,
+                                     "error_type": type(error).__name__})
+    analysis.require(size == item["bytes"] and digest.hexdigest() == item["sha256"],
+                     "logical native stream reconstruction differs")
+    return rows, findings
+
+def verification_binding_findings(verification, manifest_path, manifest, raw_files,
+                                  expected_arms, public_inputs):
+    """Accept a passing verifier only when it covers this exact export input."""
+    if verification.get("status") != "public_equations_and_trace_pass":
+        return []
+    findings = []
+    inputs = verification.get("input_sha256", {})
+    if not isinstance(inputs, dict):
+        return ["independent verifier input_sha256 is missing or malformed"]
+    reported_arms = verification.get("expected_arms")
+    if not isinstance(reported_arms, list) or any(not isinstance(arm, str) for arm in reported_arms) or sorted(reported_arms) != sorted(expected_arms):
+        findings.append("independent verification expected-arm coverage differs")
+    accepted_input_keys = set()
+
+    def matching_keys(path, digest):
+        return {key for key in (str(path), str(path.resolve())) if inputs.get(key) == digest}
+
+    for name, path in public_inputs.items():
+        matches = matching_keys(path, analysis.sha(path)) if path.is_file() else set()
+        if not matches:
+            findings.append("independent verifier does not bind public input: " + name)
+        accepted_input_keys.update(matches)
+    for item in raw_files:
+        original = manifest_path.parent / item["path"]
+        matches = matching_keys(original, item["sha256"])
+        if matches:
+            accepted_input_keys.update(matches)
+            continue
+        prefix = item["path"] + ".parts/"
+        parts = [p for p in manifest["files"] if p["path"].startswith(prefix)]
+        part_matches = [matching_keys(manifest_path.parent / part["path"], part["sha256"]) for part in parts]
+        if parts and all(part_matches):
+            for matched in part_matches:
+                accepted_input_keys.update(matched)
+            continue
+        findings.append("independent verifier does not bind native stream or all exact parts: " + item["path"])
+    if set(inputs) != accepted_input_keys:
+        findings.append("independent verifier input set contains missing or unexpected paths")
+    return findings
+
+def verification_coverage_findings(verification, target_rows, witnesses, statuses):
+    if verification.get("status") != "public_equations_and_trace_pass":
+        return []
+    findings = []
+    if type(verification.get("target_arm_cases")) is not int or verification.get("target_arm_cases") != target_rows:
+        findings.append("independent verification target identity coverage differs")
+    if type(verification.get("verified_case_witnesses")) is not int or verification.get("verified_case_witnesses") != witnesses:
+        findings.append("independent verification final-scalar witness count differs")
+    reported_statuses = verification.get("producer_status_counts")
+    if not isinstance(reported_statuses, dict) or {k: v for k, v in reported_statuses.items() if v} != dict(statuses):
+        findings.append("independent verification producer-status counts differ")
+    return findings
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    for key in ("protocol", "raw_manifest", "verification", "out", "repo_root"):
+    for key in ("protocol", "raw_manifest", "verification", "out", "repo_root", "fixtures", "settings", "targets"):
         p.add_argument("--" + key.replace("_", "-"), required=True, type=Path)
     p.add_argument("--analysis-summary", type=Path)
     p.add_argument("--export-id", required=True)
@@ -115,6 +205,12 @@ def main():
                      "duplicate child execution identity")
     verification = analysis.read_json(args.verification)
     analysis.require(verification.get("schema") == "classical.ecdlp.endpoint-reuse.public-verification.v1", "actual independent public-verification summary required")
+    public_inputs = {key: getattr(args, key) for key in ("fixtures", "settings", "targets")}
+    for name, path in public_inputs.items():
+        analysis.require(path.is_file(), "actual public input is required: " + name)
+    verification_findings = verification_binding_findings(
+        verification, args.raw_manifest, manifest, raw_files,
+        [arm["id"] for arm in protocol["arms"]], public_inputs)
     if args.analysis_summary is not None:
         analysis.read_json(args.analysis_summary)
     native_by_path = {item["path"]: item for item in raw_files}
@@ -122,6 +218,9 @@ def main():
     runs = []
     first_host = None
     total_target_rows = 0
+    total_witnesses = 0
+    producer_status_counts = defaultdict(int)
+    native_stream_findings = []
     for metadata_path, record in actual:
         arm, cell, fixture, replicate = record["arm"], record["cell_id"], record["fixture_id"], record["replicate"]
         analysis.require(arm in analysis.ARMS and record["protocol_sha256"] == protocol["freeze"]["protocol_sha256"], "unplanned arm/protocol")
@@ -135,11 +234,18 @@ def main():
         analysis.require(arm not in observed_arm_ids or observed_arm_ids[arm] == identity, "one arm used different instruments")
         observed_arm_ids[arm] = identity
         raw_path = record.get("raw_output")
-        rows = list(analysis.stream_parts(args.raw_manifest, manifest, native_by_path[raw_path])) if raw_path in native_by_path else []
+        rows, stream_findings = native_rows_for_export(args.raw_manifest, manifest, native_by_path[raw_path]) if raw_path in native_by_path else ([], [])
+        if raw_path not in native_by_path and record["status"] == "completed":
+            stream_findings.append({"path": raw_path, "error_type": "MissingCompletedNativeStream"})
+        native_stream_findings.extend(stream_findings)
         for row in rows:
             analysis.require((row["cell_id"], row["fixture"], row["replicate"], row["arm"]) == (cell, fixture, replicate, arm), "native child identity mismatch")
         counted = target_metrics(rows)
         total_target_rows += counted["observed_target_cases"]
+        total_witnesses += counted["observed_verified_scalar_claims"]
+        for row in rows:
+            if row["row_kind"] == "target":
+                producer_status_counts[row["status"]] += 1
         counters = counter_sequences(rows)
         counters["native_trace_rows"] = len(rows)
         if raw_path in native_by_path:
@@ -151,7 +257,9 @@ def main():
         clock, host = record.get("clock") or {}, record.get("host_before") or {}
         first_host = first_host or host
         status = native_status(record)
-        equation_pass = verification.get("status") == "public_equations_and_trace_pass"
+        if stream_findings:
+            status = "infra_error"
+        equation_pass = verification.get("status") == "public_equations_and_trace_pass" and not verification_findings and not stream_findings
         excluded = status != "succeeded" or not equation_pass
         prefix = metadata_path.parent.relative_to(raw_root).as_posix() + "/"
         artifacts = []
@@ -172,12 +280,20 @@ def main():
                      "exclusion": {"excluded": excluded, "rule": "incomplete child or independent public witness/trace check did not pass" if excluded else None},
                      "artifacts": artifacts, "started_at": record.get("started_at"), "finished_at": record.get("finished_at"),
                      "worker": host.get("job_id"), "backend_ref": str(metadata_path.relative_to(raw_root))})
+    verification_findings.extend(verification_coverage_findings(
+        verification, total_target_rows, total_witnesses, producer_status_counts))
+    if verification_findings:
+        for run in runs:
+            run["verification"]["status"] = "error"
+            run["exclusion"] = {"excluded": True,
+                                "rule": "independent public verification does not bind these exact native bytes and coverage"}
     first_host = first_host or {}
     memory = first_host.get("memory_max")
     host_summary = {"cpu_model": first_host.get("cpu_model"), "logical_cpus": len(first_host["affinity_cpus"]) if "affinity_cpus" in first_host else None,
                     "memory_bytes": int(memory) if str(memory).isdigit() else None, "kernel": first_host.get("kernel"),
                     "hypervisor": None, "isolation_tier_max": first_host.get("isolation_level")}
     files = [file_entry(args.raw_manifest, args.out.parent, "receipt"), file_entry(args.verification, args.out.parent, "receipt")]
+    files.extend(file_entry(path, args.out.parent, "input") for path in public_inputs.values())
     if args.analysis_summary is not None:
         files.append(file_entry(args.analysis_summary, args.out.parent, "analysis"))
     for item in manifest["files"]:
@@ -210,6 +326,8 @@ def main():
               "backend_record": {"planned_execution_flow": manifest.get("flow"), "unattempted_execution_metadata": unattempted,
                                  "planned_target_cases": 49152, "observed_target_cases": total_target_rows,
                                  "public_target_ids": 8192, "analysis_summary_sha256": analysis.sha(args.analysis_summary) if args.analysis_summary is not None else None,
+                                 "verification_binding_findings": verification_findings,
+                                 "native_stream_findings": native_stream_findings,
                                  "format_scope": "v1 attempts requires>=1; unattempted children remain outside runs. Incomplete actual coverage is not padded and officialcheck-export may report it."}}
     findings = ep.schema_errors(export, "experiment.export/v1") or ep.lint_export(export, protocol, args.out.parent, True)
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Deterministic synthetic interface checks, never confirmation measurements."""
 import importlib.util
+import hashlib
+import json
 import math
 from pathlib import Path
 import tempfile
@@ -88,6 +90,71 @@ class Contracts(unittest.TestCase):
         self.assertEqual(actual["group_additions_m1"], 14)
         self.assertNotIn("group_additions_m64", actual)
         self.assertNotIn("verified_targets_m64", actual)
+
+    def test_passing_verifier_must_bind_public_inputs_and_native_stream_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            files = {}
+            for name in ("fixtures.tsv", "settings.tsv", "targets.tsv", "cells/c0/raw.jsonl"):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes((name + "\n").encode())
+                files[name] = {"path": name, "bytes": path.stat().st_size, "sha256": analysis.sha(path)}
+            raw = files["cells/c0/raw.jsonl"]
+            manifest_path = root / "raw-manifest.json"
+            manifest = {"files": list(files.values())}
+            public = {name.removesuffix(".tsv"): root / name for name in ("fixtures.tsv", "settings.tsv", "targets.tsv")}
+            inputs = {str(root / name): item["sha256"] for name, item in files.items()}
+            verification = {"status": "public_equations_and_trace_pass", "input_sha256": inputs,
+                            "expected_arms": list(analysis.ARMS)}
+            findings = exporter.verification_binding_findings(
+                verification, manifest_path, manifest, [raw], list(analysis.ARMS), public)
+            self.assertEqual(findings, [])
+            verification["input_sha256"].pop(str(root / "cells/c0/raw.jsonl"))
+            self.assertTrue(any("native stream" in finding for finding in exporter.verification_binding_findings(
+                verification, manifest_path, manifest, [raw], list(analysis.ARMS), public)))
+
+    def test_passing_verifier_rejects_unexpected_input_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            public = {}
+            inputs = {}
+            for name in ("fixtures.tsv", "settings.tsv", "targets.tsv"):
+                path = root / name
+                path.write_text(name + "\n")
+                public[name.removesuffix(".tsv")] = path
+                inputs[str(path)] = analysis.sha(path)
+            raw = root / "cells/c0/raw.jsonl"
+            raw.parent.mkdir(parents=True)
+            raw.write_text("{}\n")
+            item = {"path": "cells/c0/raw.jsonl", "bytes": raw.stat().st_size, "sha256": analysis.sha(raw)}
+            inputs[str(raw)] = item["sha256"]
+            inputs[str(root / "another-run/raw.jsonl")] = "a" * 64
+            verification = {"status": "public_equations_and_trace_pass", "input_sha256": inputs,
+                            "expected_arms": list(analysis.ARMS)}
+            findings = exporter.verification_binding_findings(
+                verification, root / "raw-manifest.json", {"files": [item]}, [item],
+                list(analysis.ARMS), public)
+            self.assertIn("independent verifier input set contains missing or unexpected paths", findings)
+
+    def test_passing_verifier_with_wrong_coverage_is_rejected(self):
+        verification = {"status": "public_equations_and_trace_pass", "target_arm_cases": 2,
+                        "verified_case_witnesses": 0, "producer_status_counts": {"solved": 2}}
+        findings = exporter.verification_coverage_findings(verification, 1, 1, {"solved": 1})
+        self.assertEqual(len(findings), 3)
+
+    def test_malformed_final_native_line_is_hashed_and_reported_without_losing_valid_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            raw = root / "cells/c0/raw.jsonl"
+            raw.parent.mkdir(parents=True)
+            valid = {"scope": analysis.SCOPE, "row_kind": "setup", "cell_id": "c0"}
+            raw.write_bytes((json.dumps(valid) + "\n").encode() + b'{"truncated":')
+            item = {"path": "cells/c0/raw.jsonl", "bytes": raw.stat().st_size, "sha256": analysis.sha(raw)}
+            rows, findings = exporter.native_rows_for_export(root / "raw-manifest.json", {"files": [item]}, item)
+            self.assertEqual(rows, [valid])
+            self.assertEqual(findings, [{"path": item["path"], "line": 2, "error_type": "JSONDecodeError"}])
+            self.assertEqual(item["sha256"], hashlib.sha256(raw.read_bytes()).hexdigest())
 
 if __name__ == "__main__":
     unittest.main()

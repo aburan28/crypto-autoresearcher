@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import base64
+import gzip
 import hashlib
 import io
 import json
@@ -26,6 +27,18 @@ def sha_file(path):
         for block in iter(lambda: stream.read(1048576), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def protocol_bytes_from_payload(payload):
+    if payload.get("protocol_content_encoding") != "gzip":
+        raise ValueError("gzip-compressed frozen protocol payload required")
+    try:
+        protocol_raw = gzip.decompress(base64.b64decode(payload["protocol_gzip_base64"], validate=True))
+    except (KeyError, OSError, ValueError) as error:
+        raise ValueError("invalid compressed frozen protocol payload") from error
+    if hashlib.sha256(protocol_raw).hexdigest() != payload.get("protocol_bytes_sha256"):
+        raise ValueError("protocol bytes differ from the launch request")
+    return protocol_raw
 
 
 def safe_unpack(bundle, output):
@@ -106,9 +119,10 @@ def main():
         p.error("actual immutable code source revision required")
     root = Path("/opt/study")
     info = verify_build(root, payload["build_info_sha256"], payload["source_revision"])
-    protocol_raw = base64.b64decode(payload["protocol_base64"], validate=True)
-    if hashlib.sha256(protocol_raw).hexdigest() != payload["protocol_bytes_sha256"]:
-        p.error("protocol bytes differ from the launch request")
+    try:
+        protocol_raw = protocol_bytes_from_payload(payload)
+    except ValueError as error:
+        p.error(str(error))
     protocol_path = Path("/work/protocol.json")
     with protocol_path.open("xb") as stream:
         stream.write(protocol_raw)

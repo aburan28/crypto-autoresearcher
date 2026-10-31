@@ -2,6 +2,7 @@
 """Prepare actual generic-isolab tool arguments offline; never dispatch them."""
 import argparse
 import base64
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -12,6 +13,7 @@ from urllib.parse import urlsplit
 
 IMAGE = re.compile(r"[^\s]+@sha256:[0-9a-f]{64}")
 HEX64 = re.compile(r"[0-9a-f]{64}")
+MAX_BACKEND_ARGUMENT_BYTES = 8192
 
 
 def prepare(image, source, build_info_path, protocol_path, input_uri, input_version,
@@ -49,9 +51,12 @@ def prepare(image, source, build_info_path, protocol_path, input_uri, input_vers
                "public_bundle_s3_uri": input_uri, "public_bundle_s3_version_id": input_version,
                "public_bundle_sha256": bundle_sha, "inputs_manifest_sha256": manifest_sha,
                "protocol_bytes_sha256": hashlib.sha256(protocol_raw).hexdigest(),
-               "protocol_base64": base64.b64encode(protocol_raw).decode()}
+               "protocol_content_encoding": "gzip",
+               "protocol_gzip_base64": base64.b64encode(gzip.compress(protocol_raw, mtime=0)).decode()}
     command = ["python3", "/opt/study/execution/worker.py", "--payload-base64",
                base64.b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode()]
+    if len(command[3].encode("utf-8")) > MAX_BACKEND_ARGUMENT_BYTES:
+        raise ValueError("compressed worker payload exceeds backend 8192-byte command argument limit")
     request = {"job_name": job_name, "command": command, "image": image,
                "cpu": cpu, "memory": memory, "seconds": seconds, "retries": 0}
     shell_args = ["--image", image, "--name", job_name, "--cpu", str(cpu), "--memory", memory,

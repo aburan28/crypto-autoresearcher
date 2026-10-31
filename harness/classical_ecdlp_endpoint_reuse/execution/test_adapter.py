@@ -172,6 +172,33 @@ class AdapterConformance(unittest.TestCase):
         payload = json.loads(base64.b64decode(req["command"][3]))
         self.assertEqual(payload["public_bundle_s3_version_id"], "synthetic-unit-version")
         self.assertEqual(payload["protocol_bytes_sha256"], hashlib.sha256(p.read_bytes()).hexdigest())
+        self.assertEqual(payload["protocol_content_encoding"], "gzip")
+        self.assertEqual(worker.protocol_bytes_from_payload(payload), p.read_bytes())
+        self.assertLessEqual(len(req["command"][3].encode("utf-8")), prepare_request.MAX_BACKEND_ARGUMENT_BYTES)
+
+    def test_full_protocol_payload_stays_under_backend_argument_limit(self):
+        protocol = frozen_protocol()
+        protocol["design_notes"] = "six-arm protocol field " * 3000
+        body = {k: v for k, v in protocol.items() if k != "freeze"}
+        protocol["freeze"]["protocol_sha256"] = hashlib.sha256(
+            json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+        p = self.root / "large-protocol.json"
+        p.write_text(json.dumps(protocol, separators=(",", ":")))
+        self.assertGreater(p.stat().st_size, 50000)
+        b = self.root / "build-info.json"
+        b.write_text(json.dumps({"schema": "classical.ecdlp.endpoint-reuse.image-build/v1",
+                                 "source_revision": "a" * 40, "binary_sha256": "b" * 64}))
+        req, _ = prepare_request.prepare("example.invalid/unit@sha256:" + "c" * 64, "a" * 40, b, p,
+            "s3://unit-test/inputs/public.tar.gz", "synthetic-unit-version", "d" * 64, "e" * 64,
+            "unit-large")
+        self.assertLessEqual(len(req["command"][3].encode("utf-8")), prepare_request.MAX_BACKEND_ARGUMENT_BYTES)
+        payload = json.loads(base64.b64decode(req["command"][3]))
+        protocol_bytes = worker.protocol_bytes_from_payload(payload)
+        self.assertEqual(hashlib.sha256(protocol_bytes).hexdigest(), payload["protocol_bytes_sha256"])
+        self.assertEqual(protocol_bytes, p.read_bytes())
+        payload["protocol_bytes_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "protocol bytes differ"):
+            worker.protocol_bytes_from_payload(payload)
 
     def test_missing_connection_and_digest_fail_before_network(self):
         result = readiness_probe.probe(None, str(self.root / "missing-official-mcp"))
