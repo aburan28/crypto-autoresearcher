@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import gzip
 import json
 import math
 import os
@@ -327,6 +328,13 @@ def _run_jobs(kernel: str, todo: list, out_path: str, nulls_only: bool) -> None:
 
 
 def _load(path: str) -> list[dict]:
+    # Large run artifacts are stored gzipped (AGENTS.md artifact policy); read
+    # the stored form transparently when the plain path is absent.
+    if not os.path.exists(path) and os.path.exists(path + ".gz"):
+        path = path + ".gz"
+    if path.endswith(".gz"):
+        with gzip.open(path, "rt") as f:
+            return [json.loads(ln) for ln in f]
     with open(path) as f:
         return [json.loads(ln) for ln in f]
 
