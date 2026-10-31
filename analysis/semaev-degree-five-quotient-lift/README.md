@@ -50,6 +50,12 @@ native checkpoint, D5 certificate, or final result. The
 retains the exact job, pod, and object hashes. This is a terminal interruption;
 no replacement frontier job or restore has launched. An accepted positive
 D5 codimension on this zero-solution input would establish LFD at least six.
+The new [capacity profile](reports/rand00-envelope-001/report.md) verifies
+126,387 border coordinates by two enumeration methods, giving 187,583 D5
+working coordinates. Applying the corrected blocked source formula gives
+94,262,240,264 bytes under the existing 96 GiB child limit. This makes a
+checkpoint-capable rerun eligible for later admission; it does not replace
+the active random02 job or the prepared random03 input.
 
 The blocked rewrite with bounded export and native checkpoints has passed
 28 native configurations and nine actual local-worker controls; see the
