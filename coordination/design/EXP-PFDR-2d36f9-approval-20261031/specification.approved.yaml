@@ -1,0 +1,399 @@
+experiment:
+  id: EXP-PFDR-2d36f9
+  hypothesis_id: H-PFDR-ed7ccf
+  source_idea: IDEA-20261018-a0830c
+  question_id: RQ-PFDR-ae2fba
+  goal_id: GOAL-PFDR-fd09e0
+  version: 1
+  title: 'Break-even growth ladder: slope of log2 kappa on log2 N for window and rank-d label-GAP symmetric
+    bases (theta 0.30, 0.35; d 1, 2, 3) against a matched uniform null on prime-order E/F_p at rungs of 16, 20,
+    24, 28 and 32 bits, with gamma-slope plants, a Z/N interval positive control, an A/A null line and
+    replication on fresh curves'
+  experiment_class: heuristic-validation
+  status: approved
+  frozen: true
+  approved_by: DEC-20261031-47307d
+  approval_decision: DEC-20261031-47307d
+  approved_at: '2026-10-31'
+  approval_basis: AGENTS.md standing user authorization (2026-09-06); preapproval approvable true for these exact bytes.
+  execution_authorized: true
+  designed_at: '2026-10-31'
+  designed_by: coordinator
+  design_decision: DEC-20261031-e8e84b
+  id_provenance: >-
+    Allocated by the top-level session with tools/allocate_id.py --next experiment and confirmed free with --check
+    on 2026-10-31. Run ids are not yet allocated; the implementation lane mints them with
+    tools/allocate_id.py (allocate_many_runs) and binds them in trial-plan.json.
+  status_note: >-
+    Approved and frozen under DEC-20261031-47307d after tools/experiment_preapproval.py reported
+    approvable: true on the exact prospective specification, trial plan, dispatch queue and executor
+    handoff. Approval authorizes the seven planned trials only; it asserts nothing about H-PFDR-ed7ccf.
+  objective: >-
+    For each of six preregistered structured lines (theta in {0.30, 0.35} x d in {1, 2, 3}) measure kappa_r at
+    five rungs (bits 16, 20, 24, 28, 32) on fresh curves exactly as EXP-PFDR-ca5e01 measures kappa per cell, and
+    estimate the growth exponent delta as the slope of log2 kappa_r on the rung mean of log2 N, with a
+    curve-cluster bootstrap 95% interval. Compare each line with the break-even rate delta* = 1/3 (h = 2; a factor
+    2^(8/3) = 6.35 per 8 bits). The experiment measures a growth rate of a coincidence count; it measures no cost
+    against rho and claims no speedup.
+  input_bindings:
+    base_implementation:
+      path: experiments/EXP-PFDR-ca5e01/implementation/run.py
+      sha256: 5e39cf0c33a7e4789c47adc9409dacf14a8d7314e9e0b192343a34feebb79650
+      role: base builders and census logic adapted by this contract
+    base_kernel:
+      path: experiments/EXP-PFDR-ca5e01/implementation/paircount.c
+      sha256: 151d2fa22e45a6fff7a1219b0a0d4d0b3c0bdf725a3ea853bcb11758116c3169
+      role: pair-sum kernel base; p-bound fix is bound in trial-plan source_sha256
+    vendored_curve:
+      path: src/crypto_autoresearcher/index_calculus/curve.py
+      sha256: fcca2beb699b4785c25820df1d949b757be7a273efd2f4f015625d7aa13c67fa
+      role: certified prime-order curve generator
+  inputs:
+    implementation_sources:
+      note: >-
+        To be written by the implementation lane under experiments/EXP-PFDR-2d36f9/implementation/, derived from
+        experiments/EXP-PFDR-ca5e01/implementation/ (run.py, check.py, paircount.c) and a vendored curve.py; their
+        sha256 values are bound by trial-plan.json source_sha256 at freeze. None exists on 2026-10-31.
+      sha256_binding: trial_plan_source_sha256
+      files:
+      - path: run.py
+        provenance: 'new; subcommands selftest, pilot, census, analyze; base builders reused from EXP-PFDR-ca5e01 run.py (window_base, gap_base, null_base); new: gamma_plant_base, zn_interval_base, slope analysis'
+      - path: check.py
+        provenance: new; producer-written output checker
+      - path: paircount.c
+        provenance: 'verbatim copy of experiments/EXP-PFDR-ca5e01/implementation/paircount.c if its selftest passes at p < 2^32 (keys x*p + y < p^2 < 2^64); otherwise a reviewed fix bound before freeze'
+      - path: vendor/curve.py
+        provenance: 'verbatim copy of src/crypto_autoresearcher/index_calculus/curve.py at a named commit, provided generate_prime_order_curve reaches 32 bits with a certified order; otherwise a separately bound order-certification module'
+    curves:
+      family: prime-order ordinary short-Weierstrass E/F_p
+      generator: vendor curve.generate_prime_order_curve(bits, seed)
+      bits: [16, 20, 24, 28, 32]
+      seed_rule: 'seed = block_offset + c; block offsets pilot 6,000,000, main 6,100,000, replication 6,200,000,
+        selftest 6,900,000; c < 4000. Cells at one rung share the curve set of their block.'
+      order_certification: 'for every curve: N prime, N in the Hasse interval, and N*P = O for 4 seeded random points'
+    lines:
+      structured: 'theta in {0.30, 0.35} x d in {1 (window), 2, 3 (label GAP)}; six lines, all preregistered; no line is selected after data'
+      cell: 'a (rung, theta, d) triple; b = 2*round(2^(bits*theta)/2); 30 structured cells; all have 16 <= b <= 4096'
+    counting_convention: >-
+      Identical to EXP-PFDR-ca5e01: for a symmetric base F of exactly b points, C(F) = sum over s != O of
+      binom(m_s, 2), m_s the number of unordered pairs {P, Q} in F with P != Q, Q != -P, P + Q = s.
+    bases:
+      structured: 'window (d = 1) and rank-d label GAP (d = 2, 3) exactly as EXP-PFDR-ca5e01 inputs.bases'
+      null: '20 uniformly random symmetric bases of exactly b points per (rung, theta, curve), shared by the three d of that (rung, theta)'
+      gamma_plants: >-
+        For gamma in {0, 1/6, 1/3, 1/2}, per (rung, theta, curve): {+-kG : 1 <= k <= L} plus uniformly random
+        symmetric fill (avoiding the planted x) to exactly b points. Target design kappa
+        K_gamma(r) = 1.3 x 2^(gamma x (Lbar_r - Lbar_16)), Lbar_r the pilot mean of log2 N at rung r. L is the
+        smallest integer in [1, b/4] with plant_internal(L) >= (K_gamma(r) - 1) x pilot_mean_null(r, theta);
+        plant_feasible false when even L = b/4 falls short (the plant line is then invalid, never recovered). The
+        realized design slope gamma_design is the slope of log2(1 + plant_internal(L_r) / pilot_mean_null) on
+        Lbar_r, recorded in design.json by the pilot before any census. Because plant_internal(L) is integer-valued
+        and small at bits 16 (b = 28 at theta 0.30), L is set per curve by seeded randomized rounding between the
+        adjacent integers L_lo and L_lo + 1 whose plant_internal values bracket the target, with the probability
+        that makes the expected plant_internal equal to the target; gamma_design then uses the pooled realized
+        plant_internal per rung.
+      zn_interval: '{+-kG : 1 <= k <= b/2} (exactly b points), per (rung, theta, curve); known slope about 1 - theta'
+      rng: 'random.Random seeded by sha256("EXP-PFDR-2d36f9|" + labels) with labels (kind, block, rung, theta, d or gamma, curve index[, replicate])'
+    sizing:
+      trial: pilot
+      rule: 'per (rung, theta): mean_null over 8 pilot curves x 20 nulls; n_curves = clamp(ceil(1.1 x 2500 / mean_null), 10, 4000); recorded in design.json with gamma_design per plant line before any census'
+    statistics:
+      per_cell: 'S, M, V, kappa = S/M, z = (S - M)/sqrt(V (1 + 1/20)), z_cal (null replicate 0 against the other 19), as EXP-PFDR-ca5e01 statistics.per_cell'
+      per_line: >-
+        delta_hat = ordinary least-squares slope of log2 kappa_r on Lbar_r (main-block mean of log2 N_c over the
+        rung curve set) over the five rungs; 95% interval = 2.5/97.5 percentiles of 2000 bootstrap replicates that
+        resample curves with replacement independently within each rung and recompute S_r, M_r, kappa_r and the
+        slope (seeded per line by sha256 of the line label); residuals of the five-rung fit recorded.
+      per_8_bit_ratios: 'kappa(24)/kappa(16) and kappa(32)/kappa(24) with bootstrap intervals, against R* = 6.35 (descriptive; the literal per-rung form of the lead criterion)'
+      powered: M_r >= 2500 at every rung of the line
+    line_classes:
+      order: first matching class in the order below
+      invalid: 'any rung cell of the line has fewer ok records than n_curves (failed_infrastructure) or M_r < 2500'
+      ALIVE: 'lower95(delta) > 0 and upper95(delta) >= 1/3'
+      SUB-BE-GROWING: 'lower95(delta) > 0 and upper95(delta) < 1/3'
+      SUB-BE: 'lower95(delta) <= 0 and upper95(delta) < 1/3'
+      UNRESOLVED: otherwise (interval straddles both 0 and 1/3)
+    replication_rule: >-
+      Every structured line classified ALIVE in analyze-main is re-measured on the replication block at all five
+      rungs with its n_curves; it survives iff the replication slope has lower95 > 0 and upper95 >= 1/3. The effect
+      size is read from the replication block. BREAK-EVEN-MET is recorded iff it survives and the replication
+      delta_hat >= 1/3.
+    outcome_rules:
+      field: analysis.json /reading (analyze-final)
+      order: first matching rule in the order below
+      O-INVALID: 'selftest fails, or any blocking control (C3, C4, C5, C6) fails, or fewer than 5 of the 6 structured lines are valid'
+      O-ALIVE: at least one ALIVE structured line survives replication
+      O-PENDING-REPLICATION: 'an ALIVE line has no complete replication records; legitimate only at analyze-main'
+      O-SUB-BE: every valid structured line is SUB-BE or SUB-BE-GROWING
+      O-MIXED: otherwise
+  coordinator_resolutions:
+  - id: R1
+    topic: rung spacing and the lead criterion
+    text: >-
+      The lead asks for 3+ rungs from 16 to 32 bits and growth of 2^(8 delta*) per rung. Five rungs 4 bits apart
+      include the three 8-bit-spaced rungs 16, 24, 32, so the literal per-8-bit ratio is reported for both 8-bit
+      steps, while the decisive statistic is the five-rung slope (more power, and a curvature check of H1).
+      delta_hat >= 1/3 is the same statement as a fitted ratio >= 6.35 per 8 bits.
+  - id: R2
+    topic: geometry scope (FAM-1 not included)
+    text: >-
+      LEAD-ICP-coincidence-harvest-structured-base names "the best FAM-1 geometry" (EV-PFDR-ad6274: subgroup,
+      small_x and dickson arms of the EXP-PFDR-011cd0 mitm engine, kappa_rel at 30-32 bits; best reading small_x TT
+      m = 4, kappa_rel 0.998). That engine's implementation is not present in this checkout, so its rung
+      behaviour from 16 bits cannot be bound now. Version 1 measures the six point-base lines of
+      IDEA-20261018-a0830c, which the idea itself specifies. The FAM-1 ladder is a separate follow-up
+      (DEC-20261031-e8e84b NA-3); this experiment does not discharge the lead's FAM-1 clause, and choosing a
+      "best" geometry after data is excluded (winner's curse; the IDEA's H2).
+  - id: R3
+    topic: plant slopes
+    text: >-
+      The IDEA's blocking plant recovers gamma 0, 1/6 and 1/3 within 0.03. gamma = 1/3 sits exactly on the
+      decision boundary, so it cannot test classification; a gamma = 1/2 plant is added as the ALIVE positive
+      control, and gamma = 0 is the negative control (an N-constant excess, the archetype of the IDEA's column ii,
+      must classify SUB-BE). Recovery is compared with the realized design slope gamma_design (integer L), and a
+      plant line counts only if |gamma_design - gamma| <= 0.05.
+  - id: R4
+    topic: calibration band for 30 cells and six A/A lines
+    text: >-
+      With 30 structured cells the sampling sd of sd(z_cal) is about 1/sqrt(60) = 0.13 and of mean(z_cal) about
+      1/sqrt(30) = 0.18; the gate is sd in [0.70, 1.30] and |mean| <= 0.40 (about 2.2 to 2.3 standard errors). The
+      IDEA's "null slope CI excludes 0 in more than 10% of cells" becomes "in more than 1 of 6 A/A lines". Cells
+      at one rung share curves, so z_cal values are not independent.
+  - id: R5
+    topic: stage 1 re-analysis of RUN-PFDR-b7c582
+    text: >-
+      The IDEA's Stage 1 (slope of log kappa on log N over bits 16..22 of EXP-PFDR-ca5e01) reads data whose cell
+      outcome is already known (O-MIXED). It is kept as a descriptive secondary trial on the committed
+      analysis.json and main-jobs.jsonl and never enters the reading.
+  variable_ledger:
+    independent:
+      - name: rung_bits
+        levels: [16, 20, 24, 28, 32]
+      - name: line
+        levels: ['theta=0.30,d=1', 'theta=0.30,d=2', 'theta=0.30,d=3', 'theta=0.35,d=1', 'theta=0.35,d=2', 'theta=0.35,d=3']
+      - name: gamma
+        levels: [0, 0.1666666667, 0.3333333333, 0.5]
+    factors:
+      - name: curve
+        treatment: randomized
+        how: frozen seed rule block_offset + c, c < 4000; cells at one rung share the curve set of their block
+      - name: base_builder
+        treatment: fixed
+        value: window_base, gap_base, null_base, gamma_plant_base, zn_interval_base
+        how: one implementation, sha256-bound in trial-plan.json
+      - name: null
+        treatment: randomized
+        value: 20 uniform symmetric bases of exactly b points
+        how: seeded per (kind, block, rung, theta, d or gamma, curve index)
+      - name: kernel
+        treatment: fixed
+        value: paircount.c with the p < 2^32 key-bound fix
+        how: one build for every arm; selftest gate
+      - name: seed_block
+        treatment: fixed
+        value: pilot 6000000; main 6100000; replication 6200000; selftest 6900000
+        how: disjoint blocks; no cell crosses a block
+      - name: null_replicate
+        treatment: randomized
+        how: 20 seeded uniform symmetric bases; replicate 0 is an A/A pseudo-line
+      - name: host_and_load
+        treatment: measured
+        how: recorded per job; affects wall time only, never a primary metric
+    comparisons:
+      - id: C-line-slope
+        arms: [six preregistered lines]
+        differs_in: []
+        design: absolute
+        note: each line's delta is read against delta* = 1/3
+      - id: C-aa-null
+        arms: [null-replicate-0, null-replicates]
+        differs_in: [null_replicate]
+        design: aa
+      - id: C-plant-recovery
+        arms: [gamma 0, gamma 1/6, gamma 1/3, gamma 1/2]
+        differs_in: [gamma]
+        design: one_factor
+        note: each plant is compared with its realized design slope
+      - id: C-zn
+        arms: [Z/N interval base]
+        differs_in: []
+        design: absolute
+        note: slope 1 - theta within 0.05
+    crosses_map: false
+  prediction_provenance:
+    - prediction: P-delta-star
+      first_recorded_in: ledger/decisions/DEC-20261031-e8e84b.yaml
+      written_at: '2026-10-31'
+      data_seen:
+        - path: experiments/EXP-PFDR-ca5e01/specification.yaml
+          measured: The predecessor contract fixes the pair-sum census; no 2d36f9 rung data has been observed.
+      sample_status: out_of_sample
+      scope: Toy, bits 16-32, h=2; no transfer beyond 32 bits.
+    - prediction: P-control-slopes
+      first_recorded_in: experiments/EXP-PFDR-2d36f9/specification.yaml
+      written_at: '2026-10-31'
+      data_seen:
+        - path: experiments/EXP-PFDR-ca5e01/runs/
+          measured: Historical ca5e01 census is used only for the descriptive reanalysis-ca5e01 trial (R5); no plant or Z/N slope has been observed at these rungs.
+      sample_status: out_of_sample
+      scope: Control and calibration predictions for the frozen builders only.
+  controls:
+  - id: C1
+    name: kernel and builder selftest
+    check: 'paircount.c equals a brute-force count on small bases (bits 10, 12, 14) for null, window, gap2, gap3, every gamma plant and the Z/N base; one base per type at p near 2^32 checked for key overflow by a brute recount of a 64-point base; plant_internal(L) equals a group brute force for L in {1, 2, 3, 5, 9, 14}; order certification of 8 selftest curves at bits 32'
+    role: instrument gate; a failure voids the experiment as an instrument defect
+  - id: C2
+    name: matched random null
+    check: 20 uniformly random symmetric bases of the same b on the same curve; kappa and z read against per-curve means and variances
+    role: removes Hasse fluctuation and the shared negation symmetry
+  - id: C3
+    name: gamma-slope plants (positive and negative)
+    check: >-
+      per theta, plant lines at gamma 0, 1/6, 1/3, 1/2: |delta_hat - gamma_design| <= 0.03 for each (blocking);
+      classes gamma 0 -> SUB-BE, gamma 1/6 -> SUB-BE-GROWING, gamma 1/2 -> ALIVE (blocking); gamma 1/3 class
+      reported only
+    role: positive control (the instrument sees growth) and negative control (an N-constant excess never reads ALIVE)
+  - id: C4
+    name: Z/N interval known positive
+    check: per theta, |delta_hat - (1 - theta)| <= 0.05 and class ALIVE (blocking)
+    role: group structure of known growth is recovered at the right exponent
+  - id: C5
+    name: A/A null line
+    check: null replicate 0 read as a pseudo-structured line for each of the six (theta, d) cells; its slope interval contains 0 on at least 5 of 6 lines and no A/A line is ALIVE (blocking)
+    role: the slope estimator is unbiased under the null
+  - id: C6
+    name: z_cal calibration
+    check: over the 30 structured cells, sd(z_cal) in [0.70, 1.30] and |mean(z_cal)| <= 0.40 (blocking)
+    role: z is N(0,1) under the null for this convention
+  - id: C7
+    name: disjoint seed blocks and replication
+    check: pilot, main and replication curves from disjoint blocks; every ALIVE line replicated on the replication block
+    role: separates sizing, discovery and confirmation
+  - id: C8
+    name: Pollard rho
+    check: not run in version 1
+    role: >-
+      No cost claim is made. If the reading is O-ALIVE, the successor contract prices the surviving line end to
+      end against matched Pollard rho on the same curves (RQ-PFDR-ae2fba constraint).
+  matched_seeds: >-
+    Every arm of a (rung, theta) uses the same curve set and the same per-curve null replicates; structured, plant,
+    Z/N and A/A arms differ only in the base builder. Base seeds are sha256 of the experiment id and labels.
+  independent_variables:
+  - bits in {16, 20, 24, 28, 32}
+  - theta in {0.30, 0.35}
+  - d in {1, 2, 3}
+  - arm in {structured, null, gamma plant (0, 1/6, 1/3, 1/2), Z/N interval, A/A}
+  - seed block in {pilot, main, replication}
+  metrics:
+    primary:
+    - name: per-line slope
+      pointer: analysis.json /lines[] (kind structured) delta_hat, ci95, class, residuals, kappa_by_rung
+      prediction: P1 against P-alive
+    - name: reading
+      pointer: analysis.json /reading, /valid_lines, /alive_lines
+      prediction: O-SUB-BE against O-ALIVE
+    - name: plant recovery
+      pointer: analysis.json /lines[] (kind plant) delta_hat, gamma_design, class
+      prediction: P2
+    - name: Z/N slope
+      pointer: analysis.json /lines[] (kind zn) delta_hat, class
+      prediction: P3
+    - name: calibration and A/A
+      pointer: analysis.json /calibration, /lines[] (kind aa)
+      prediction: C5, C6
+    secondary:
+    - name: per-8-bit ratios against R* = 6.35
+      pointer: analysis.json /lines[] ratio_16_24, ratio_24_32 with intervals
+      prediction: descriptive
+    - name: h = 3 and h = 4 thresholds
+      pointer: analysis.json /lines[] compared with 1/5 and 1/7
+      prediction: descriptive only
+    - name: stage 1 re-analysis of EXP-PFDR-ca5e01
+      pointer: reanalysis.json (slope per (theta, d) over bits 16..22)
+      prediction: descriptive only (R5)
+    - name: infrastructure failures
+      pointer: failed_infrastructure records per census run
+      prediction: reported; never a metric value
+  cost_unit: >-
+    No cost is measured. The harvest law prices in group operations (T = sqrt(2cUN/kappa) against rho's
+    sqrt(pi N/2)); delta is dimensionless (exponent of N). Machine use is recorded in CPU-seconds per job.
+  success_criterion: >-
+    SUPPORT of H-PFDR-ed7ccf at the tested scope (six lines, rungs 16-32 bits, h = 2, these seed blocks):
+    analysis.json /reading == O-SUB-BE, i.e. every blocking control passes, at least 5 of 6 lines are valid and
+    every valid structured line has upper95(delta) < 1/3. The obstruction quantity is max over valid lines of
+    upper95(delta), reported against delta* = 1/3.
+  falsification_criterion: >-
+    analysis.json /reading == O-ALIVE: a structured line with lower95(delta) > 0 and upper95(delta) >= 1/3 that
+    survives replication on the 6,200,000 block. O-MIXED and O-INVALID are neither support nor falsification.
+  decision_impact:
+    on_positive: >-
+      O-SUB-BE: after independent review, the window and rank-d label-GAP point bases of these lines are recorded
+      sub-break-even at h = 2 over 16..32 bits (lead disposition candidate exhausted_at_scale for these geometries
+      only, with the obstruction block max upper95(delta) against 1/3). The FAM-1 and bbc53e-base ladders remain
+      open (R2).
+    on_negative: >-
+      O-ALIVE: the surviving line is the first structural relation source on F_p at toy scale; a successor
+      contract prices it end to end against matched Pollard rho on the same curves and extends the ladder beyond
+      32 bits; rule 12 review applies to any claim drawn from it.
+    on_inconclusive: >-
+      O-MIXED: the UNRESOLVED or non-replicating lines are named; a versioned amendment adds curves or rungs for
+      those lines only. O-INVALID: instrument repair; no reading.
+  heuristic_validation:
+    heuristic: H1 of H-PFDR-ed7ccf (power law over the ladder)
+    comparison_metric: per-line residuals; Z/N and plant slopes against their known values
+    tail_checks_available: every line's per-rung kappa, interval and z are listed; the largest |z| per rung against the expected maximum of that many standard normals
+    scale_access: toy only (p < 2^33); no transfer claimed
+  scale_relevance:
+    tier: toy
+    justification: bits 16-32, b <= 4096, h = 2 only; no cryptographic-scale statement and no extrapolation beyond 32 bits.
+  tail_checks:
+  - every line is reported with kappa_r, interval and z at each rung
+  - every infeasible plant (L cap) is listed with its rung and theta
+  - every failed_infrastructure job is listed with rung, theta, d, block and curve index
+  replication:
+    seeds: [6000000, 6100000, 6200000, 6900000]
+    trials:
+    - {trial_id: selftest, stage: selftest}
+    - {trial_id: reanalysis-ca5e01, stage: analyze, note: 'descriptive only; reads committed EXP-PFDR-ca5e01 outputs (R5)'}
+    - {trial_id: pilot, stage: pilot, note: 'writes design.json (n_curves, gamma_design, L per plant)'}
+    - {trial_id: census-main, stage: census}
+    - {trial_id: analyze-main, stage: analyze, note: 'O-PENDING-REPLICATION legitimate here'}
+    - {trial_id: census-rep, stage: census, note: 'ALIVE lines only; empty result recorded when none'}
+    - {trial_id: analyze-final, stage: analyze, note: 'writes analysis.json (decisive)'}
+    determinism_excluded_fields: [seconds, record order]
+  budget:
+    enforcement: advisory
+    maximum_runs: 7
+    maximum_workers: 4
+    maximum_memory_gb: 4
+    wall_clock_seconds_per_run: 43200
+    total_cpu_hours: null
+    note: >-
+      Machine protection only. Largest base b = 2352 (bits 32, theta 0.35): about 2.8M pairs, about 44 MB per
+      kernel call. Expected curve counts per (rung, theta) from b^4/(8N): about 2300 at bits 16 theta 0.30
+      down to the floor of 10 at bits 32 theta 0.35. Coordinator estimate below 4 CPU-hours for the main census,
+      dominated by prime-order curve generation at 28 and 32 bits; not a research budget. A timeout, memory kill
+      or kernel failure is failed_infrastructure, never evidence.
+  stopping_rules:
+  - 'selftest stops after its checks; pilot after every (rung, theta, pilot curve) job; a census after every planned job of its block; an analyze trial after writing its analysis file.'
+  - A kernel call over 3600 s is failed_infrastructure for that job; its cell is invalid, never null.
+  - census-rep runs only lines classified ALIVE by analyze-main; with none it records an empty result and stops.
+  - Stop after the seven planned trials; no further run without a versioned protocol_amendment and a new approval.
+  invalidation_rules:
+  - selftest fails; the experiment is void as an instrument defect
+  - check.py exits non-zero on a run; that run is invalid and every trial reading it is held
+  - pilot n_curves or gamma_design does not re-derive from pilot records under the frozen rule
+  - a manifest code or trial-plan hash differs from the frozen trial plan
+  - any byte of the specification, hypothesis, trial plan or implementation changed after approval without a versioned protocol_amendment
+  artifact_paths:
+  - experiments/EXP-PFDR-2d36f9/specification.yaml
+  - experiments/EXP-PFDR-2d36f9/trial-plan.json
+  - experiments/EXP-PFDR-2d36f9/implementation/
+  - experiments/EXP-PFDR-2d36f9/runs/<RUN-ID>/ (manifest.yaml, raw-result.json, execution-receipt.json, design.json, jobs jsonl, analysis.json, check logs)
+  - experiments/EXP-PFDR-2d36f9/reports/ (report, graph of log2 kappa_r against log2 N per line with the delta* = 1/3 reference slope, PDF)
+  dependencies:
+  - experiments/EXP-PFDR-ca5e01/implementation/ (builder and kernel source to derive from)
+  - experiments/EXP-PFDR-ca5e01/runs/RUN-PFDR-b7c582/analysis.json and RUN-PFDR-eb4733/main-jobs.jsonl (stage 1 only)
+  inference_policy: >-
+    The reading is computed by analyze-final from frozen rules; the Coordinator interprets it only after
+    independent review (review_required), and scopes every statement to these lines, rungs, seeds and h = 2.
