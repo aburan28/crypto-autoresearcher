@@ -9,6 +9,11 @@ was killed by a harness time limit before writing results, and the identical
 command was rerun. Analysis only: no ECDLP cost changes, and no hypothesis
 status changes.
 
+> **Independent replication (added 2026-10-30):** `research/nist_seed_l1chi_20261030/` reached the same result
+> with separate code and a frozen `experiment.protocol/v1` record. On the 61 shared curves, log L̂ at x = 10⁶
+> agrees to 2.9 × 10⁻¹⁴; prime239v1 is at the 0.246th percentile there. Consolidated statement:
+> [`../nist_seed_l1chi_20261030/CROSSCHECK.md`](../nist_seed_l1chi_20261030/CROSSCHECK.md). Nothing in this study's records changed.
+
 ## Answer
 
 `papers/nist-seed-split-null/paper.md` §6 left open whether prime239v1's
