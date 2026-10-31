@@ -98,6 +98,7 @@ def args():
 # ---- end exporter helpers ----
 
 import collections
+import hashlib
 import re
 
 P = "research-program"
@@ -189,6 +190,96 @@ def runs(ref):
     failed = sum(v for k, v in status.items() if {"failed", "invalid"}.intersection(k.split("_")))
     emit("runs.failed_or_invalid", failed, problem=P, unit="count", better="lower",
          label="run manifests failed / invalid", source=f"experiments/*/runs/*/manifest.json@{ref}")
+
+
+ICPERF_RUNS = {
+    "EXP-ICPERF-283a70": {
+        "RUN-ICPERF-0ef41e": "ctl-neg-wrong-triple",
+        "RUN-ICPERF-74e9a2": "ctl-neg-support-zero",
+        "RUN-ICPERF-f21eb1": "geometric-probe-sample",
+    },
+    "EXP-ICPERF-284bc4": {
+        "RUN-ICPERF-2c627f": "ctl-consistency-r-change",
+        "RUN-ICPERF-2d715d": "ctl-consistency-a-change",
+        "RUN-ICPERF-30596e": "ctl-neg-perturbed-price",
+        "RUN-ICPERF-779d41": "ctl-bsgs-enumeration",
+        "RUN-ICPERF-850008": "ctl-neg-precomputation-model",
+        "RUN-ICPERF-8e3acd": "price-ratio-identity",
+    },
+}
+
+
+def icperf_trials(ref, since):
+    """Export only ICPERF rows whose committed raw output and receipt agree."""
+    all_rows = []
+    for exp_id, expected_runs in ICPERF_RUNS.items():
+        schema = f"crypto.autoresearch.{exp_id.lower()}.stage0.v2"
+        rows = []
+        for run_id, trial_id in expected_runs.items():
+            base = f"experiments/{exp_id}/runs/{run_id}"
+            raw_path = f"{base}/raw-result.json"
+            receipt_path = f"{base}/execution-receipt.json"
+            manifest_path = f"{base}/manifest.yaml"
+            raw_text, receipt_text, manifest_text = (show(ref, p) for p in (raw_path, receipt_path, manifest_path))
+            if None in (raw_text, receipt_text, manifest_text):
+                return
+            try:
+                raw = json.loads(raw_text)
+                receipt = json.loads(receipt_text)
+            except (ValueError, TypeError):
+                return
+            hashes = receipt.get("artifact_sha256") if isinstance(receipt, dict) else None
+            completion = receipt.get("manifest_completion") if isinstance(receipt, dict) else None
+            if (not isinstance(raw, dict) or raw.get("schema") != schema or raw.get("experiment_id") != exp_id
+                    or raw.get("run_id") != run_id or raw.get("trial_id") != trial_id
+                    or raw.get("attack_claimed") is not False
+                    or not isinstance(receipt, dict) or receipt.get("schema") != "crypto.autoresearch.trial_receipt.v1"
+                    or receipt.get("run_id") != run_id or receipt.get("trial_id") != trial_id
+                    or receipt.get("status") != "output_validated" or receipt.get("returncode") != 0
+                    or receipt.get("check_returncode") != 0 or not isinstance(hashes, dict)
+                    or hashes.get("raw-result.json") != hashlib.sha256(raw_text.encode()).hexdigest()
+                    or hashes.get("manifest.yaml") != hashlib.sha256(manifest_text.encode()).hexdigest()
+                    or not isinstance(completion, dict)
+                    or completion.get("driver_manifest_sha256") != hashes.get("manifest.yaml")):
+                return
+            required_fields = (("n_targets", "sample_sum", "median") if exp_id == "EXP-ICPERF-283a70"
+                               else ("states", "c_probe_ns", "c_state_ns", "c_step_ns"))
+            if any(type(raw.get(field)) not in (int, float) or not math.isfinite(raw[field])
+                   for field in required_fields):
+                return
+            finished = receipt.get("finished_at")
+            if not isinstance(finished, str) or len(finished) < 10:
+                return
+            day = finished[:10]
+            try:
+                dt.date.fromisoformat(day)
+            except ValueError:
+                return
+            rows.append((exp_id, run_id, trial_id, raw, day, raw_path, receipt_path))
+        all_rows.extend(rows)
+
+    # Validate the complete nine-row cohort before emitting any partial counts.
+    if len(all_rows) != sum(len(x) for x in ICPERF_RUNS.values()):
+        return
+    for exp_id, run_id, trial_id, raw, day, raw_path, receipt_path in all_rows:
+        if day < since:
+            continue
+        source = f"{raw_path} + {receipt_path}@{ref}"
+        emit(f"icperf.{exp_id}.validated_trials", 1, date=day, problem="icperf", unit="trial records",
+             kind="event", label=f"{exp_id} validated completed trial {trial_id}", source=source)
+        if exp_id == "EXP-ICPERF-283a70":
+            fields = (("n_targets", "target samples"), ("sample_sum", "probe-count sum"),
+                      ("median", "probes per target"))
+        else:
+            fields = (("states", "model states"), ("c_probe_ns", "nanoseconds per probe"),
+                      ("c_state_ns", "nanoseconds per state"), ("c_step_ns", "nanoseconds per step"),
+                      ("price_ratio_num", "dimensionless ratio numerator"),
+                      ("price_ratio_den", "dimensionless ratio denominator"))
+        for field, unit in fields:
+            value = raw.get(field)
+            if type(value) in (int, float) and math.isfinite(value):
+                emit(f"icperf.{exp_id}.{trial_id}.{field}", value, date=day, problem="icperf", unit=unit,
+                     better="neutral", label=f"{exp_id} {trial_id}: {field}", source=source)
 
 
 def prym_census(ref):
@@ -565,6 +656,7 @@ def main():
     census(a.ref, a.since)
     receipts(a.ref, a.since)
     runs(a.ref)
+    icperf_trials(a.ref, a.since)
     prym_census(a.ref)
     prym_width(a.ref)
     prym_equation_diversity(a.ref)

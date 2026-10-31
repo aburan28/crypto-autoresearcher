@@ -1,0 +1,179 @@
+# =============================================================================
+# CORR-20261026-2cc304 -- IDEA-20261011-dcfc4d (Lead 4, solver selection by
+# total verified-relation cost): one factual error in its mechanism, an
+# estimator that double counts, a success criterion that cannot discriminate,
+# a rank-flip clause with no noise floor, two near neighbours the dedup omits,
+# and the fact that crypto PR #2584 has since run it.
+#
+# ADDITIVE. IDEA-20261011-dcfc4d, its notes and the filing README are not
+# edited. Nothing is closed, ranked or approved. Companion: CORR-20261026-ed224e.
+# =============================================================================
+correction:
+  id: CORR-20261026-2cc304
+  id_provenance: >-
+    Minted with `python3 tools/allocate_id.py --next correction --date 20261026`,
+    checked free with `--check` and against the origin/main tree listing.
+  recorded_at: '2026-10-26'
+  recorded_by: idea-generator session 01REawMsbuhFUXFGcf9m86jS (claude-sonnet-5-5); not the Coordinator
+  authorizing_decision: null
+  authorizing_note: >-
+    No Coordinator decision authorizes this record; it is an additive Idea
+    Generator record filed on the owner's request after an independent review of
+    PR #2588. The Coordinator adopts it, or not, by a decision record.
+  goal_id: GOAL-ICPERF-e6b6a4
+  record_type: proposal
+  record_id: IDEA-20261011-dcfc4d
+  record_location: ledger/proposals/IDEA-20261011-dcfc4d.yaml (merged in PR #2588)
+  related_corrections:
+    - CORR-20261026-ed224e
+  sources_read: >-
+    Autoresearcher origin/main 6a69b2d02e. Crypto origin/main a7c41a4e0f through
+    `git show`: research/notes/ecc2k130/m83_solver_matrix_20260927/RESULTS.md
+    and, at merge commit 6356c7b81d (PR #2584, 2026-10-25),
+    research/notes/ecc2k130/solver_total_cost_20261011/RESULTS.md. Reported, not
+    replayed.
+  items:
+    - id: C1
+      field: mechanism (file line 20), "CryptoMiniSat stays flat"
+      prior_value: >-
+        "completion fraction differs by engine (reported: F4-style and F5B time
+        out at payload s >= 3, FES grows 64 to 4096 assignments, CryptoMiniSat
+        stays flat)".
+      corrected_value: >-
+        In the payload sweep of the m = 83 matrix the CryptoMiniSat medians of
+        completed cells are 0.0319, 0.0311 and 0.2147 s at s = 2, 3, 4: about 7
+        times (6.7 to 6.9) from s = 2 or 3 to s = 4. At s = 4 CryptoMiniSat
+        (0.2147 s) is faster than FES (0.3525 s). F4-style and F5B did time out
+        at s >= 3 as stated (RESULTS.md, "Separate normal-subspace payload
+        sweep"). PR #2584 reproduces the growth in CPU: solver stage 10.16, 12.15
+        and 152.95 ms per attempt at s = 2, 3, 4.
+    - id: C2
+      field: estimator (claim text and notes "cost identity")
+      prior_value: >-
+        "total charged cost per completed attempt, divided by the engine's
+        completion fraction (... timeouts charged at their cap)", and in the
+        notes total cost per relation = (C_build + C_engine + C_lift + C_verify)
+        / (y x c).
+      corrected_value: >-
+        Charging a timeout at its cap and dividing by the completion fraction c
+        count the timeouts twice. With N attempts, C the mean cost of a completed
+        attempt, (1 - c) N timeouts each charged `cap`, and y the yield per
+        completed attempt: total cost = N [ c C + (1 - c) cap ], relations =
+        N c y, so cost per relation = C / y + ((1 - c) / c) cap / y. "Cost per
+        completed attempt" already contains the 1/c; dividing by c again gives
+        (c C + (1 - c) cap) / (c^2 y), which overstates every engine with c below 1
+        and reorders engines whose completion fractions differ. The identity in
+        the notes, C / (y c) with no cap term, instead prices a timeout at the
+        cost of a completed attempt. Either way the estimator needs the corrected
+        form before any ranking by it is read. PR #2584 charges timeouts at the
+        full deadline and reports completion counts beside the costs; as read
+        from its tables it applies no further division by the completion
+        fraction.
+    - id: C3
+      field: success criterion
+      prior_value: >-
+        "... differs from the ranking by solver-stage median seconds in at least
+        one engine pair at some payload, or the non-solver share of total cost is
+        at least half. H0: identical order at every payload and a solver share
+        above half."
+      corrected_value: >-
+        The second disjunct is nearly certain for FES, whose solver-stage median
+        is 0.000335 s in the matrix; PR #2584 measured its solver share at 0.5
+        percent of the charged cost (accounting A; at most 2.9 percent under any
+        of its four accountings). The criterion therefore holds whatever the
+        ranking does, and H0's second conjunct fails for FES and for
+        CryptoMiniSat (9.9 percent) before any ranking is compared. The
+        discriminating clause is the ranking flip alone.
+    - id: C4
+      field: prediction 1, the clause 'a rank flip between two engines', has no noise floor
+      corrected_value: >-
+        In the matrix, F5B (0.1497 s) and the F4-style prototype (0.1710 s)
+        differ by 14 percent on 12 inputs and one run per cell, with no
+        repeat-to-repeat spread stated, so a flip between engines that close is
+        undefined without one. PR #2584's three repetitions give a scale: summed
+        solver-stage CPU over the 12 W1a inputs ranges 0.0039 to 0.0046 s (FES),
+        0.0979 to 0.1070 s (CryptoMiniSat), 0.8672 to 0.9562 s (Z3), 1.6337 to
+        1.6686 s (F4-style) between repetitions, i.e. about 2 to 18 percent. A
+        flip should be declared only when it exceeds that spread.
+    - id: D1
+      field: dedup, near neighbours the notes omit
+      corrected_value:
+        IDEA-20261018-e7a860: >-
+          (proposed, RQ-ICPERF-94c86e) K, the group operations per Macaulay
+          column touch of the m = 4 oracle, measured so that the sign of the
+          ECC2K-130 m = 4 rows (7.6 to 10.32 bits over rho in unconverted units)
+          can be read. The matrix states that "no operation-unit conversion
+          between SAT, matrix rows, F5 pairs and FES assignments was measured",
+          which is why this proposal ranks in seconds; any cross-stage total in a
+          counted unit needs the conversion that e7a860 starts for one oracle.
+        IDEA-20261018-b4bc61: >-
+          (proposed, RQ-DREG-bd6c86) Crossbred with the preprocessing of ePrint
+          2026/360 against F4 and WDSat on the same Weil-descended cells. It adds
+          a solver family this proposal's engine set (FES, CryptoMiniSat, F5B,
+          F4-style, Z3) lacks, and it asks a stage-cost question on the cells
+          where F4 needs degree 5 or more or hits the memory cap, which are the
+          cells where this proposal's completion fraction matters most.
+    - id: X1
+      field: status, the proposal has been run (crypto PR #2584, merged 2026-10-25, 6356c7b81d; the notes say "no commits of its own", "not present locally")
+      corrected_value:
+        workload: >-
+          W1a: the 12 frozen m = 83 fixed-phase S4 inputs, 5 engines, 3
+          repetitions (180 children). W1b: the payload sweep s = 2, 3, 4, 180
+          children. W2: n = 13 phase-aware systems, CryptoMiniSat against Z3, 4
+          targets. Python prototypes for F4-style and F5B, Z3 5.1.0,
+          pycryptosat 5.16.0; msolve, WDSat, Sage and the cryptominisat5 CLI
+          unavailable. Per-stage CPU and wall, timeouts charged at the deadline.
+        results_as_printed: >-
+          Under the preregistered accounting A the ranking by solver stage and
+          by total core cost is identical (Kendall tau 1.00): FES, CryptoMiniSat,
+          Z3, F5B, F4-style. The max / min ratio over engines is 365.4 for the
+          solver stage and 2.7 for the total. CryptoMiniSat's solver stage is 22.0
+          times FES's and its total is 1.04 times FES's. Solver share of cost: FES
+          0.5 percent, CryptoMiniSat 9.9, Z3 50.5, F5B 55.1, F4-style 65.7. Under
+          accounting C Z3 and F5B exchange places (tau 0.80). By my comparison of
+          the printed W1b tables the two orders are identical at s = 2, 3, 4 as
+          well (at s = 4 CryptoMiniSat's total, 436.0 ms, is below FES's, 507.8
+          ms, as in the solver stage). Natural relations: 0 of 8, so the primary
+          metric (seconds per newly independent verified relation) is undefined
+          for the matrix workloads; planted controls give finite costs; a
+          measured 95 percent bound and a derived bound (about 1e21 CPU s per
+          relation) are reported. W2: CryptoMiniSat 4 of 4 verified at 32.2 CPU s
+          per relation; Z3 2 of 4 (two deadline timeouts), 162.7 CPU s per
+          relation as a lower bound; the solver stage is 99.9 percent of cost.
+        reading_against_this_proposal: >-
+          The proposal's H0 has two conjuncts. Identical order held at every
+          cell the study printed under accounting A. The solver share was below
+          half for FES and CryptoMiniSat at W1a and above half for the other
+          three engines; at W2 it is 99.9 percent. So the answer to "does the
+          solver-stage ranking survive" is yes at these cells, with the gaps
+          compressed from 365 times to 2.7 times, and the size of the solver
+          share depends on how many inputs share one factor-base setup (the
+          study's own statement). I make no verdict on the hypothesis; that is
+          the Coordinator's review.
+        caveats: >-
+          Python prototypes, not Magma F4 / F5 or msolve; a host faster than the
+          matrix's (solver stages 0.4 to 0.8 times); cells near the 5 s deadline
+          completed that the matrix recorded as timeouts (9 cells listed in the
+          study's verify report); WDSat arm absent; the accounting C and the
+          steady-state view are not preregistered (the steady-state view is
+          labelled post hoc by the study).
+  what_this_does_and_does_not_change:
+    status_transitions: none
+    proposal_status: proposed (unchanged)
+    claims: none; figures are read from the named files and not replayed
+  citations:
+    - ref: research/notes/ecc2k130/m83_solver_matrix_20260927/RESULTS.md
+      provenance: internal
+      claim: payload sweep medians, solver-stage medians, unavailable executables, no operation-unit conversion
+      verified_by: idea-generator session 01REawMsbuhFUXFGcf9m86jS read it at crypto a7c41a4e0f (reported, not replayed)
+    - ref: research/notes/ecc2k130/solver_total_cost_20261011/RESULTS.md
+      provenance: internal
+      claim: sections 2 to 8 as quoted in C1, C3, C4 and X1
+      verified_by: idea-generator session 01REawMsbuhFUXFGcf9m86jS read it at crypto 6356c7b81d (reported, not replayed)
+    - ref: ledger/proposals/IDEA-20261018-e7a860.yaml and IDEA-20261018-b4bc61.yaml
+      provenance: internal
+      claim: claims as summarised in D1
+      verified_by: idea-generator session 01REawMsbuhFUXFGcf9m86jS read their claim fields at autoresearcher origin/main 6a69b2d02e
+  runs_launched: 0
+  status_transitions: none
+  records_edited: none
