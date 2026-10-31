@@ -49,3 +49,5 @@ These conditions are necessary for the requested full-scope conclusion. Individu
 ## Resolution and history
 
 Unresolved. The October 24 sheriff case separates interrupted ecbench sessions from completed ones, adds exact theorem/source/run pointers, and retains four deterministic BINSTD per-target replays. The October 31 hosted sweep adds exact machine receipts for all 91 current formal targets; semantic fidelity and historical execution remain claim-level work.
+
+The prospective [BATCH-016711 Semaev review](../coordination/formal-reviews/BATCH-016711/synthesis/review.md), merged in [PR #2815](https://github.com/isogeny-labs/crypto-autoresearcher/pull/2815), adds one independently reviewed `validated_scoped` finite-witness claim with a named hosted Lean receipt, source binding, blind derivation, negative controls and a passing independence checker. Its denominator is one archived draw; it does not close the cross-repository claim or execution inventory above.
