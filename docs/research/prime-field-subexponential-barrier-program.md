@@ -784,10 +784,12 @@ diagnostic does not discharge a larger requested cell.
   this session; the publisher and DOAJ abstract were read. Its exact
   statistical assumptions and architecture boundary are therefore not yet
   verified and are WP0's first gate.
-- The IACR PDFs for Semaev 2004 and the Galbraith-Gaudry survey returned HTTP
-  403 in this environment. Existing repository entries for those sources are
-  abstract/secondary-level. A future source-ingest task must read archived or
-  author-hosted full text before a new theorem relies on a section-level claim.
+- The IACR PDF for Semaev 2004 returned HTTP 403, but its PostScript endpoint
+  was accessible and the full six-page source was read during the WP0/WP1
+  continuation recorded in
+  `docs/research/pfse-wp0-wp1-gate-20261031.md`. The Galbraith-Gaudry survey's
+  exact HAL record and PDF path were found, but its file endpoint returned HTTP
+  403. No section-level survey claim is upgraded here.
 - Existing toy measurements calibrate specified algorithms and instruments;
   they are not evidence of a universal asymptotic lower bound.
 - No source or internal record reviewed here proves a lower bound for
