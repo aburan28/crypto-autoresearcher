@@ -56,6 +56,11 @@ working coordinates. Applying the corrected blocked source formula gives
 94,262,240,264 bytes under the existing 96 GiB child limit. This makes a
 checkpoint-capable rerun eligible for later admission; it does not replace
 the active random02 job or the prepared random03 input.
+Its [separate retry request](runtime/rand00-blocked-frontier-request-001.json),
+[frozen protocol](rand00-blocked-frontier-protocol-001.json), and
+[prepared job](runtime/rand00-blocked-frontier-job-001.json) preserve the
+original input and require a fresh zero count and independent D5 check.
+The retry remains unsubmitted behind both random02 and random03.
 
 The blocked rewrite with bounded export and native checkpoints has passed
 28 native configurations and nine actual local-worker controls; see the
