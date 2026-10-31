@@ -1,0 +1,21 @@
+from pathlib import Path
+
+source = Path('analysis/semaev-degree-five-quotient-lift/reports/panel-local-n45-rand00-001/collect.py').read_text()
+source = source.replace('rand00', 'rand02').replace('rand-00', 'rand-02').replace('random00', 'random02')
+source = source.replace('local008', 'local010')
+source = source.replace("result['exact_solutions'] == 2", "result['exact_solutions'] == 0")
+source = source.replace("'exact_solutions': 2", "'exact_solutions': 0")
+source = source.replace('found **2** solutions', 'found **0** solutions')
+source = source.replace('found *2* solutions', 'found *0* solutions')
+source = source.replace('solutions = 2', 'solutions = 0')
+source = source.replace('46,472 &gt; 2', '46,472 &gt; 0')
+source = source.replace('count 2', 'count 0')
+source = source.replace("== 28 and inventory['certified_lfd_at_least5'] == 21", "== 30 and inventory['certified_lfd_at_least5'] == 23")
+source = source.replace('28 terminal inputs', '30 terminal inputs').replace('21 certified lower bounds', '23 certified lower bounds')
+source = source.replace('four remaining original', 'two remaining original')
+source = source.replace('28 terminal, 21 certified LFD-at-least-five, and four remaining', '30 terminal, 23 certified LFD-at-least-five, and two remaining')
+source = source.replace('four remaining inputs', 'two remaining inputs')
+source = source.replace('SEMAEV-PANEL-LOCAL-N45-RAND00-001', 'SEMAEV-PANEL-LOCAL-N45-RAND02-001')
+source = source.replace('The separate n47 random02 D5 search is running from a verified checkpoint; it has no degree-five certificate yet.',
+                        'The separate n47 random02 D5 restore attempt terminated without a new checkpoint or degree-five certificate; its stage remains unknown.')
+exec(compile(source, __file__, 'exec'))
