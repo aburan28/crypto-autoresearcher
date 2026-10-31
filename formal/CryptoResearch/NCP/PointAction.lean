@@ -17,21 +17,24 @@ theorem wordPointAction_append (points : Fin B → A) (u v : List (Letter B)) (X
   | nil => rfl
   | cons l u ih => cases l <;> simp only [List.cons_append, wordPointAction, ih]
 
-theorem word_point_affine_normal_form (points : Fin B → A) (w : List (Letter B)) (X : A) :
-    wordPointAction points w X = shadowSign w • X + ∑ i, signedCount w i • points i := by
+private theorem wordPointAction_eq_groupWordAction (points : Fin B → A)
+    (w : List (Letter B)) (X : A) :
+    wordPointAction points w X = groupWordAction points w X := by
   induction w generalizing X with
-  | nil => simp [wordPointAction, shadowSign, signedCount]
+  | nil => rfl
   | cons l w ih =>
     cases l with
-    | trans j =>
-      rw [wordPointAction, ih]
-      simp only [shadowSign, signedCount, add_zsmul, zsmul_add, ite_smul,
-        zero_zsmul, Finset.sum_add_distrib]
-      simp only [Finset.sum_ite_eq, Finset.mem_univ, ite_true]
-      abel
+    | trans i =>
+      change wordPointAction points w (X + points i) = groupWordAction points w (X + points i)
+      exact ih (X + points i)
     | neg =>
-      rw [wordPointAction, ih]
-      simp [shadowSign, signedCount]
+      change wordPointAction points w (-X) = groupWordAction points w (-X)
+      exact ih (-X)
+
+theorem word_point_affine_normal_form (points : Fin B → A) (w : List (Letter B)) (X : A) :
+    wordPointAction points w X = shadowSign w • X + ∑ i, signedCount w i • points i := by
+  rw [wordPointAction_eq_groupWordAction]
+  exact group_word_action_affine_normal_form points w X
 
 /-- Soundness of the scalar instrument under an additive encoding; the
 encoding's construction and injectivity are separate, explicit obligations. -/
