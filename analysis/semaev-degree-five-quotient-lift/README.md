@@ -21,6 +21,12 @@ at 21:30:33 UTC. [Closed stage receipts](validation/rand02-blocked-frontier-prog
 retain these results. Only an independently accepted D5 codimension greater
 than four establishes LFD at least six for this input.
 
+The producer has published four verified durable checkpoint manifests.
+The [latest observation](validation/rand02-blocked-frontier-progress-004/observation.json)
+records completion of phase-zero variable 0 and entry into variable 1;
+the latest snapshot is 1,826,505,616 bytes, with S3 object size checked.
+This is resumable computation state, not an accepted D5 certificate.
+
 A separate [RREF exporter](RREF-EXPORT.md) for later D4 inputs passed all
 14 fixed equivalence controls. Its 12 completed certificates match the
 reference bytes and pass independent checks; both constant-one cases emit
@@ -98,6 +104,13 @@ records the exact evidence and public readback. This accepted seed prepares
 the original D5 continuation; it neither completes that frontier input nor
 adds an input to the separate 32-input D4 panel. No field, target, subspace,
 or sample was redrawn.
+
+Its [next D5 request](runtime/rand03-blocked-frontier-request-001.json) and
+[frozen protocol](rand03-blocked-frontier-protocol-001.json) pin the published
+seed, fresh count target two, corrected memory envelope, and qualified blocked
+worker. The [prepared job](runtime/rand03-blocked-frontier-job-001.json) has
+not been submitted; the protocol requires the active random02 frontier job
+to become terminal and capacity to be reconciled first.
 
 The next original D4 panel input, n45 polynomial04, passed bounded memory
 admission after 535.5 seconds at 00:35:53 UTC on October 31. Its three
