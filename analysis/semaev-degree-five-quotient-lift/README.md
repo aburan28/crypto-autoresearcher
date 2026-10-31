@@ -21,10 +21,11 @@ at 21:30:33 UTC. [Closed stage receipts](validation/rand02-blocked-frontier-prog
 retain these results. Only an independently accepted D5 codimension greater
 than four establishes LFD at least six for this input.
 
-The producer has published five verified durable checkpoint manifests.
-The [latest observation](validation/rand02-blocked-frontier-progress-005/observation.json)
-records phase-zero variable 1 at row 60,000 and relation rank 129,506;
-the latest snapshot is 3,036,656,896 bytes, with S3 object size checked.
+The producer has published eight verified durable checkpoint manifests.
+The [latest observation](validation/rand02-blocked-frontier-progress-006/observation.json)
+records completion of phase-zero variable 1 and entry into variable 2,
+with relation rank 148,732. The latest snapshot is 3,487,468,144 bytes,
+with S3 object size checked.
 This is resumable computation state, not an accepted D5 certificate.
 The [restore-only job](runtime/rand02-blocked-restore-job-001.json) is
 prepared against the original run's immutable checkpoint prefix. It has not
