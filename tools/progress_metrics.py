@@ -98,6 +98,7 @@ def args():
 # ---- end exporter helpers ----
 
 import collections
+import hashlib
 import re
 
 P = "research-program"
@@ -191,6 +192,96 @@ def runs(ref):
          label="run manifests failed / invalid", source=f"experiments/*/runs/*/manifest.json@{ref}")
 
 
+ICPERF_RUNS = {
+    "EXP-ICPERF-283a70": {
+        "RUN-ICPERF-0ef41e": "ctl-neg-wrong-triple",
+        "RUN-ICPERF-74e9a2": "ctl-neg-support-zero",
+        "RUN-ICPERF-f21eb1": "geometric-probe-sample",
+    },
+    "EXP-ICPERF-284bc4": {
+        "RUN-ICPERF-2c627f": "ctl-consistency-r-change",
+        "RUN-ICPERF-2d715d": "ctl-consistency-a-change",
+        "RUN-ICPERF-30596e": "ctl-neg-perturbed-price",
+        "RUN-ICPERF-779d41": "ctl-bsgs-enumeration",
+        "RUN-ICPERF-850008": "ctl-neg-precomputation-model",
+        "RUN-ICPERF-8e3acd": "price-ratio-identity",
+    },
+}
+
+
+def icperf_trials(ref, since):
+    """Export only ICPERF rows whose committed raw output and receipt agree."""
+    all_rows = []
+    for exp_id, expected_runs in ICPERF_RUNS.items():
+        schema = f"crypto.autoresearch.{exp_id.lower()}.stage0.v2"
+        rows = []
+        for run_id, trial_id in expected_runs.items():
+            base = f"experiments/{exp_id}/runs/{run_id}"
+            raw_path = f"{base}/raw-result.json"
+            receipt_path = f"{base}/execution-receipt.json"
+            manifest_path = f"{base}/manifest.yaml"
+            raw_text, receipt_text, manifest_text = (show(ref, p) for p in (raw_path, receipt_path, manifest_path))
+            if None in (raw_text, receipt_text, manifest_text):
+                return
+            try:
+                raw = json.loads(raw_text)
+                receipt = json.loads(receipt_text)
+            except (ValueError, TypeError):
+                return
+            hashes = receipt.get("artifact_sha256") if isinstance(receipt, dict) else None
+            completion = receipt.get("manifest_completion") if isinstance(receipt, dict) else None
+            if (not isinstance(raw, dict) or raw.get("schema") != schema or raw.get("experiment_id") != exp_id
+                    or raw.get("run_id") != run_id or raw.get("trial_id") != trial_id
+                    or raw.get("attack_claimed") is not False
+                    or not isinstance(receipt, dict) or receipt.get("schema") != "crypto.autoresearch.trial_receipt.v1"
+                    or receipt.get("run_id") != run_id or receipt.get("trial_id") != trial_id
+                    or receipt.get("status") != "output_validated" or receipt.get("returncode") != 0
+                    or receipt.get("check_returncode") != 0 or not isinstance(hashes, dict)
+                    or hashes.get("raw-result.json") != hashlib.sha256(raw_text.encode()).hexdigest()
+                    or hashes.get("manifest.yaml") != hashlib.sha256(manifest_text.encode()).hexdigest()
+                    or not isinstance(completion, dict)
+                    or completion.get("driver_manifest_sha256") != hashes.get("manifest.yaml")):
+                return
+            required_fields = (("n_targets", "sample_sum", "median") if exp_id == "EXP-ICPERF-283a70"
+                               else ("states", "c_probe_ns", "c_state_ns", "c_step_ns"))
+            if any(type(raw.get(field)) not in (int, float) or not math.isfinite(raw[field])
+                   for field in required_fields):
+                return
+            finished = receipt.get("finished_at")
+            if not isinstance(finished, str) or len(finished) < 10:
+                return
+            day = finished[:10]
+            try:
+                dt.date.fromisoformat(day)
+            except ValueError:
+                return
+            rows.append((exp_id, run_id, trial_id, raw, day, raw_path, receipt_path))
+        all_rows.extend(rows)
+
+    # Validate the complete nine-row cohort before emitting any partial counts.
+    if len(all_rows) != sum(len(x) for x in ICPERF_RUNS.values()):
+        return
+    for exp_id, run_id, trial_id, raw, day, raw_path, receipt_path in all_rows:
+        if day < since:
+            continue
+        source = f"{raw_path} + {receipt_path}@{ref}"
+        emit(f"icperf.{exp_id}.validated_trials", 1, date=day, problem="icperf", unit="trial records",
+             kind="event", label=f"{exp_id} validated completed trial {trial_id}", source=source)
+        if exp_id == "EXP-ICPERF-283a70":
+            fields = (("n_targets", "target samples"), ("sample_sum", "probe-count sum"),
+                      ("median", "probes per target"))
+        else:
+            fields = (("states", "model states"), ("c_probe_ns", "nanoseconds per probe"),
+                      ("c_state_ns", "nanoseconds per state"), ("c_step_ns", "nanoseconds per step"),
+                      ("price_ratio_num", "dimensionless ratio numerator"),
+                      ("price_ratio_den", "dimensionless ratio denominator"))
+        for field, unit in fields:
+            value = raw.get(field)
+            if type(value) in (int, float) and math.isfinite(value):
+                emit(f"icperf.{exp_id}.{trial_id}.{field}", value, date=day, problem="icperf", unit=unit,
+                     better="neutral", label=f"{exp_id} {trial_id}: {field}", source=source)
+
+
 def prym_census(ref):
     """Neutral observations from the committed checker, never planned workloads."""
     path = "experiments/EXP-ECDLP-d6d8e8/runs/RUN-ECDLP-ea49a6/verification.json"
@@ -262,6 +353,51 @@ def prym_width(ref):
             emit(f"prym.width.967315.{identity}.{name}", cell[key],
                  problem="ecdlp-prym-relations", unit="count", better="neutral",
                  label=f"RUN-ECDLP-967315 fixture {identity}: {name}", source=f"{path}@{ref}")
+
+
+def prym_equation_diversity(ref):
+    """Exploratory retained-data counts, distinct from new trial results."""
+    path = "research/prym_leads_20261027/derived/matrix-duplicate-review.json"
+    try:
+        data = json.loads(show(ref, path))
+        if (data.get("schema") != "prym-retained-duplicate-explanation/v1"
+                or type(data.get("new_scientific_trials")) is not int
+                or data["new_scientific_trials"] != 0
+                or data.get("source_logical_sha256") !=
+                "8f3d5b98b91b01dab9694e3a4c59a4559dbd7bcfa1cb7c4a3045475948fdb007"
+                or not isinstance(data.get("cells"), list) or not data["cells"]):
+            return
+        seen = set()
+        for cell in data["cells"]:
+            uid = cell["ec1_curve_uid"]
+            counts = [cell[k] for k in ["native_witnesses", "distinct_projected_affine_rows",
+                                        "rank_of_distinct_rows", "dependencies_among_distinct_rows"]]
+            groups = cell["groups"]
+            if (not isinstance(uid, str) or not re.fullmatch(r"urn:ec-record:1:sha256:[0-9a-f]{64}", uid)
+                    or uid in seen or any(type(n) is not int or n < 0 for n in counts)
+                    or not isinstance(groups, list)
+                    or counts[1] != len(groups) or counts[2] != counts[1] or counts[3] != 0
+                    or counts[0] < counts[1]):
+                return
+            seen.add(uid)
+            for group in groups:
+                if (type(group["native_witness_count"]) is not int or group["native_witness_count"] < 1
+                        or type(group["admissible_constraint_triples"]) is not int
+                        or group["native_witness_count"] != group["admissible_constraint_triples"]
+                        or group["exact_constraint_subset_match"] is not True):
+                    return
+            if sum(group["native_witness_count"] for group in groups) != counts[0]:
+                return
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    for cell in data["cells"]:
+        identity = cell["ec1_curve_uid"].rsplit(":", 1)[-1]
+        distinct = cell["distinct_projected_affine_rows"]
+        values = {"distinct_affine_rows": distinct, "duplicate_witnesses": cell["native_witnesses"]-distinct}
+        for name, value in values.items():
+            emit(f"prym.exploratory.967315.{identity}.{name}", value,
+                 problem="ecdlp-prym-relations", unit="count", better="neutral",
+                 label=f"Post-data RUN-ECDLP-967315 {identity}: {name}", source=f"{path}@{ref}")
 
 
 def funnel(ref, since):
@@ -381,17 +517,157 @@ def p256_factor_base_pass2_preparation(ref, since):
          source=f"{path}@{ref}")
 
 
+def prime_field_fixed_panels(ref, since):
+    """Exact completed-panel observations; method references are never summed."""
+    date = '2026-10-30'
+    if date < since:
+        return
+    for study, run, expected in [('b2', 'b2-fixed-panel-802e2a', 10),
+                                  ('d1', 'd1-fixed-panel-a91d96', 8)]:
+        path = f'research/prime_field_{study}_execution_20261030/runs/{run}/analysis.json'
+        raw = show(ref, path)
+        if raw is None:
+            continue
+        try:
+            data = json.loads(raw)
+            cells = data['cells']
+            if data['panel_complete'] is not True or len(cells) != expected:
+                continue
+            if any(c['verified'] is not True or c['status'] != 'verified' for c in cells):
+                continue
+            if any(type(c['attempts']) is not int or c['attempts'] <= 0 for c in cells):
+                continue
+            if len({(c['cell_id'], c['arm']) if study == 'b2' else
+                    (c['curve_uid'], c['target_index']) for c in cells}) != expected:
+                continue
+            if study == 'b2':
+                gains = [(c['cell_id'], c['rank_gain']) for c in cells if c['arm'] == 'shifted']
+                if len(gains) != 5 or any(type(g) is not int or not 0 <= g <= 15 for _, g in gains):
+                    continue
+            else:
+                recoveries = [c['identified_target'] for c in cells]
+                if any(type(v) is not int or v not in (0, 1) for v in recoveries):
+                    continue
+        except (ValueError, KeyError, TypeError):
+            continue
+        common = dict(date=date, problem='prime-field-factor-bases', better='neutral', source=f'{path}@{ref}')
+        prefix = f'prym.prime_field.{study}'
+        emit(prefix+'.collection_branches', sum(c['attempts'] for c in cells), unit='branches',
+             label=f'{study.upper()} complete fixed panel, collection only; separate replay excluded', **common)
+        emit(prefix+'.verified_cells', expected, unit='cells', label='Fixed cells with complete separate replay', **common)
+        if study == 'b2':
+            for name, gain in gains:
+                emit(prefix+'.'+name+'.rank_gain', gain, unit='dimensions',
+                     label='Additional rank on original15 columns, one fixed shifted subset', **common)
+        else:
+            emit(prefix+'.identified_targets', sum(recoveries), unit='targets',
+                 label='Identified targets in frozen eight-target census; includes all coincidences', **common)
+
+
+def prime_field_residual_panels(ref, since):
+    """Completed A1/A2 observations; charge shared streams once per panel."""
+    date='2026-10-30'
+    if date<since:return
+    for study,run,arms in [('a1','a1-fixed-panel-8e34c5',('smooth','pool16','pool32')),
+                           ('a2','a2-fixed-panel-56d50d',('smooth','norm_completed'))]:
+        path=f'research/prime_field_{study}_execution_20261030/runs/{run}/analysis.json';raw=show(ref,path)
+        if raw is None:continue
+        try:
+            data=json.loads(raw);cells=data['cells'];expected={(b,a) for b in ('b13','b16') for a in arms}
+            if data['panel_complete'] is not True or len(cells)!=len(expected) or {(c['cell_id'],c['arm']) for c in cells}!=expected:continue
+            if any(c['verified'] is not True or c['status']!='verified' for c in cells):continue
+            collection=data['physical_collection_attempts_observed'];replay=data['physical_replay_attempts_observed']
+            if type(collection) is not int or type(replay) is not int or collection!=4587520 or replay!=collection:continue
+            gain_key='delta' if study=='a1' else 'rank_gain'
+            if any(type(c[gain_key]) is not int or not 0<=c[gain_key]<=15 for c in cells):continue
+            if study=='a1' and any(type(c['direct_base_gain']) is not int or type(c['cross_row_cancellation_gain']) is not int or
+                c['direct_base_gain']<0 or c['cross_row_cancellation_gain']<0 or c['direct_base_gain']+c['cross_row_cancellation_gain']!=c['delta'] or
+                c['stacked_rank']-c['outside_rank']-c['base_rank_before']!=c['delta'] for c in cells):continue
+        except (ValueError,KeyError,TypeError):continue
+        common=dict(date=date,problem='prime-field-factor-bases',better='neutral',source=f'{path}@{ref}')
+        prefix='prym.prime_field.'+study
+        emit(prefix+'.collection_branches',collection,unit='branches',label='Shared complete physical collection, not sum of nested arm counts',**common)
+        emit(prefix+'.replay_branches',replay,unit='branches',label='Separate complete branch replay',**common)
+        emit(prefix+'.verified_cells',len(cells),unit='cells',label='Verified fixed arm/curve observations, not physical executions',**common)
+        for c in cells:
+            emit(prefix+'.'+c['cell_id']+'.'+c['arm']+'.base_rank_gain',c[gain_key],unit='dimensions',label='Additional rank on original15 base columns after any outside elimination',**common)
+
+
+def prime_field_direct_panel(ref, since):
+    """A3 exact relation equivalence; enumerate descriptors and table queries separately."""
+    date='2026-10-30'
+    if date<since:return
+    path='research/prime_field_a3_execution_20261030/runs/a3-fixed-panel-0cddd8/analysis.json'
+    raw=show(ref,path)
+    if raw is None:return
+    try:
+        data=json.loads(raw);cells=data['cells']
+        expected={(b,a) for b in ('b13','b16') for a in ('enumeration','pair_table')}
+        if data['panel_complete']is not True or len(cells)!=4 or {(c['cell_id'],c['arm']) for c in cells}!=expected:return
+        for cell in cells:
+            if cell['verified']is not True or cell['status']!='verified':return
+            for key in ('accepted_witnesses','distinct_equations','new_rank','combined_rank','rank_gain','attempts'):
+                if type(cell[key])is not int or cell[key]<0:return
+            if (cell['distinct_equations']>cell['accepted_witnesses'] or cell['new_rank']>15 or cell['combined_rank']>15 or
+                cell['rank_gain']>cell['combined_rank'] or cell['attempts']!=(286720 if cell['arm']=='enumeration' else 2048)):return
+        for case in ('b13','b16'):
+            selected=[c for c in cells if c['cell_id']==case]
+            if any(selected[0][key]!=selected[1][key] for key in ('accepted_witnesses','distinct_equations','new_rank','combined_rank','rank_gain')):return
+    except (ValueError,KeyError,TypeError):return
+    common=dict(date=date,problem='prime-field-factor-bases',better='neutral',source=f'{path}@{ref}')
+    prefix='prym.prime_field.a3'
+    for arm,unit in (('enumeration','descriptors'),('pair_table','queries')):
+        emit(prefix+'.'+arm+'.collection_'+unit,sum(c['attempts'] for c in cells if c['arm']==arm),unit=unit,
+             label='Complete direct collection; enumeration descriptors and table queries are different units',**common)
+    emit(prefix+'.verified_cells',len(cells),unit='cells',label='Four matched arm/curve observations in one physical execution',**common)
+    for cell in cells:
+        for key,unit in (('distinct_equations','equations'),('rank_gain','dimensions')):
+            emit(prefix+'.'+cell['cell_id']+'.'+cell['arm']+'.'+key,cell[key],unit=unit,label='Exact original-base direct relation observation',**common)
+
+
+def prime_field_holdout_panel(ref, since):
+    """A4 verified holdouts; shared collection once, prefix recoveries separately."""
+    date='2026-10-30'
+    if date<since:return
+    path='research/prime_field_a4_execution_20261030/runs/a4-holdout-panel-c47bc8/analysis.json';raw=show(ref,path)
+    if raw is None:return
+    try:
+        data=json.loads(raw);cells=data['cells'];ids=[f'p{p}-i{i}' for p in (8191,65537) for i in (0,1)]
+        expected={(i,n) for i in ids for n in (0,16,64)}
+        if data['panel_complete']is not True or len(cells)!=12 or {(c['cell_id'],c['prefix']) for c in cells}!=expected:return
+        for c in cells:
+            if c['verified']is not True or c['status']!='verified':return
+            for k in ('base_columns','base_rank','base_nullity','single_targets','joint_targets','early_joint_targets','source_queries','target_queries','pair_entries'):
+                if type(c[k])is not int or c[k]<0:return
+            n=16 if c['cell_id'].startswith('p8191-') else 32
+            if (c['base_rank']+c['base_nullity']!=c['base_columns'] or c['base_columns']>n or max(c['single_targets'],c['joint_targets'])>8 or
+                c['early_joint_targets']>c['joint_targets'] or (c['source_queries'],c['target_queries'],c['pair_entries'])!=(64*n*2,8*n*2,n*(n-1)*2)):return
+    except (ValueError,KeyError,TypeError):return
+    common=dict(date=date,problem='prime-field-factor-bases',better='neutral',source=f'{path}@{ref}');prefix='prym.prime_field.a4'
+    for k,unit in (('source_queries','queries'),('target_queries','queries'),('pair_entries','entries')):
+        emit(prefix+'.'+k,sum(c[k] for c in cells if c['prefix']==0),unit=unit,label='Shared physical collection counted once, not once per prefix',**common)
+    for c in cells:
+        for k,unit in (('base_rank','dimensions'),('single_targets','targets'),('joint_targets','targets'),('early_joint_targets','targets')):
+            emit(prefix+'.'+c['cell_id']+'.prefix'+str(c['prefix'])+'.'+k,c[k],unit=unit,label='Exact held-out curve/prefix observation',**common)
+
+
 def main():
     a = args()
     census(a.ref, a.since)
     receipts(a.ref, a.since)
     runs(a.ref)
+    icperf_trials(a.ref, a.since)
     prym_census(a.ref)
     prym_width(a.ref)
+    prym_equation_diversity(a.ref)
     funnel(a.ref, a.since)
     claims(a.ref)
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
+    prime_field_fixed_panels(a.ref, a.since)
+    prime_field_residual_panels(a.ref, a.since)
+    prime_field_direct_panel(a.ref, a.since)
+    prime_field_holdout_panel(a.ref, a.since)
 
 
 if __name__ == "__main__":

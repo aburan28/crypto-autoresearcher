@@ -43,3 +43,7 @@ A planned step is not an experiment result. Apply the existing approval, executi
 ## 2026-10-17 additive-repair boundary
 
 The [SNFS repair packet](../coordination/design/SNFS-INSTRUMENT-REPAIR-20261017/README.txt) exercised the current read-only preapproval probe on already-approved E3/D4 instruments with prospective versioned plans. The probe returned approvable:false: it expects an unapproved canonical specification, canonical trial-plan.json routing and input bindings, and a lawful new queue lane. These are exact mechanical gaps; the packet does not claim a passing probe or an approval. A supported repair path must retain the ordinary supervisor guards and reject changed scientific bytes or incomplete artifact coverage.
+
+## SNFS additive continuation, 2026-10-17
+
+A [proposed additive admission extension](../coordination/design/SNFS-ADDITIVE-ADMISSION-20261017/) now exercises transport repair and fresh retry identities in synthetic fixtures. Production admission/selector/supervisor code is unchanged. Its fixture checks do not authorize E3/D4 or G1 execution: exact committed packet bytes, lawful lane/queue ownership, supported additive postapproval selection and truthful Coordinator session authority remain required. This is concrete implementation preparation for the existing obstruction, not resolution or a new scientific result.

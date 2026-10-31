@@ -4,7 +4,8 @@
 5.5, check the mathematics periodically with Sonnet 5.5 or Opus, use Lean in
 experiments, and prove that the prescribed computation was done with the
 prescribed parameters). Code: `tools/runbook.py`. Tests:
-`tests/test_runbook.py`. Worked example: `examples/runbooks/toy-ecdlp-bsgs/`.
+`tests/test_runbook.py`, `tests/test_runbook_audit_tolerance.py`,
+`tests/test_runbook_session_collision.py`. Worked example: `examples/runbooks/toy-ecdlp-bsgs/`.
 Template: `templates/runbook.yaml`. This document changes no approval, no
 historical run and no scientific status.
 
@@ -100,7 +101,10 @@ rules that make it executable without judgment:
   attempts. Anything else is a result or a defect, never noise.
 - **`replay`** names the fields a re-execution must reproduce
   (`mode: fields`), or the whole files (`bytes`), or why the step cannot be
-  replayed (`exempt` with a reason, reported as `not_covered`).
+  replayed (`exempt` with a reason, reported as `not_covered`). A `fields`
+  compare item may declare `tolerance: {rel_tol, abs_tol}` for its pointers
+  (see "Replay tolerance and interpreter parity"). Split exact pointers and
+  toleranced pointers into separate items.
 - **`metrics`** name a step, file, pointer, unit, `measured|derived` label and
   aggregates. The tool computes them over valid non-control units and lists
   the excluded ones.
@@ -122,6 +126,16 @@ rules that make it executable without judgment:
     be reopened by rerunning once the cause is fixed (`session_reopened`).
   - Any other stop is terminal. Running again needs an amended runbook with
     a new session id and a new approval.
+  - **A session id belongs to one execution** (TASK-20261029-1bcf80, after
+    RBS-ICPERF-b7e41c). Before it writes `session_started`, `run` looks for
+    `<session_dir>/journal.jsonl` on every local branch and fetched
+    remote-tracking ref. If any ref holds one and the working tree does not,
+    `run` refuses as an impediment, names the ref and the journal blob, and
+    writes nothing. On a resume, every ref's journal must be a byte prefix or
+    an extension of the local journal, because resumes only append; anything
+    else is refused the same way. The check uses read-only git
+    (`for-each-ref`, `cat-file`) and never fetches, so fetch first when other
+    lanes may have run the same runbook.
 - **The session directory** is written only by the tool: `journal.jsonl`,
   `steps/<step>.attempt-<n>.*` logs, `outputs/<step>/attempt-<n>/`, and for
   the local engine `units/<RUN>/` with a receipt binding every file in it.
@@ -184,12 +198,62 @@ digest the executor cannot change, and compares the declared fields.
   its fabricated units.
 - **What the audit records.** The nonce, the seed, every replay and
   comparison, and the miss probability for fabrication rates of 1% to 50%.
+- **Every journal the session path has had.** The audit lists each distinct
+  `journal.jsonl` blob at the session path in `git log --all --full-history`,
+  plus the working-tree journal. A blob that is a byte prefix of another is the
+  same chain (resumes append). Each unrelated chain is a finding, with its
+  blob, first commit, first entry time and owner, and `journal_chains` lists
+  them all. A journal with more than one `session_started` entry is also a
+  finding. A spliced or doubled session can no longer audit clean.
 - **Where replays write.** Only under the audit directory. A replay is never
   committed as a run.
 - **What replay does not catch.** A driver that is itself wrong replays
   identically. That is what the checker, the blind re-derivation (layer 5) and
   Lean (layer 6) are for. Only an execution proof removes the sampling bound
   altogether.
+
+### Replay tolerance and interpreter parity
+
+Implemented by TASK-20261029-1bcf80 under DEC-20261029-5554ee. RBS-PFDR-bb0d26
+was recorded under CPython 3.11.15 and replayed under 3.13.17. Two derived
+floats differed by about 400 ulps (relative 8.6e-14), because CPython 3.12
+made builtin `sum()` of floats compensated. Every other leaf replayed equal.
+Under exact comparison that is indistinguishable from a fabricated value.
+
+- **Exact equality stays the default**, and an exact mismatch with no
+  tolerance stays a finding.
+- **A declared tolerance** (`replay.compare[].tolerance: {rel_tol, abs_tol}`,
+  either or both, finite and non-negative; lint checks it) applies to the
+  pointers of its compare item. It applies only to JSON float leaves, under
+  `math.isclose`. Integers, strings, booleans, nulls, key sets, list lengths
+  and list order stay exact, and an int on one side with a float on the other
+  is a mismatch. DEC-20261029-5554ee suggests `rel_tol: 1e-9, abs_tol: 1e-12`.
+- **An audit-time tolerance** for a runbook frozen without one:
+  `audit --float-tolerance rel_tol=1e-9,abs_tol=1e-12`. It applies to every
+  `fields` pointer that has no declared tolerance. It is recorded in
+  `audit.json` as `float_tolerance` with `source: audit_option`.
+- **Results.** Each replay has `result`: `matched` (all exactly equal),
+  `matched_within_tolerance` (only float leaves differ, all within
+  tolerance) or `mismatch`. `matched` stays true only for an exact match.
+  Each compared pointer records its `result`, the tolerance and its source,
+  the number of differing float leaves, and the largest absolute and relative
+  difference. `replay_results` counts the three outcomes. Only `mismatch` is a
+  finding. Because `matched: false` no longer always means a mismatch, the
+  audit schema is `crypto.autoresearch.runbook_audit.v2`. Committed v1 audits
+  stay as they are.
+- **Interpreter parity.** Each replay records the interpreter its `argv[0]`
+  runs (`sys.version`, executable, version), and `audit_interpreter` records
+  the auditing process. When the unit's `manifest.yaml` has
+  `/run/environment/python_version` and it differs, the replay carries an
+  `environment_drift` note naming both versions, collected in the top-level
+  `environment_drift`. The note sits beside the result and never replaces it.
+- **A pinned interpreter.** When the runbook pins `environment.python` and the
+  audit interpreter's major.minor differs, the unit is reported `not_covered`
+  and is not replayed.
+- **For future runbooks** (DEC-20261029-5554ee): when `replay.compare` reaches
+  derived floats, pin `environment.python` to the producing major.minor,
+  split compare into exact and toleranced items, and accumulate floats with
+  `math.fsum` in new drivers.
 
 ## Lean in experiments
 

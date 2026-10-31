@@ -1091,5 +1091,110 @@ class DeclaredBlindPhaseReplacement(unittest.TestCase):
                 self.assertNotIn("PASS:", output)
 
 
+class GitSourceIdentity(unittest.TestCase):
+    """Archived citations obey the same positive AND negative read scopes."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.directory = tempfile.TemporaryDirectory()
+        cls.repo = Path(cls.directory.name)
+        def git(*args):
+            return subprocess.check_output(["git", "-C", str(cls.repo), *args], text=True).strip()
+        git("init", "-q")
+        (cls.repo/"fixture.txt").write_text("scope fixture\n")
+        git("add", "fixture.txt")
+        git("-c", "user.name=Scope Test", "-c", "user.email=scope@example.invalid",
+            "-c", "commit.gpgSign=false", "-c", "core.hooksPath=/dev/null", "commit", "-qm", "fixture")
+        cls.commit = git("rev-parse", "HEAD")
+        cls.blob = git("rev-parse", "HEAD:fixture.txt")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.directory.cleanup()
+
+    def setUp(self):
+        self.case = DeclaredBlindPhaseComposition()
+        self.case.setUp()
+        self.repo_patch = patch.object(cri, "REPO", str(self.repo))
+        self.repo_patch.start()
+        self.addCleanup(self.repo_patch.stop)
+        cri._git_source_commit.cache_clear()
+
+    def alias(self, path, revision=None):
+        return "git:"+(revision or self.commit)+":"+path
+
+    def test_exact_full_and_unambiguous_short_aliases_are_allowed(self):
+        for revision in (self.commit, self.commit[:10]):
+            with self.subTest(revision=revision):
+                reports = copy.deepcopy(self.case.reports)
+                reports[1][1]["sources_read"] = [self.alias(p, revision) for p in self.case.allowed]
+                self.assertEqual(self.case._problems(reports=reports), [])
+                self.assertEqual(cri._read_path(self.alias(self.case.allowed[0], revision)),
+                                 cri._read_path(self.case.allowed[0]))
+
+    def test_alias_cannot_hide_a_protected_producer_read(self):
+        for revision in (self.commit, self.commit[:10]):
+            reports = copy.deepcopy(self.case.reports)
+            reports[2][1]["sources_read"].append(self.alias("tools/producer.py", revision))
+            self.assertTrue(any("blind_from path(s)" in p for p in self.case._problems(reports=reports)))
+
+    def test_alias_cannot_read_an_unauthorized_sibling(self):
+        for revision in (self.commit, self.commit[:10]):
+            for path in (f"reviews/{self.case.OTHER}/report.md", self.case.allowed[0]+".extra"):
+                reports = copy.deepcopy(self.case.reports)
+                reports[1][1]["sources_read"].append(self.alias(path, revision))
+                self.assertTrue(any("outside scoped lift_read_allowlist" in p
+                                    for p in self.case._problems(reports=reports)))
+
+    def test_blind_task_cannot_hide_sibling_read_with_false_flag(self):
+        reports = copy.deepcopy(self.case.reports)
+        reports[2][1]["sources_read"].append(self.alias(f"reviews/{self.case.FULL}/report.md"))
+        self.assertTrue(any("without an authorized blindness lift" in p
+                            for p in self.case._problems(reports=reports)))
+
+    def test_malformed_unknown_symbolic_and_noncommit_aliases_fail_closed(self):
+        bad = ["git:HEAD:fixture.txt", "git:main:fixture.txt", "git:123:fixture.txt",
+               self.alias("fixture.txt", "0"*40), self.alias("fixture.txt", self.blob),
+               self.alias("/absolute"), self.alias("../escape"), self.alias("a/../b"),
+               self.alias("a/./b"), self.alias("a//b"), self.alias("a/"),
+               self.alias("a\\b"), self.alias("a:b"), self.alias("a*"), self.alias("a?"),
+               self.alias("a[b]"), self.alias("a\nb"), " "+self.alias("fixture.txt"),
+               self.alias("fixture.txt")+" ", self.alias(""), "GIT:"+self.commit+":fixture.txt"]
+        for source in bad:
+            with self.subTest(source=source):
+                reports = copy.deepcopy(self.case.reports)
+                # Even a legacy broadly lifted reviewer must declare valid identities.
+                reports[0][1]["sources_read"] = [source]
+                self.assertTrue(any("invalid Git source identity" in p
+                                    for p in self.case._problems(reports=reports)))
+
+    def test_ambiguous_object_prefix_is_rejected(self):
+        response = subprocess.CompletedProcess([], 0, "abcdef0"+"1"*33+"\nabcdef0"+"2"*33+"\n", "")
+        with patch.object(cri.subprocess, "run", return_value=response):
+            with self.assertRaisesRegex(cri.InvalidGitSource, "ambiguous"):
+                cri._read_path(self.alias("fixture.txt", "abcdef0"))
+
+    def test_git_failure_is_a_finding_instead_of_a_pass_or_crash(self):
+        reports = copy.deepcopy(self.case.reports)
+        reports[1][1]["sources_read"].append(self.alias("fixture.txt"))
+        with patch.object(cri.subprocess, "run", side_effect=subprocess.TimeoutExpired("git", 10)):
+            self.assertTrue(any("cannot resolve Git commit" in p
+                                for p in self.case._problems(reports=reports)))
+
+    def test_symlink_escape_cannot_acquire_authorized_path_identity(self):
+        with tempfile.TemporaryDirectory() as external:
+            link = self.repo/"escape"
+            link.symlink_to(external, target_is_directory=True)
+            try:
+                with self.assertRaisesRegex(cri.InvalidGitSource, "escapes repository"):
+                    cri._read_path(self.alias("escape/report.md"))
+            finally:
+                link.unlink()
+
+    def test_plain_absolute_relative_and_public_url_behavior_is_preserved(self):
+        for source in ("fixture.txt", str(self.repo/"fixture.txt"), "https://example.invalid/paper"):
+            self.assertEqual(cri._read_path(source), os.path.realpath(os.path.join(str(self.repo), source)))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,98 @@
+
+--- src/zk/stark_v2.rs lines 176-220 at 8ce2800fbe3d265027e2341ec193ad69b946a8bd ---
+/// An affine adjacent-row constraint `a·prev + b·next + c` over the scalar
+/// field.  Its representation fixes the total degree at most one; callers
+/// cannot supply an arbitrary transition closure with a hidden higher degree.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AffineTransition {
+    previous: BigUint,
+    next: BigUint,
+    constant: BigUint,
+}
+
+impl AffineTransition {
+    /// Coefficients are reduced to canonical scalar-field representatives.
+    pub fn new(previous: BigUint, next: BigUint, constant: BigUint) -> Self {
+        let modulus = scalar_modulus();
+        Self {
+            previous: previous % &modulus,
+            next: next % &modulus,
+            constant: constant % &modulus,
+        }
+    }
+
+    /// Evaluate the complete transition constraint in the scalar field.
+    pub fn evaluate(&self, previous: &BigUint, next: &BigUint) -> BigUint {
+        fr_add(
+            &fr_add(&fr_mul(&self.previous, previous), &fr_mul(&self.next, next)),
+            &self.constant,
+        )
+    }
+}
+
+/// An AIR with boundary constraints and an affine transition operating on
+/// adjacent trace rows (`f(X), f(ω·X)`).
+#[derive(Clone)]
+pub struct AirV2 {
+    /// Number of trace rows.  Must be a power of 2.
+    pub n: usize,
+    /// Boundary constraints: `(position, expected_value)` pairs.
+    /// Each `position` is in `[0, n)`.
+    pub boundary: Vec<(usize, BigUint)>,
+    /// Degree-at-most-one constraint on consecutive trace values.  It must
+    /// evaluate to zero on valid adjacent rows.
+    pub transition: AffineTransition,
+    /// Generator of the trace (the prover's actual computation).
+    pub generate_trace: Arc<dyn Fn() -> Vec<BigUint> + Send + Sync>,
+}
+
+--- src/zk/stark_v2.rs lines 342-367 at 8ce2800fbe3d265027e2341ec193ad69b946a8bd ---
+/// **AIR identifier**: the transition evaluated (mod `r`) at `(0,0)`,
+/// `(1,0)`, `(0,1)` and [`AIR_PROBES`] fixed public points
+/// `H("ZK-STARK-V2/air-probe" ‖ j)`.  A transition of degree `≤ 1`
+/// (the only kind this module supports) is determined exactly by its
+/// first three values.  Higher-degree transitions are not representable by
+/// [`AffineTransition`].
+pub fn air_fingerprint(air: &AirV2) -> Vec<u8> {
+    let (zero, one) = (BigUint::from(0u32), BigUint::one());
+    let mut points = vec![
+        (zero.clone(), zero.clone()),
+        (one.clone(), zero.clone()),
+        (zero, one),
+    ];
+    points.extend((0..AIR_PROBES).map(|j| {
+        (
+            probe_point("ZK-STARK-V2/air-probe", 2 * j),
+            probe_point("ZK-STARK-V2/air-probe", 2 * j + 1),
+        )
+    }));
+    let mut out = b"air:v2-adjacent-row-transition".to_vec();
+    for (a, b) in &points {
+        out.extend_from_slice(&reduced_bytes(&air.transition.evaluate(a, b)));
+    }
+    out
+}
+
+
+--- src/zk/stark_v2.rs lines 952-972 at 8ce2800fbe3d265027e2341ec193ad69b946a8bd ---
+    }
+
+    /// The old closure API could encode this quadratic rule while the proof
+    /// bound assumed total degree one.  No affine rule agrees with `prev·next`
+    /// at these four field points: the first three force all coefficients to
+    /// zero, and the fourth then differs.
+    #[test]
+    fn quadratic_transition_is_outside_the_air_type() {
+        let zero = big(0);
+        let one = big(1);
+        let product = |a: &BigUint, b: &BigUint| fr_mul(a, b);
+        let constant = product(&zero, &zero);
+        let previous = fr_sub(&product(&one, &zero), &constant);
+        let next = fr_sub(&product(&zero, &one), &constant);
+        let affine = AffineTransition::new(previous, next, constant);
+        for (a, b) in [(&zero, &zero), (&one, &zero), (&zero, &one)] {
+            assert_eq!(affine.evaluate(a, b), product(a, b));
+        }
+        assert_ne!(affine.evaluate(&one, &one), product(&one, &one));
+    }
+

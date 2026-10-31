@@ -1,0 +1,384 @@
+audit_review:
+  audit_id: AUD-20261029T012603Z-0b6353
+  session_dir: experiments/EXP-PFDR-bb0d26/runbook-sessions/RBS-PFDR-bb0d26
+  journal_tip: 47f92d815113fa07878922f3ed9d45ddd7a6adbfbcf0920994e22af9efaa009f
+  auditor_model: claude-opus-5-5
+  tier: validator (Opus 5.5), dispatched by audit-runs step 3 because the deterministic audit printed flagged
+  scope: >-
+    Reader screen of one runbook session. It is not a validation_report, not evidence about H-PFDR-727bfc,
+    not an execution proof and not a review gate. I did not produce this run. I wrote only this file and the
+    five scripts under audits/AUD-20261029T012603Z-0b6353/scripts/. Nothing was written into replay/, the
+    session, the runs, tools or research state. No trial was run. The diagnostic in scripts/cause_probe.py
+    calls the bound run.py analyze_records() in-process on the committed inputs and prints to stdout only. It
+    writes no run record, and python -B kept __pycache__ out of implementation/.
+  snapshot:
+    head_at_review: b7144f7db002b6cd9971e93349507b144ea97e70
+    session_committed_in: e85a8dbe1a (archive TASK-20261022-207893)
+    audit_json_committed_in: b7144f7db0
+    bound_file_sha256_rechecked: >-
+      runbook.yaml a2d3e9e4..., specification.yaml e294b040..., trial-plan.json 9b25b15b..., check.py c7efb467...,
+      labelsum.c 28a80d52..., run.py 1d889ad9..., vendor/curve.py fcca2beb..., fixtures/kat.json 54bd6542... all
+      equal the values bound in runbook.yaml and trial-plan.json. The journal tip of seq 17 equals audit.json
+      journal_tip.
+
+  audit_json_read:
+    deterministic_verdict: flagged
+    findings:
+      - "replay S01-trials/analyze-final: raw-result.json/summary differs (calibration.mean -0.26757013662385903 recorded vs -0.26757013662383594 replay; message truncated at 80 chars)"
+      - "replay S01-trials/analyze-main: same difference"
+    replayed_units: [census-toy-rep RUN-PFDR-cd03e2 (matched), census-toy-main RUN-PFDR-4d8c71 (matched), analyze-final RUN-PFDR-089edc (mismatch), analyze-main RUN-PFDR-243425 (mismatch)]
+    not_replayed_units: [selftest RUN-PFDR-e44a19]
+    population: 5
+    replay_comparison_declared: raw-result.json /summary, exact equality (mode fields)
+    miss_probability: {f_0.01: 0.960596, f_0.05: 0.814506, f_0.1: 0.6561, f_0.25: 0.316406, f_0.5: 0.0625}
+    not_covered: []
+    lean: []
+
+  replay_mismatch_analysis:
+    a_full_summary_diff:
+      method: scripts/diff_json.py RECORDED REPLAY (leaf-by-leaf, with ULP distance)
+      analyze-final_RUN-PFDR-089edc_raw-result.json:
+        differing_leaves: 2
+        non_float_leaves_differing: 0
+        diffs:
+          - {pointer: /summary/calibration/mean, recorded: -0.26757013662385903, replay: -0.26757013662383594, abs: 2.309e-14, rel: 8.63e-14, ulps: 416}
+          - {pointer: /summary/calibration/sd, recorded: 0.9735699770654103, replay: 0.9735699770653656, abs: 4.463e-14, rel: 4.58e-14, ulps: 402}
+        equal: ["/summary/calibration/n = 44", "/summary/calibration/pass = true", "/summary/flagged_cells = []", "/summary/fraction_valid = 0.9777777777777777", "/summary/headline = SUPPORT_SCOPED", "/summary/outcome = O-NULL", "/experiment", "/run_id", "/trial_id", "/invalid_reason = null"]
+      analyze-main_RUN-PFDR-243425_raw-result.json: >-
+        Identical to analyze-final. The same two float leaves differ by the same amounts and every other leaf is
+        equal.
+      flags_json_both_units: 'byte-identical after parse ({"flagged_cells": []})'
+      beyond_the_compared_field: >-
+        The replay contract does not compare analysis-main.json or analysis.json, so I diffed them myself. In each
+        file 479 leaves differ and all 479 are floats. No non-float leaf differs. Every cls, powered,
+        planted_recovered, plant_feasible_all, curves, integer S, flagged_cells, failed_jobs, outcome, headline,
+        stage, powered_cells, plant_infeasible_cells, null_mean_anomalies and largest_abs_z.cell is equal. The
+        differing floats by family: plant_z 40, z 39, z_cal 37, null_mean_over_formula 36, ci95[0] 34, kappa 32,
+        M 32, V 32, plant_kappa 32, d_ci95[0] 30, d_ci95[1] 27, d_ratio 26, ci95[1] 26, kappa_even 22, kappa_odd 22,
+        9 secondary slopes, largest_abs_z.z, calibration mean and sd. The largest relative difference is 6.47e-11
+        at /cells/44/z. That z is -0.00917, so S - M cancels and inflates the relative error. The largest absolute
+        difference on any z is under 1e-11.
+      census_units: >-
+        The census /summary objects (jobs, failed_infrastructure, degenerate) matched. I also compared the
+        replayed toy-main-jobs.jsonl with the recorded one using scripts/jobs_compare.py. Both have 6657 records,
+        the same key set and no duplicate keys. Every record is identical once its seconds field is set aside.
+        Line order differs: only 3484 of 6657 lines sit at the same position. Both files have 6653 ok and 4
+        degenerate records, the degenerate ones being b20-r3-n4096 c = 6, 30, 42 and 47. The census-toy-rep
+        replay is an empty file, like the recorded one.
+      answer: >-
+        Every difference is at floating-point roundoff scale, at most 416 ulps in /summary and at most 1e-11
+        absolute anywhere. Nothing material differs: counts, classes, outcome, headline, flags and validity
+        fields are all equal.
+    b_cause:
+      determination: >-
+        A library version difference, specifically the interpreter. The recorded runs used CPython 3.11.15
+        (/usr/local/bin/python3, manifest.yaml /run/environment). The replay used CPython 3.13.17
+        (/usr/bin/python3). run.py accumulates floats with the builtin sum(): zcal_of pM and pV, cell_stats M, V
+        and the bootstrap means, plant_stats M and V. CPython 3.12 changed the builtin sum() of floats from plain
+        left-to-right addition to Neumaier compensated summation. That shifts M, V, z_cal and every statistic
+        downstream by a few ulps, and with them calibration mean and sd. Neither summation order, set or dict
+        iteration order, a non-seeded source, nor input record order is the cause.
+      cpython_change_citation: {ref: "CPython 3.12 What's New / gh-100425, sum() of floats uses Neumaier summation", provenance: recalled, load_bearing: false, note: the controlled experiment below carries the conclusion}
+      evidence:
+        - item: identical inputs
+          detail: >-
+            The analyze trials read inputs_from paths relative to run.py RUNS_DIR (implementation/../runs), so
+            both replays read the recorded runs/RUN-PFDR-4d8c71/toy-main-jobs.jsonl and
+            runs/RUN-PFDR-cd03e2/toy-rep-jobs.jsonl, not the replayed census. The input bytes, record order
+            included, were identical between run and replay. Code sha256 and the trial plan are unchanged, and
+            both commits are clean (recorded 48bd193a, replay 05a7011d).
+        - item: controlled re-execution of analyze_records on the recorded inputs (scripts/cause_probe.py; output bytes as run.py writes them)
+          results:
+            - "python3.11.17 native: analysis-main.json and analysis.json byte-identical to the RECORDED files"
+            - "python3.12.3 native: byte-identical to the REPLAY files"
+            - "python3.13.17 native: byte-identical to the REPLAY files"
+            - "python3.13.17 with run.py's module-global sum replaced by a strict left fold: byte-identical to the RECORDED files"
+            - "python3.11.17 with sum replaced by a pure-Python Neumaier sum: byte-identical to the REPLAY files"
+          reading: >-
+            Swapping only the summation function moves the output between the two byte strings in both
+            directions. The statistics module (fmean, variance, pstdev), libm and everything else contribute no
+            difference.
+        - item: record order ruled out
+          detail: >-
+            With the main jobs records shuffled under a fixed seed, every statistic stays bit-identical under the
+            same interpreter. Only the order of the failed_jobs list changes (3 leaves: c values permuted), and
+            that list is not in /summary. With the records sorted by (cell, c), the output is byte-identical to
+            the recorded file. cell_stats sorts by curve index (spec R7), z_cal is gathered in design order, and
+            _ok_by_curve keys are unique (0 duplicate keys).
+        - item: set or dict order and non-seeded sources ruled out
+          detail: >-
+            Each probe invocation is a fresh process with a different random PYTHONHASHSEED. The 3.11 native, 3.11
+            sorted and 3.13 left-fold runs still reproduce the same bytes exactly. The bootstrap uses the seeded
+            per-cell stream.
+        - item: the sibling as a natural control
+          detail: >-
+            The EXP-PFDR-ca5e01 run.py has the same pattern (sum(statistics.fmean(...)) at lines 380-381) and the
+            same float /summary calibration fields. Its six runs were recorded under CPython 3.13.16 and replayed
+            under 3.13, both on the Neumaier side of the change, and its audit AUD-20261029T011541Z-b300b2 is
+            clean. Its record-order observation concerns census jobs files written in completion order by a
+            ProcessPoolExecutor, the same as here (3484 of 6657 lines in place). That is spec-excluded
+            (determinism_excluded_fields [seconds, jobs record order]) and does not reach any /summary field.
+        - item: which value is right
+          detail: >-
+            Neither is the exact value. The exact rational re-derivation in scripts/blind_rederive.py gives
+            calibration mean -0.2675701366240368: recorded is off by +1.78e-13, replay by +2.01e-13. It gives sd
+            0.9735699770653714: recorded is off by +3.9e-14, replay by -5.8e-15. The per-cell z error is at most
+            7.8e-12 recorded and 3.8e-12 replay. M from the replay is exact to the float; M from the recorded run
+            is within 4.8e-7 absolute, a few ulps.
+    c_outcome_unchanged:
+      answer: >-
+        Yes. Under the replay the outcome and every decision-relevant value are unchanged: outcome O-NULL, headline
+        SUPPORT_SCOPED, flagged_cells [], fraction_valid 44/45 = 0.9777777777777777, calibration n 44 and pass
+        true. The 45 classes are unchanged (44 null; 1 invalid, b20-r3-n4096 with 46 of 50 ok curves), as are 44
+        powered cells, the plant recovered in all 44, flags.json empty, census-toy-rep at 0 jobs and the census
+        counts 6657 / 0 / 4. Of the session summary metrics, only calibration_mean_final and calibration_sd_final
+        would carry the ulp shift. Every other metric is bit-equal.
+      margins_to_every_gate: >-
+        Smallest margin over the 44 valid cells: |kappa - 1| is 0.0086 under 0.05. The null CI is 0.023 inside
+        [0.90, 1.10] under my own bootstrap, and every recorded CI also satisfies the condition. M - 2500 is at
+        least 1369. plant_kappa - 1.15 is at least 0.139. plant_z - 4 is at least 17.9. 4 - |z| is at least 0.87
+        (largest |z| 3.13 at b24-r1-n2048). Calibration |mean| is 0.082 under 0.35, and sd is 0.224 inside [0.75,
+        1.25]. The largest float discrepancy (under 1e-11) is more than 1e9 times smaller than the tightest margin.
+    d_replay_contract:
+      finding: >-
+        The runbook declares replay mode fields with compare [raw-result.json /summary]. tools/runbook.py
+        replay_unit compares with _same(), which is Python == on parsed JSON with no tolerance. /summary carries
+        two derived floats (calibration mean and sd) whose last bits depend on the interpreter's float summation.
+        The runbook omits environment.python. The template marks it optional, lint accepts its absence, and
+        preflight enforces it only when present. The journal preflight records no interpreter. audit() neither
+        checks nor records the replay interpreter against the unit's manifest python_version, so drift from 3.11
+        to 3.13 surfaced as a plain mismatch. The producer's own checker already treats these values as
+        approximate (check.py _close uses math.isclose rel_tol 1e-9, abs_tol 1e-12), and CHECK OK passed on every
+        run and every replay. For float fields, then, the contract is stricter than the experiment's own
+        determinism statement: R7 and determinism_excluded_fields promise that job records are pure functions of
+        their key, and say nothing about cross-interpreter bit-identity of derived floats.
+      fabrication_signal: >-
+        No. A fabricated or miscopied value would not be reproduced byte-for-byte by the bound driver on the
+        committed inputs. Under the recorded interpreter family, or with only the summation function swapped, it is
+        reproduced exactly: both analysis files are byte-identical and their /calibration equals /summary/calibration.
+        This is a runbook and tool contract issue.
+      recommendations_not_applied:
+        - "Tool (tools/runbook.py audit): record the replay interpreter (sys.version, executable) per replay, compare it with the replayed unit's manifest /run/environment/python_version, and report a difference as its own environment_drift note rather than a bare mismatch."
+        - "Tool: add an optional float tolerance to mode fields, for example per-pointer rel_tol/abs_tol or an ulps budget, applied only to float leaves. Keep exact equality for ints, strings, bools, nulls, key sets and list lengths. rel_tol 1e-9 with abs_tol 1e-12 matches check.py and covers what was observed here (rel at most 8.6e-14 in /summary; abs at most 1e-11 per cell)."
+        - "Tool (optional): when the runbook pins environment.python, replay under that interpreter, or refuse with not_covered rather than replay under a different one."
+        - "Runbooks (experiment-director, future runbooks or a versioned amendment; this frozen runbook stays as is): set environment.python to the producing major.minor whenever replay.compare reaches derived floats. Split compare into exact pointers (/summary/outcome, /headline, /flagged_cells, /fraction_valid, /calibration/n, /calibration/pass) and toleranced ones (/summary/calibration/mean, /sd). Add analysis.json /cells (cls, S, kappa) to the compare set so the specification's primary metric is replayed."
+        - "Drivers (future experiments): accumulate floats with math.fsum, which is correctly rounded and therefore order- and interpreter-independent, so replays are bit-stable across CPython versions."
+        - "Coordinator: this finding indicates no rerun, invalidation or implementation fix. A re-audit with python3 resolving to 3.11 is expected to replay all four units exactly. That expectation is inferred from cause_probe and was not run as an audit."
+
+  specification_fidelity:
+    summary: >-
+      The runbook is faithful to the specification. Every arm, control, metric, stopping rule and invalidation rule
+      has a counterpart in the runbook, the sha-bound trial plan, run.py or check.py. No item lacks a counterpart.
+      Three observations follow (O1 to O3). None is an absent measurement.
+    arms:
+      - {item: rank-r log-GAP label set, where: "census-toy-main / census-toy-rep trials (run.py job gap arm); check.py C6 replay plus brute recount; runbook by_trial requires toy-main-jobs.jsonl"}
+      - {item: uniform null C2 (20 replicates), where: "same jobs, null_C and null_D; NULL_REPS 20 in the manifest inputs"}
+      - {item: planted label AP C3, where: "same jobs, plant_*; class inconclusive_plant_not_recovered"}
+      - {item: seed blocks main / replication / selftest, where: "spec_bindings /experiment/replication/seeds equals [8100000, 8200000, 8900000]; separate census trials"}
+    controls:
+      - {id: C1, where: "trial selftest; runbook controls [selftest]; by_trial asserts /summary/selftest_pass true, cells 45, selftest.json /pass true, design.json 45 cells; selftest.json has 45 kernel-vs-brute sets (spec requires at least 40)"}
+      - {id: C2, where: census jobs null arm}
+      - {id: C3, where: census jobs plant arm and classes}
+      - {id: C4, where: "analyze /summary/calibration (runbook asserts it is an object); metrics calibration_n/mean/sd_final"}
+      - {id: C5, where: "census-toy-rep trial on block 8200000, reading flags.json of analyze-main"}
+      - {id: C6, where: "check.py census branch, the check_argv of every trial; re-run by the audit"}
+      - {id: C7, where: "selftest.json scaling-identity checks, 12 sets as the spec states"}
+      - {id: C8, where: "not run by specification (no cost claim); none needed"}
+    metrics:
+      primary:
+        - {item: "kappa per toy cell with ci95, z, S, M, V, curves, powered, cls", where: "analysis.json (analyze-final), a declared validity file; runbook asserts /cells length 45. Not a runbook metric and not in replay.compare (O1)"}
+        - {item: "toy reading (outcome, fraction_valid, flagged_cells)", where: "raw-result /summary assertions (outcome in the 5 values, flagged array, fraction_valid number); metric fraction_valid_final; replayed"}
+        - {item: calibration, where: "/summary/calibration; metrics calibration_*_final; /cells[]/z_cal in analysis.json only"}
+        - {item: planted recovery, where: analysis.json cells only}
+        - {item: replication of flagged cells, where: "census-toy-rep and analyze-final; not exercised (no flagged cell)"}
+        - {item: headline, where: /summary/headline assertion; replayed}
+      secondary:
+        - {item: slope of log kappa on log2 n, where: analysis.json}
+        - {item: D ratio, where: analysis.json}
+        - {item: null mean over formula, where: analysis.json (anomaly list empty)}
+        - {item: even-odd kappa, where: analysis.json}
+        - {item: infrastructure failures, where: "runbook metrics census_*_jobs and census_*_failed_infrastructure; /summary/degenerate in raw-result, which has no runbook metric (O2)"}
+        - {item: log-GAP geometry, where: toy-main-jobs.jsonl gap_meta}
+        - {item: per-job wall time, where: "jobs seconds; correctly outside the replay comparison"}
+    stopping_rules:
+      - {rule: each trial stops after its outputs, where: "run.py cmd_trial; runbook validity requires each file"}
+      - {rule: kernel call over 3600 s is failed_infrastructure for the job, where: "run.py KERNEL_TIMEOUT_S 3600 (driver level)"}
+      - {rule: trial watchdogs 3600/43200/3600/43200/3600 s, where: "trial-plan watchdog_seconds equal these; runbook timeout_seconds 97200 equals their sum; claim ttl 1620 min equals 97200 s; on_failure timed_out maps to resource_exhaustion stop"}
+      - {rule: census-toy-rep only flagged cells; empty jobs file when none, where: "runbook step explain; by_trial requires toy-rep-jobs.jsonl; recorded as 0 bytes"}
+      - {rule: stop after five trials, where: "spec_bindings maximum_runs 5; five plan trials"}
+      - {rule: "crash, timeout or memory kill is failed_infrastructure", where: "runbook on_failure exit 1, 2, 130 map to infrastructure_error stop; exit 3 maps to implementation_error; validity false maps to invalid_measurement"}
+    invalidation_rules: >-
+      All eight rules have counterparts: the selftest gate assertion with on_invalid stop; the check.py exit 3
+      class; design re-derivation in check.py and here; C6; the degenerate or failed cell made invalid by the
+      driver (seen here in b20-r3-n4096); the calibration gate O-INVALID branch; code and plan sha checks in
+      check.py; runbook binds plus preflight byte-match to HEAD.
+    observations:
+      - "O1: replay.compare covers raw-result /summary only. The specification's primary per-cell kappa table (analysis.json /cells) is declared and structurally asserted but never replay-compared. I compared it here: 0 non-float leaves differ."
+      - "O2: the runbook metrics report census failed_infrastructure = 0 but carry no degenerate count. Four degenerate jobs make b20-r3-n4096 invalid. The count is visible in raw-result /summary/degenerate = 4 (replayed equal) and in analysis failed_jobs."
+      - "O3: the runbook pins no Python version (environment.python absent), and the specification's launcher names only 'Python 3 standard library'. This is the root of the replay finding."
+
+  blind_rederivation:
+    metric: >-
+      The specification's primary block: per-cell S, M, V, kappa, z, z_cal, plant_kappa, plant_z, powered and
+      class over all 45 cells; the calibration gate (n, mean, population sd, pass); fraction_valid; flagged_cells;
+      outcome; headline. Compared with the session summary metrics and the recorded analysis.json.
+    script: experiments/EXP-PFDR-bb0d26/audits/AUD-20261029T012603Z-0b6353/scripts/blind_rederive.py
+    script_sha256: 0a767c9eb6cfbcf517eff12d23910a1964d7a7575eec43b3598762fcb1ab03fc
+    invocation: python3 -I blind_rederive.py experiments/EXP-PFDR-bb0d26 experiments/EXP-PFDR-bb0d26/audits/AUD-20261029T012603Z-0b6353 (from the repo root; 14 s)
+    definitions_from: "specification.yaml /experiment/inputs: sizing l.120, statistics.per_cell l.128, powered l.135, cell_classes l.137, calibration_gate l.146, toy_reading_rules l.150, headline l.160"
+    inputs: runs/RUN-PFDR-4d8c71/toy-main-jobs.jsonl (raw job records); runs/RUN-PFDR-cd03e2/toy-rep-jobs.jsonl (empty); design.json used only to confirm the n_curves I re-derived
+    arithmetic: exact Fraction for S, M, V and the ratios; Decimal at 60 digits for square roots; stdlib only; no producer import
+    results:
+      design_n_curves: re-derived from the closed-form sizing rule for all 45 cells; 0 mismatches with design.json
+      classes: {null: 44, invalid: 1, mismatches_vs_recorded: 0}
+      invalid_cell: b20-r3-n4096 (46 ok of 50 curves)
+      S_integer_mismatches: 0
+      calibration_n: {session_summary: 44, rederived: 44}
+      calibration_mean_final: {session_summary: -0.26757013662385903, replay: -0.26757013662383594, rederived_exact: -0.2675701366240368}
+      calibration_sd_final: {session_summary: 0.9735699770654103, replay: 0.9735699770653656, rederived_exact: 0.9735699770653714}
+      calibration_pass: {session_summary: true, rederived: true}
+      fraction_valid_final: {session_summary: 0.9777777777777777, rederived: 44/45}
+      flagged_cells: {session_summary: [], rederived: []}
+      outcome: {session_summary: O-NULL, rederived: O-NULL}
+      headline: {session_summary: SUPPORT_SCOPED, rederived: SUPPORT_SCOPED}
+      max_abs_error_vs_exact: {order: [recorded, replay], kappa: [1.1e-15, 2.2e-16], z: [7.8e-12, 3.8e-12], z_cal: [6.0e-12, 4.5e-12], plant_z: [7.3e-12, 5.5e-12]}
+      bootstrap: >-
+        The specification fixes 2000 curve-cluster resamples and the 2.5/97.5 percentiles but not the per-cell seed
+        derivation, so ci95 is not bit-reproducible from the specification alone. I drew my own bootstrap with an
+        auditor seed. All 44 null cells satisfy the CI condition under it (min margin 0.023), and all 44 recorded
+        ci95 also satisfy it.
+    agreement: >-
+      Every decision field agrees exactly. Recorded and replayed floats each lie within 2.1e-13 of the exact
+      calibration statistics.
+    blind_from_respected: false
+    blindness_disclosure: >-
+      This re-derivation is not blind to the producer's implementation. Part (b) of this task required finding
+      the cause in the code, so I read run.py's statistics (cell_stats, zcal_of, plant_stats, classify,
+      calibration_gate, reading, analyze_records) and check.py's tolerance line before writing the script. I wrote
+      every formula from the cited specification lines and checked each against them. I resolved no ambiguity
+      from the code: "sample variance" is taken as n-1, and "population sd" is the spec's own term. The one place
+      the specification is underspecified, the bootstrap seed, I did not copy. A reviewer who needs a strictly
+      blind derivation should rerun one without reading run.py.
+
+  certificate_checks:
+    library: >-
+      Auditor-written arithmetic only (scripts/cert_check.py, sha256
+      b2ed05ea0d5f16a149f7b885cfbf240fbca78cdc9a4dc0d23a9ff0a67f615f8b): Miller-Rabin, Jacobian group law,
+      Euler criterion, Tonelli-Shanks, pair-sum Counter. No import of run.py, check.py, vendor/curve.py or
+      labelsum.c. The only shared element is the seeding convention needed to regenerate a job's sets. It is
+      stated in spec l.103-114, and I read it from run.py _rng and curve.py random_point: the sha256 label
+      string, big-endian int, x = randrange(p) until square, smaller root, sign by random() < 0.5.
+    invocation: python3 -I cert_check.py experiments/EXP-PFDR-bb0d26 224678a94f7b817180f43edbfaac3a05 (the job sample is ordered by sha256 of the audit nonce; 6 s)
+    note_on_sample: >-
+      The population is 5 units and the audit replayed 4, so only one unreplayed unit exists (selftest). The
+      instruction to check two unreplayed units cannot be met. I checked the one that exists and all four
+      replayed units.
+    claim_kind: >-
+      No discrete log, relation or decomposition is claimed (manifest certificate kind none). The certifiable
+      claims are prime curve orders, exact coincidence counts C and D of the regenerated label sets, the half-box
+      geometry, and the cell statistics and classes.
+    units:
+      - unit: census-toy-main RUN-PFDR-4d8c71
+        replayed: true
+        checks:
+          - "Curve orders: 1580 distinct curves (50 at 20 bits, 90 at 24, 1440 at 28). For each: p prime of the stated bit length, N prime, N != p, (N-p-1)^2 <= 4p, 4a^3+27b^2 != 0, a and b nonzero (j not 0 or 1728), and [N]P = O for two random points. Since N is prime and N > 4 sqrt(p), this certifies #E(F_p) = N. 0 failures."
+          - "gap_meta for all 6657 records: T is the least half-box parameter for (r, n). For r = 1 the enumeration is forced (enumerated = n, no skips, first [1], last [n]). enumerated minus skips equals n for ok jobs, and the 4 degenerate jobs exhausted the full half-box. 0 failures."
+          - "Exact recount, one job per (bits, r) among n <= 512, nonce-ordered: b20-r1-n256 c7, b20-r2-n512 c24, b20-r3-n256 c0, b24-r1-n256 c9, b24-r2-n512 c49, b24-r3-n512 c21, b28-r1-n512 c68, b28-r2-n256 c684, b28-r3-n256 c1302. For all 9 jobs, gap_C, gap_D, all 20 null_C and all 20 null_D equal the record. The gap_meta T, enumerated, skips and last vector are equal. Labels are distinct, lie in L and number n."
+        result: pass
+      - unit: analyze-main RUN-PFDR-243425
+        replayed: true
+        checks:
+          - "Exact rational re-derivation of every cell's S, M, V, kappa, z, z_cal, plant statistics and class (blind_rederive.py) agrees as above."
+          - "analysis-main.json equals analysis.json in every key except stage (main vs final). flags.json is {flagged_cells: []}."
+        result: pass
+      - unit: analyze-final RUN-PFDR-089edc
+        replayed: true
+        checks:
+          - "Same re-derivation. rep is the empty toy-rep-jobs.jsonl, so no replication applies and reading_note is null. outcome O-NULL and headline SUPPORT_SCOPED follow from the rules."
+        result: pass
+      - unit: census-toy-rep RUN-PFDR-cd03e2
+        replayed: true
+        checks:
+          - "No cell meets the flag rule under my re-derivation (max |z| 3.13 < 4). An empty flags.json and a 0-byte toy-rep-jobs.jsonl are therefore the prescribed output."
+        result: pass
+      - unit: selftest RUN-PFDR-e44a19
+        replayed: false
+        checks:
+          - "All 42 known-answer sets of fixtures/kat.json recounted (C and D); 0 mismatches."
+          - "3 label universes recomputed by Euler criterion; 15 half-box rows and 3 lexicographic vector lists recomputed; 0 mismatches."
+          - "design.json n_curves re-derived from the sizing rule for all 45 cells (see blind_rederivation)."
+          - "selftest.json pass true with 79/79 checks: 45 kernel-vs-brute (C1), 12 scaling-identity (C7), builder-vs-slow for r = 1, 2, 3, hand-built single coincidence, design anchors."
+        result: pass
+    not_recounted: >-
+      The planted arm (plant_C, plant_internal, plant_m) was not regenerated, because the AP and fill RNG
+      consumption order is not in the specification. Plant statistics were re-derived from the recorded plant_C
+      only. Their gate margins are large (plant_z at least 21.9, plant_kappa at least 1.289). Jobs with n >= 1024
+      were not recounted.
+
+  lean_statement_fidelity:
+    obligations: []
+    screen: >-
+      Not applicable. The runbook has no lean step and audit.json lean is []. Nothing was formalized, for example
+      the four-distinct-labels property of the counting convention or the random-set mean 3 C(n,4)/p of R2. The
+      specification uses that mean only as a sizing aid and compares against the measured null, so its absence
+      weakens no reading.
+
+  not_covered:
+    from_audit_json: []
+    added_by_reader:
+      - "Execution proof: none. The runbook has no execution_proof step and the summary chain is incomplete (docs/execution-proof-chain.md milestones open)."
+      - "The deterministic replay did not reproduce analyze-main or analyze-final under its exact-equality contract. Exact reproduction is shown only by this reader's in-process diagnostic under CPython 3.11 or a left-fold sum, not by an audit replay."
+      - "The audit records no interpreter parity: recorded CPython 3.11.15, replay 3.13.17, and the runbook pins no environment.python."
+      - "The selftest unit (1 of 5) was not replayed. It is covered by the re-run checker and by my KAT, half-box and design recomputation."
+      - "The analyze replays read the recorded census jobs (inputs_from resolves to runs/), not the replayed census, so the replay does not chain census to analyze. The census replay compares only order-invariant /summary counts. I compared the jobs files: identical except seconds, line order differs."
+      - "The primary per-cell kappa table (analysis.json /cells) is outside replay.compare; this reader compared it."
+      - "ci95 and d_ci95 are not re-derivable bit-exactly from the specification (bootstrap seed derivation unstated). An auditor-seeded bootstrap reaches the same classes."
+      - "The planted arm was not regenerated by disjoint code, and jobs with n >= 1024 were not recounted."
+      - "The replication path (replication_of, the O-STRUCT / O-PENDING-REPLICATION branches) was not exercised because no cell was flagged."
+      - "The blind re-derivation was not blind to run.py (disclosed above)."
+      - "Lean: no obligations."
+      - "Inferential validity: not assessed. SUPPORT_SCOPED is the toy reading of the frozen rules, not a status move. Per decision_impact.on_positive, an independent review (blind recount of S, M and kappa, class and headline re-derivation, kernel spot-check) precedes any move of H-PFDR-727bfc."
+      - "Descriptive tail check (spec l.427): the largest |z| over 44 powered cells is 3.13 (b24-r1-n2048) against an expected maximum of about 2.4. That exceeds the expectation but is not a gate. Under independence the chance of a max |z| this large among 44 normals is about 7%. z_cal values are correlated across cells that share curves (spec interpretation limit)."
+
+  verdict: flagged
+  verdict_reason: >-
+    The deterministic finding stands as recorded: 2 of 4 sampled units did not reproduce /summary under the
+    declared exact-equality contract. The reader has classified it as benign. It is float roundoff (at most 416
+    ulps, at most 1e-11 absolute anywhere) caused by CPython 3.12+ compensated sum() against the recorded 3.11.
+    It is not a fabrication signal, and no count, class, flag, outcome or headline changed. Every other reader
+    check passes. Specification fidelity has no missing item. The re-derivation agrees, though it is not strictly
+    blind. All certificates hold: 1580 curve orders, 9 exact job recounts, 42 KAT sets, design table. The flag
+    remains because the replay contract, not the session, needs repair, and a clean audit requires replays that
+    reproduce.
+  escalate: true
+  escalate_note: >-
+    Escalate for two reasons: the verdict is not clean, and this SUPPORT_SCOPED session is the input that
+    decision_impact.on_positive routes to independent review. I recommend no rerun, invalidation or
+    implementation fix on account of this finding. The actions are a tool and runbook fix (d.recommendations)
+    and, if wanted, a fresh audit with python3 resolving to 3.11 or a tolerance-aware compare. A full validator
+    review is still owed before any evidence review cites the session.
+
+  scripts:
+    - {path: scripts/diff_json.py, sha256: 5fa87a2bc35199d66c88d889ad174c1cd6102ce70c83670ca009ed4b3073415e, role: "leaf-by-leaf recorded vs replay diff with ULPs"}
+    - {path: scripts/cause_probe.py, sha256: 1036f2d2541be33af9ce2f6496247327443c33f20d87ddac1bd073cded51d6ab, role: "diagnostic: producer analyze_records under interpreter and summation variants; stdout only; run with python -B -I"}
+    - {path: scripts/jobs_compare.py, sha256: 5f54f2f389856050ae86e88e44849008434e231f70b987042571c5f0498b3e21, role: "keyed comparison of recorded vs replayed census jobs, seconds excluded"}
+    - {path: scripts/blind_rederive.py, sha256: 0a767c9eb6cfbcf517eff12d23910a1964d7a7575eec43b3598762fcb1ab03fc, role: "exact-rational re-derivation from the specification"}
+    - {path: scripts/cert_check.py, sha256: b2ed05ea0d5f16a149f7b885cfbf240fbca78cdc9a4dc0d23a9ff0a67f615f8b, role: "disjoint-arithmetic certificates"}
+
+  sources_read:
+    - AGENTS.md (headings; Core rules; Review architecture)
+    - agents/validator.md
+    - .claude/agents/validator-sweep.md
+    - .claude/skills/audit-runs/SKILL.md
+    - docs/agent-runtime-core.md
+    - docs/runbook-execution.md
+    - experiments/EXP-PFDR-bb0d26/audits/AUD-20261029T012603Z-0b6353/audit.json and replay/* (raw-result, manifest environment, analysis files, flags, jobs file by script)
+    - experiments/EXP-PFDR-bb0d26/runbook.yaml, runbook-lint.txt, specification.yaml (full), trial-plan.json, task-cards/CARD-EXP-PFDR-bb0d26-1.yaml
+    - experiments/EXP-PFDR-bb0d26/implementation/run.py (lines 1-256, 360-700, 793-1009), check.py (grep for tolerance and def lines only), vendor/curve.py (lines 136-186 and def list), fixtures/kat.json (structure; values by script)
+    - experiments/EXP-PFDR-bb0d26/runs/*/raw-result.json, manifest.yaml (environment, code, timing), environment.json (243425, 089edc), selftest.json, design.json, analysis-main.json, analysis.json, flags.json, toy-main-jobs.jsonl and toy-rep-jobs.jsonl (by script), check.stdout.log
+    - experiments/EXP-PFDR-bb0d26/runbook-sessions/RBS-PFDR-bb0d26/journal.jsonl (by script) and steps/S01-trials.attempt-2 claim, claim-commit, supervisor and release logs, attempt-1 supervisor.stderr
+    - tools/runbook.py (lines 500-525, 760-805, 910-915, 1115-1135, 2004-2080, 2092-2140), templates/runbook.yaml (grep python)
+    - experiments/EXP-PFDR-ca5e01/audits/AUD-20261029T011541Z-b300b2/audit.json, audit-review.yaml (lines 1-30 and a grep), runbook.yaml (replay block), runs/*/raw-result.json summaries, runs/*/manifest.yaml python_version, implementation/run.py (grep for fmean, statistics and sum)
+  read_sibling_reports: >-
+    Yes, the EXP-PFDR-ca5e01 audit-review.yaml (format and a grep). It is a different session, used for format
+    and as the natural control. This is not a review_plan round.

@@ -38,7 +38,8 @@
 #   CHECKPOINT_MAX_TOTAL_MB cap on the untracked tarball input (default 300)
 #
 # Layout: s3://$BUCKET/$PREFIX/<repo>/<branch>/<UTC stamp>-<sha>/
-#   checkpoint.tar.gz  (meta.json RESUME.md files/<spec and lead files>
+#   checkpoint.tar.gz  (meta.json RESUME.md relay/<HANDOFF.md handoff.json relay.jsonl>
+#                       files/<spec and lead files>
 #                       branch.bundle worktree.patch untracked.tar.gz
 #                       skipped-untracked.txt)
 #   RESUME.md  meta.json  (copies, for reading without unpacking)
@@ -143,6 +144,21 @@ branch_key() {
   printf '%s' "$b" | sed 's#/#__#g; s#[^A-Za-z0-9._=-]#-#g'
 }
 
+# GNU stat -f prints filesystem information before failing on BSD format flags.
+# Its stdout contaminates a shell fallback, so use the already-required Python
+# runtime for both GNU/Linux and macOS metadata without probing either syntax.
+file_stat() {
+  python3 - "$1" "${2:-fingerprint}" <<'PY'
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+info = path.stat()
+if sys.argv[2] == "size":
+    print(info.st_size)
+else:
+    print(str(path), info.st_size, info.st_mtime_ns)
+PY
+}
+
 # Files that differ from what any remote already has: changed in unpushed
 # commits, changed in the worktree or index, or untracked.
 changed_files() {
@@ -179,13 +195,23 @@ resume_problems() {
 }
 
 state_hash() {
+  local untracked_files metadata="" f entry
+  untracked_files="$(git ls-files --others --exclude-standard)" || return 1
+  # Collect outside the hash pipeline so metadata failures reach the caller.
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    [[ "$f" =~ $EXCLUDE_RE ]] && continue
+    [[ "$f" = .resume/* ]] && continue
+    if [ -f "$f" ]; then
+      entry="$(file_stat "$f")" || return 1
+      metadata+="$entry"$'\n'
+    fi
+  done <<< "$untracked_files"
   {
     git rev-parse HEAD 2>/dev/null || true
     git diff --binary HEAD 2>/dev/null || true
     [ -f .resume/RESUME.md ] && cat .resume/RESUME.md
-    git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' | while IFS= read -r f; do
-      [ -f "$f" ] && stat -f '%N %z %m' "$f" 2>/dev/null || stat -c '%n %s %Y' "$f" 2>/dev/null || true
-    done
+    if [ -n "$metadata" ]; then printf '%s' "$metadata"; fi
   } | shasum -a 256 | cut -d' ' -f1
 }
 
@@ -241,7 +267,8 @@ cmd_status() {
   echo "spec files:"; spec_files | sed 's/^/  /'
   local p; p="$(resume_problems)"
   if [ -n "$p" ]; then echo "RESUME.md : NOT READY"; printf '%s\n' "$p" | sed 's/^/  /'; else echo "RESUME.md : ok"; fi
-  if [ -f .resume/.last-push ] && [ "$(cut -d' ' -f1 .resume/.last-push)" = "$(state_hash)" ]; then
+  local hash; hash="$(state_hash)" || die "cannot hash the current worktree"
+  if [ -f .resume/.last-push ] && [ "$(cut -d' ' -f1 .resume/.last-push)" = "$hash" ]; then
     echo "last push : current ($(cut -d' ' -f2- .resume/.last-push))"
   else
     echo "last push : stale or none"
@@ -253,7 +280,7 @@ cmd_push() {
   [ "${1:-}" = "--force" ] && force=1
   cd "$(top)"
   mkdir -p .resume
-  local hash; hash="$(state_hash)"
+  local hash; hash="$(state_hash)" || die "cannot hash the current worktree"
   if [ $force = 0 ] && [ -f .resume/.last-push ] && [ "$(cut -d' ' -f1 .resume/.last-push)" = "$hash" ]; then
     echo "checkpoint: unchanged since $(cut -d' ' -f2- .resume/.last-push)"; return 0
   fi
@@ -264,9 +291,13 @@ cmd_push() {
   stamp="$(date -u +%Y%m%dT%H%M%SZ)-$sha"
   key="$PREFIX/$repo/$branch/$stamp"
   stage="$(mktemp -d "${TMPDIR:-/tmp}/checkpoint.XXXXXX")"
-  trap "rm -rf '$stage'; trap - RETURN" RETURN
+  trap 'rm -rf -- "$stage"; trap - RETURN' RETURN
 
   [ -f .resume/RESUME.md ] && cp .resume/RESUME.md "$stage/RESUME.md"
+  # Runtime relay handoff (scripts/relay.py), so another runtime or host can take over.
+  mkdir -p "$stage/relay"
+  for f in HANDOFF.md handoff.json relay.jsonl; do [ -f ".resume/$f" ] && cp ".resume/$f" "$stage/relay/$f"; done
+  rmdir "$stage/relay" 2>/dev/null || true
 
   local f
   while IFS= read -r f; do
@@ -288,7 +319,7 @@ cmd_push() {
   : > "$stage/untracked.list"; : > "$stage/skipped-untracked.txt"
   while IFS= read -r f; do
     [ -f "$f" ] || continue
-    sz="$(stat -f %z "$f" 2>/dev/null || stat -c %s "$f")"
+    sz="$(file_stat "$f" size)" || die "cannot size untracked file $f"
     if [ "$sz" -gt "$maxb" ] || [ $((total + sz)) -gt "$capb" ]; then
       printf '%s\t%s bytes\n' "$f" "$sz" >> "$stage/skipped-untracked.txt"
     else
@@ -409,7 +440,9 @@ cmd_share() {
   local ref="" days=7 a
   while [ $# -gt 0 ]; do case "$1" in --days) days="$2"; shift ;; *) ref="$1" ;; esac; shift; done
   [ -n "$ref" ] || die "usage: share <repo>/<branch>[/<stamp>] [--days N]"
-  local hit; hit="$(index_lookup ${ref//\// } 2>/dev/null)" && { echo "${hit#* }"; return; }
+  local -a ref_parts
+  IFS=/ read -r -a ref_parts <<< "$ref"
+  local hit; hit="$(index_lookup "${ref_parts[@]}" 2>/dev/null)" && { echo "${hit#* }"; return; }
   local repo branch stamp; read -r repo branch stamp < <(resolve_ref "$ref")
   signing_env
   python3 "$HERE/checkpoint_presign.py" get "$BUCKET" "$REGION" "$PREFIX/$repo/$branch/$stamp/checkpoint.tar.gz" $((days * 86400))
@@ -434,7 +467,9 @@ cmd_restore() {
   local dl; dl="$(mktemp -d "${TMPDIR:-/tmp}/restore.XXXXXX")"
   local repo branch stamp src
   local hit
-  if [[ "$ref" != https://* ]] && hit="$(index_lookup ${ref//\// } 2>/dev/null)"; then
+  local -a ref_parts
+  IFS=/ read -r -a ref_parts <<< "$ref"
+  if [[ "$ref" != https://* ]] && hit="$(index_lookup "${ref_parts[@]}" 2>/dev/null)"; then
     ref="${hit#* }"
   fi
   if [[ "$ref" == https://* ]]; then
@@ -468,12 +503,16 @@ print(m["repo"], s[-2], s[-1])' "$dl/meta.json")
   [ -f "$dl/untracked.tar.gz" ] && tar -xzf "$dl/untracked.tar.gz" -C "$dest"
   mkdir -p "$dest/.resume"
   [ -f "$dl/RESUME.md" ] && cp "$dl/RESUME.md" "$dest/.resume/RESUME.md"
+  [ -d "$dl/relay" ] && cp "$dl/relay/"* "$dest/.resume/"
   cp "$dl/meta.json" "$dest/.resume/restored-from.json"
   [ -f "$dl/skipped-untracked.txt" ] && { echo "Not in the checkpoint (too large):"; cat "$dl/skipped-untracked.txt"; }
   rm -rf "$dl"
   echo "restored $src"
   echo "  worktree: $dest (branch $newb)"
   echo "  read:     $dest/.resume/RESUME.md"
+  if [ -f "$dest/.resume/HANDOFF.md" ]; then
+    echo "  handoff:  $dest/.resume/HANDOFF.md (python3 scripts/relay.py accept)"
+  fi
 }
 
 case "${1:-}" in

@@ -1,0 +1,172 @@
+{
+  "schema": "p256-checkpoint-software-followup/v1",
+  "task_id": "TASK-20261026-6764a2",
+  "archived_by": "TASK-20261026-54bcce",
+  "recorded_utc": "2026-10-26 18:20:51 UTC",
+  "source_snapshot": "a527b62b11e6dcc2a365bae2bf9cfd0107a765cd",
+  "original_source_snapshot": "616878bcf0c8a749f38dd3ad0dbb1153478d4010",
+  "followup_type": "directed_regression_verification_of_own_reported_software_defect",
+  "prior_exposure": [
+    "This session authored the original stat/cache defect report and reproduction.",
+    "Root received that finding and described the prospective fix before this verification.",
+    "This is not blind scientific review or a full checkpoint security audit."
+  ],
+  "outcome": "reported_stat_cache_failure_blocked_in_tested_scenario",
+  "conclusion": "Five isolated software tests passed, including rejection of an older seeded receipt after a new untracked file fails metadata stat for both fixture gate and status callers. No new issue observed in this directed path.",
+  "source_sha256": {
+    "scripts/checkpoint.sh": "f534f47957913c6c4258e123dcbba83a3189e57ad5e4fd4342015c31a7ac41cb",
+    "tools/test_checkpoint_stat.py": "e15fb171e585b47cd01320515e2536f853ad4ad4c0b0a82e5a4139be0309dcf6"
+  },
+  "working_files_matched_before_execution": true,
+  "observations": [
+    {
+      "path": "scripts/checkpoint.sh",
+      "line": 197,
+      "observation": "Failed git ls-files invocation returns failure before hashing."
+    },
+    {
+      "path": "scripts/checkpoint.sh",
+      "line": 207,
+      "observation": "Metadata file_stat failure returns 1 rather than being suppressed."
+    },
+    {
+      "path": "scripts/checkpoint.sh",
+      "line": 47,
+      "observation": "pipefail preserves a failing pipeline group's status despite downstream hash output."
+    },
+    {
+      "path": "scripts/checkpoint.sh",
+      "line": 278,
+      "observation": "cmd_push checks state_hash status before cached-receipt lookup at line 279."
+    },
+    {
+      "path": "scripts/checkpoint.sh",
+      "line": 260,
+      "observation": "cmd_status checks state_hash status before reporting a receipt current."
+    },
+    {
+      "path": "scripts/checkpoint.sh",
+      "line": 370,
+      "observation": "The fixture gate invokes cmd_push conditionally; the new explicit check does not depend on errexit."
+    },
+    {
+      "path": "tools/test_checkpoint_stat.py",
+      "line": 106,
+      "observation": "New seeded-prior-receipt regression covers fixture gate and status."
+    },
+    {
+      "path": "tools/test_checkpoint_stat.py",
+      "line": 112,
+      "observation": "The empty-untracked baseline hash must succeed."
+    },
+    {
+      "path": "tools/test_checkpoint_stat.py",
+      "line": 127,
+      "observation": "Both cached-receipt regression subtests require failure."
+    },
+    {
+      "path": "tools/test_checkpoint_stat.py",
+      "line": 132,
+      "observation": "Both subtests require the seeded prior receipt to remain unchanged."
+    }
+  ],
+  "tests": {
+    "exact_wrapper_command": "python3 -I -B - <<'PY'\nfrom pathlib import Path\nimport hashlib, json, platform, re, subprocess, sys, tempfile\nfrom datetime import datetime, timezone\n\nrepo = Path('/workspace/crypto-autoresearcher')\nrevision = 'a527b62b11e6dcc2a365bae2bf9cfd0107a765cd'\npaths = ['scripts/checkpoint.sh', 'tools/test_checkpoint_stat.py']\nsources = {path: subprocess.check_output(['git', 'show', revision + ':' + path], cwd=repo) for path in paths}\nfor path, source in sources.items():\n    assert (repo / path).read_bytes() == source, 'Working source mismatch: ' + path\noutput = repo / 'research/p256_factor_base_parallel_20261026/environment/checkpoint-repair-review-01'\nexpected_original = {'review.md': 'd8c0e4f18fa7ba75d3fd1b91a7e5069c5b118b3d3b823e7f7aa17b15ea35fb2b',\n                     'result.json': 'f64f83f6441a614f2f2a6cb325be648428e3708dd4e80d3ebf168db500937b0f'}\nbefore = {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in expected_original}\nassert before == expected_original, 'Original review artifacts changed'\nrecord = {'source_snapshot': revision, 'source_sha256': {p: hashlib.sha256(b).hexdigest() for p, b in sources.items()},\n          'working_files_match_committed_source': True, 'original_sha256_before': before,\n          'started_utc': datetime.now(timezone.utc).isoformat(),\n          'python': sys.version, 'platform': platform.platform(),\n          'bash': subprocess.check_output(['/bin/bash', '--version'], text=True).splitlines()[0],\n          'native_stat': subprocess.check_output(['/usr/bin/stat', '--version'], text=True).splitlines()[0]}\nwith tempfile.TemporaryDirectory(prefix='checkpoint-cache-followup-review-') as outer:\n    base = Path(outer)\n    for folder in ['scripts', 'tools', 'bin', 'tmp', 'empty-template']:\n        (base / folder).mkdir()\n    for path, source in sources.items():\n        (base / path).write_bytes(source)\n    for name in ['aws', 'curl']:\n        path = base / 'bin' / name\n        path.write_text('#!/bin/sh\\necho unexpected-network-call >&2\\nexit 97\\n')\n        path.chmod(0o755)\n    clean_env = {'PATH': str(base / 'bin') + ':/usr/local/bin:/usr/bin:/bin',\n                 'TMPDIR': str(base / 'tmp'), 'LC_ALL': 'C',\n                 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null',\n                 'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.hooksPath',\n                 'GIT_CONFIG_VALUE_0': '/dev/null', 'GIT_TEMPLATE_DIR': str(base / 'empty-template'),\n                 'CHECKPOINT_TOKEN_FILE': str(base / 'absent-token'),\n                 'CHECKPOINT_AWS_PROFILE': 'checkpoint-test-absent-profile'}\n    result = subprocess.run([sys.executable, '-I', '-B', str(base / 'tools/test_checkpoint_stat.py'), '-v'],\n                            cwd=base, env=clean_env, text=True, capture_output=True, timeout=60)\n    count = re.search(r'Ran (\\d+) tests', result.stderr)\n    record['suite'] = {'command_template': 'python3 -I -B <temporary committed snapshot>/tools/test_checkpoint_stat.py -v',\n                       'returncode': result.returncode, 'stdout': result.stdout, 'stderr': result.stderr,\n                       'tests_run': int(count.group(1)) if count else 0,\n                       'passed': result.returncode == 0 and bool(count) and count.group(1) == '5'}\nafter = {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in expected_original}\nrecord['original_sha256_after'] = after\nrecord['original_artifacts_preserved'] = before == after == expected_original\nrecord['finished_utc'] = datetime.now(timezone.utc).isoformat()\nassert record['original_artifacts_preserved'], 'Original review artifacts changed'\nassert record['suite']['passed'], record['suite']\nprint(json.dumps(record, indent=2))\nPY",
+    "raw_tool_result": {
+      "chunk_id": "774b81",
+      "wall_time_seconds": 0.319849693,
+      "exit_code": 0,
+      "original_token_count": 557,
+      "output": "{\n  \"source_snapshot\": \"a527b62b11e6dcc2a365bae2bf9cfd0107a765cd\",\n  \"source_sha256\": {\n    \"scripts/checkpoint.sh\": \"f534f47957913c6c4258e123dcbba83a3189e57ad5e4fd4342015c31a7ac41cb\",\n    \"tools/test_checkpoint_stat.py\": \"e15fb171e585b47cd01320515e2536f853ad4ad4c0b0a82e5a4139be0309dcf6\"\n  },\n  \"working_files_match_committed_source\": true,\n  \"original_sha256_before\": {\n    \"review.md\": \"d8c0e4f18fa7ba75d3fd1b91a7e5069c5b118b3d3b823e7f7aa17b15ea35fb2b\",\n    \"result.json\": \"f64f83f6441a614f2f2a6cb325be648428e3708dd4e80d3ebf168db500937b0f\"\n  },\n  \"started_utc\": \"2026-10-26T18:19:25.350046+00:00\",\n  \"python\": \"3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]\",\n  \"platform\": \"Linux-6.18.55-x86_64-with-glibc2.41\",\n  \"bash\": \"GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)\",\n  \"native_stat\": \"stat (GNU coreutils) 9.7\",\n  \"suite\": {\n    \"command_template\": \"python3 -I -B <temporary committed snapshot>/tools/test_checkpoint_stat.py -v\",\n    \"returncode\": 0,\n    \"stdout\": \"\",\n    \"stderr\": \"test_bsd_fallback_discards_failed_gnu_stdout (__main__.CheckpointStatTests.test_bsd_fallback_discards_failed_gnu_stdout) ... ok\\ntest_failed_stat_cannot_reuse_receipt_for_state_without_new_file (__main__.CheckpointStatTests.test_failed_stat_cannot_reuse_receipt_for_state_without_new_file) ... ok\\ntest_failed_stat_refuses_without_accepting_partial_output (__main__.CheckpointStatTests.test_failed_stat_refuses_without_accepting_partial_output) ... ok\\ntest_native_stat_reaches_auth_refusal_with_untracked_files (__main__.CheckpointStatTests.test_native_stat_reaches_auth_refusal_with_untracked_files) ... ok\\ntest_size_limit_still_excludes_nonempty_untracked_payload (__main__.CheckpointStatTests.test_size_limit_still_excludes_nonempty_untracked_payload) ... ok\\n\\n----------------------------------------------------------------------\\nRan 5 tests in 0.583s\\n\\nOK\\n\",\n    \"tests_run\": 5,\n    \"passed\": true\n  },\n  \"original_sha256_after\": {\n    \"review.md\": \"d8c0e4f18fa7ba75d3fd1b91a7e5069c5b118b3d3b823e7f7aa17b15ea35fb2b\",\n    \"result.json\": \"f64f83f6441a614f2f2a6cb325be648428e3708dd4e80d3ebf168db500937b0f\"\n  },\n  \"original_artifacts_preserved\": true,\n  \"finished_utc\": \"2026-10-26T18:19:26.013862+00:00\"\n}\n"
+    },
+    "parsed_result": {
+      "source_snapshot": "a527b62b11e6dcc2a365bae2bf9cfd0107a765cd",
+      "source_sha256": {
+        "scripts/checkpoint.sh": "f534f47957913c6c4258e123dcbba83a3189e57ad5e4fd4342015c31a7ac41cb",
+        "tools/test_checkpoint_stat.py": "e15fb171e585b47cd01320515e2536f853ad4ad4c0b0a82e5a4139be0309dcf6"
+      },
+      "working_files_match_committed_source": true,
+      "original_sha256_before": {
+        "review.md": "d8c0e4f18fa7ba75d3fd1b91a7e5069c5b118b3d3b823e7f7aa17b15ea35fb2b",
+        "result.json": "f64f83f6441a614f2f2a6cb325be648428e3708dd4e80d3ebf168db500937b0f"
+      },
+      "started_utc": "2026-10-26T18:19:25.350046+00:00",
+      "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+      "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+      "bash": "GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)",
+      "native_stat": "stat (GNU coreutils) 9.7",
+      "suite": {
+        "command_template": "python3 -I -B <temporary committed snapshot>/tools/test_checkpoint_stat.py -v",
+        "returncode": 0,
+        "stdout": "",
+        "stderr": "test_bsd_fallback_discards_failed_gnu_stdout (__main__.CheckpointStatTests.test_bsd_fallback_discards_failed_gnu_stdout) ... ok\ntest_failed_stat_cannot_reuse_receipt_for_state_without_new_file (__main__.CheckpointStatTests.test_failed_stat_cannot_reuse_receipt_for_state_without_new_file) ... ok\ntest_failed_stat_refuses_without_accepting_partial_output (__main__.CheckpointStatTests.test_failed_stat_refuses_without_accepting_partial_output) ... ok\ntest_native_stat_reaches_auth_refusal_with_untracked_files (__main__.CheckpointStatTests.test_native_stat_reaches_auth_refusal_with_untracked_files) ... ok\ntest_size_limit_still_excludes_nonempty_untracked_payload (__main__.CheckpointStatTests.test_size_limit_still_excludes_nonempty_untracked_payload) ... ok\n\n----------------------------------------------------------------------\nRan 5 tests in 0.583s\n\nOK\n",
+        "tests_run": 5,
+        "passed": true
+      },
+      "original_sha256_after": {
+        "review.md": "d8c0e4f18fa7ba75d3fd1b91a7e5069c5b118b3d3b823e7f7aa17b15ea35fb2b",
+        "result.json": "f64f83f6441a614f2f2a6cb325be648428e3708dd4e80d3ebf168db500937b0f"
+      },
+      "original_artifacts_preserved": true,
+      "finished_utc": "2026-10-26T18:19:26.013862+00:00"
+    },
+    "isolation": "Exact committed bytes copied to temporary directories; minimal environment; absent token path; disabled global/system Git config and hooks; uploader commands stubbed to refuse.",
+    "additional_probes_run": false
+  },
+  "original_artifacts": {
+    "preserved": true,
+    "sha256_before": {
+      "review.md": "d8c0e4f18fa7ba75d3fd1b91a7e5069c5b118b3d3b823e7f7aa17b15ea35fb2b",
+      "result.json": "f64f83f6441a614f2f2a6cb325be648428e3708dd4e80d3ebf168db500937b0f"
+    },
+    "sha256_after": {
+      "review.md": "d8c0e4f18fa7ba75d3fd1b91a7e5069c5b118b3d3b823e7f7aa17b15ea35fb2b",
+      "result.json": "f64f83f6441a614f2f2a6cb325be648428e3708dd4e80d3ebf168db500937b0f"
+    }
+  },
+  "reading_exposure": [
+    {
+      "provenance": "internal",
+      "verified_by": "TASK-20261026-6764a2",
+      "source": "git diff 616878bcf0c8a749f38dd3ad0dbb1153478d4010 a527b62b11e6dcc2a365bae2bf9cfd0107a765cd -- scripts/checkpoint.sh tools/test_checkpoint_stat.py",
+      "scope": "Complete two-file committed diff"
+    },
+    {
+      "provenance": "internal",
+      "verified_by": "TASK-20261026-6764a2",
+      "source": "git show a527b62b11e6dcc2a365bae2bf9cfd0107a765cd:scripts/checkpoint.sh",
+      "scope": "Committed helper, pipefail, hash, status/push guards, size/upload receipt guards and gate snippets"
+    },
+    {
+      "provenance": "internal",
+      "verified_by": "TASK-20261026-6764a2",
+      "source": "git show a527b62b11e6dcc2a365bae2bf9cfd0107a765cd:tools/test_checkpoint_stat.py",
+      "scope": "Complete committed test file"
+    },
+    {
+      "provenance": "retrieved",
+      "verified_by": "TASK-20261026-6764a2",
+      "source": "Previously read GNU stat help, Bash builtin help, Python runtime API docs and repository/cloud-runtime instructions",
+      "scope": "Reused source exposure from original inspection; no new external manuals retrieved"
+    }
+  ],
+  "limits": [
+    "Directed verification of a known defect with producer-described fix; not blind scientific review or full checkpoint security audit.",
+    "No native BSD environment or primary BSD manual newly read.",
+    "No real authentication, successful upload/download/restore or authentic historical cloud receipt.",
+    "No additional eight helper/refused-upload probes from the original inspection were repeated.",
+    "No standalone fixture push separate from gate, or successful status/cached reuse, was executed.",
+    "File races, unusual filenames, symlinks, cross-platform hash identity, later-object upload failures and other hash/checkpoint failure modes remain untested.",
+    "Snapshot push is dispatch provenance; no remote verification or Git mutation was performed.",
+    "Native inherited model unprobed; no canonical scientific-review/model admission or official transition."
+  ],
+  "actual_repository_gate_invocations": 0,
+  "actual_uploads": 0,
+  "credential_files_accessed": 0,
+  "mathematical_programs_launched": 0,
+  "shared_git_mutations": 0,
+  "sibling_review_reports_read": 0,
+  "scientific_review_claimed": false,
+  "canonical_model_admission_claimed": false,
+  "official_state_transition_claimed": false
+}
