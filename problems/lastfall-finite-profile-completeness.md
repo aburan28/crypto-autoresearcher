@@ -13,6 +13,7 @@ A finite Macaulay rank profile cannot yet establish the global last fall degree 
 ## Evidence and uncertainty
 
 - **Observed:** The [blind review](../docs/reports/2026-10-31-lastfall-fidelity/blind/report.md) derives two systems `G_N` and `H_N` with identical `V_i` and ranks through any cutoff `B<N`, including an observed fall at degree 2, but with `d_(G_N)=2` and `d_(H_N)=N`. Its one-pass matrix control also shows that generator multiples alone can miss the iterative closure. These are mathematical controls, not measured experiment receipts.
+- **Named historical candidate:** The [R35a publication readback](../docs/reports/2026-10-31-r35a-readback/README.md) independently matches the public release to all tracked lengths and hashes, including the decompressed certificate. Its receipt labels `1 not in W_4` and a codimension lower bound, while `d_ref_exact` remains null. The dated correction forbids treating the dual certificate as exact dimension equality. The certificate predicates and separate upper-bound steps have not been replayed in this audit.
 - **Derived or proved:** The conditional greatest-fall theorem applies to the global set of all degree falls, given finite `d_F` and an existing fall. A witnessed fall at `D` gives `d_F>=D` under those hypotheses; a finite prefix alone does not give equality.
 - **Suspected explanation:** No concrete experiment is adjudicated here. Whether its implementation computes full `V_i` or has an independent cutoff is unknown.
 - **Missing capability:** A row-space equality checker for the selected concrete matrices and a proof or independently checked certificate that all later degrees have no new falls.
@@ -27,7 +28,7 @@ Meeting both conditions would support an exact `d_F` claim for that system. It w
 
 ## Next discriminating step
 
-- **Action or proof obligation:** Select one existing rank-profile run and audit its row-generation closure against Definition 1.5 before designing a new measurement.
+- **Action or proof obligation:** Start with the archived R35a certificate and exact input bytes: replay its independent checker under exclusive admission, then audit its closure implementation and Boolean-to-polynomial bridge against Definition 1.5 before designing a new measurement.
 - **Inputs and controls:** Preserve the run's original input and receipt; compare its row spaces to an independent closure implementation on tractable degrees, with the `G_N/H_N` later-fall control.
 - **Execution limits and stop condition:** Read-only receipt and source audit first. Any new computation needs its frozen protocol, resource admission, and $25/day Spot budget; stop an exactness claim at the first missing row or cutoff witness.
 - **Outcomes and next actions:** A row-space mismatch requires a source correction and rerun; equality without cutoff supports observed lower bounds only; both gates passing permits scoped exact-invariant review; missing raw data leaves the run unverified.
@@ -35,4 +36,5 @@ Meeting both conditions would support an exact `d_F` claim for that system. It w
 
 ## Resolution and history
 
-- 2026-10-31: Opened from the independent LastFall review; no actual rank run was promoted. Unresolved.
+- 2026-10-31: Opened from the independent LastFall review; no actual rank run was promoted.
+- 2026-10-31: Selected R35a as a concrete historical candidate and verified public custody bytes against the tracked receipt. The certificate predicates, unsatisfiability and upper-bound steps remain unverified here. Unresolved.
