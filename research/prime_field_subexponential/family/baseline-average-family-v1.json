@@ -1,0 +1,265 @@
+{
+  "format": "prime-field-ecdlp-family/v1",
+  "family_id": "PFSE-FAMILY-AVG-ORDINARY-PRIMEORDER-V1",
+  "revision": 1,
+  "status": "draft",
+  "question": {
+    "problem": "ECDLP",
+    "algorithm_class": "uniform classical randomized",
+    "time_target": "2^o(n) total expected bit operations",
+    "memory_target": "2^o(n) peak bits",
+    "quantum_excluded": true
+  },
+  "asymptotic_scale": {
+    "n_definition": "n = ceil(log2(r))",
+    "r_role": "prime order of the declared target subgroup",
+    "p_relation": {
+      "statement": "log2(p) = Theta(n)",
+      "enforcement": "accept only p and r with bit_length(p) = bit_length(r) = n"
+    },
+    "subexponential_definition": "lim_{n->infinity} log2(T(n))/n = 0"
+  },
+  "quantifier": {
+    "kind": "average_case",
+    "curve_measure": "the conditional distribution produced by sampler after every declared rejection rule",
+    "target_measure": "s is uniform in {1,...,r-1} and Q=[s]P",
+    "algorithm_randomness": "independent uniform algorithm coins",
+    "probability_order": [
+      "curve_sampler",
+      "generator_sampler",
+      "target_scalar_sampler",
+      "algorithm_coins"
+    ]
+  },
+  "sampler": {
+    "seed_space": "uniform infinite bit stream, domain-separated by family_id, n, and field name",
+    "deterministic_from_seed": true,
+    "prime_sampling": {
+      "algorithm": "draw odd integers uniformly from [2^(n-1),2^n); accept the first candidate with an independently checkable primality certificate",
+      "distribution": "uniform over n-bit primes conditional on acceptance"
+    },
+    "coefficient_sampling": {
+      "algorithm": "draw a,b independently and uniformly from F_p; reject when 4a^3+27b^2 = 0 mod p",
+      "distribution": "uniform over nonsingular short-Weierstrass coefficient pairs conditional on later family rejections"
+    },
+    "point_count": {
+      "algorithm": "compute #E(F_p) with a deterministic or certificate-producing point-count algorithm",
+      "certificate": "point-count certificate binding p,a,b and #E(F_p)",
+      "independent_verification": "a separately implemented verifier checks the certificate and Hasse bound"
+    },
+    "subgroup_selection": {
+      "algorithm": "accept only #E(F_p)=r with r prime, so the declared subgroup is E(F_p) and the cofactor is one",
+      "certificate": "primality certificate for r and equality certificate r=#E(F_p)",
+      "independent_verification": "verify both certificates and reject bit_length(r) != n"
+    },
+    "generator_sampling": {
+      "algorithm": "draw x uniformly from F_p until x^3+ax+b is a nonzero quadratic residue; choose either square root with one fair sign bit; set P=(x,y)",
+      "distribution": "uniform over E(F_p) minus the identity because r is an odd prime and no affine point has y=0"
+    },
+    "target_sampling": {
+      "algorithm": "draw s uniformly from {1,...,r-1}; compute Q=[s]P; reveal only p,a,b,r,P,Q and declared certificates to the ECDLP algorithm",
+      "distribution": "uniform nonidentity target in the subgroup for each sampled generator"
+    },
+    "rejection_rules": [
+      {
+        "id": "singular",
+        "predicate": "4a^3+27b^2 = 0 mod p",
+        "reason": "not an elliptic curve",
+        "disposition": "reject_invalid"
+      },
+      {
+        "id": "non_prime_order",
+        "predicate": "#E(F_p) is not prime or bit_length(#E(F_p)) != n",
+        "reason": "baseline family uses a prime-order full group and equal p/r bit length",
+        "disposition": "exclude_and_keep_as_control"
+      },
+      {
+        "id": "anomalous",
+        "predicate": "#E(F_p) = p",
+        "reason": "trace-one curves admit known polynomial-time attacks and are an exception control",
+        "disposition": "exclude_and_keep_as_control"
+      },
+      {
+        "id": "supersingular",
+        "predicate": "E is supersingular, certified independently",
+        "reason": "pairing transfers make this a structurally exceptional control",
+        "disposition": "exclude_and_keep_as_control"
+      },
+      {
+        "id": "small_embedding_degree",
+        "predicate": "p^j = 1 mod r for some 1 <= j <= floor(n^2/max(1,(log2 n)^3))",
+        "reason": "exclude a conservative source-scale range in which an L[1/3] finite-field destination is 2^o(n)",
+        "disposition": "exclude_and_keep_as_control"
+      },
+      {
+        "id": "special_j",
+        "predicate": "j(E) is 0 or 1728 in F_p",
+        "reason": "separate the two immediately visible extra-automorphism families from the baseline",
+        "disposition": "exclude_and_keep_as_control"
+      }
+    ],
+    "failure_semantics": "a seed that does not produce an accepted instance within a protocol-fixed draw budget is a retained sampler failure, not evidence about ECDLP hardness"
+  },
+  "admission": {
+    "field_degree": 1,
+    "minimum_characteristic": 5,
+    "curve_model": "short_weierstrass_y2=x3+ax+b",
+    "nonsingular": true,
+    "ordinary": true,
+    "subgroup_order_prime": true,
+    "cofactor_policy": "cofactor h=1",
+    "p_bit_length": "bit_length(p)=n",
+    "r_bit_length": "bit_length(r)=n",
+    "excluded_j_invariants": [
+      0,
+      1728
+    ],
+    "embedding_degree_guard": {
+      "k_definition": "k = multiplicative_order_mod_r(p)",
+      "threshold": "K(n)=floor(n^2/max(1,(log2 n)^3))",
+      "admission_test": "certify p^j != 1 mod r for every integer 1<=j<=K(n); an exact k is not required",
+      "interpretation": "this is an exception filter against the named pairing-plus-L[1/3] route, not a hardness certificate or a lower bound for all transfer algorithms"
+    },
+    "required_certificate_fields": [
+      "family_id",
+      "n",
+      "p",
+      "a",
+      "b",
+      "discriminant_nonzero",
+      "point_count",
+      "trace",
+      "r",
+      "cofactor",
+      "generator",
+      "curve_uid",
+      "p_primality_certificate_sha256",
+      "r_primality_certificate_sha256",
+      "point_count_certificate_sha256",
+      "ordinary_certificate",
+      "embedding_degree_lower_bound",
+      "sampler_seed_commitment",
+      "classifier_version"
+    ]
+  },
+  "exception_controls": [
+    {
+      "id": "CTRL-ANOMALOUS",
+      "kind": "anomalous",
+      "expected_classification": "excluded",
+      "purpose": "the classifier must retain a trace-one curve as a known-weak positive control",
+      "fixture_binding": null,
+      "verification_state": "missing"
+    },
+    {
+      "id": "CTRL-SUPERSINGULAR",
+      "kind": "supersingular",
+      "expected_classification": "excluded",
+      "purpose": "the classifier must detect a pairing-transfer exception",
+      "fixture_binding": null,
+      "verification_state": "missing"
+    },
+    {
+      "id": "CTRL-SMALL-EMBEDDING",
+      "kind": "small_embedding_degree",
+      "expected_classification": "excluded",
+      "purpose": "the source-scale embedding-degree guard must reject a verified small-k curve",
+      "fixture_binding": null,
+      "verification_state": "missing"
+    },
+    {
+      "id": "CTRL-SMOOTH-ORDER",
+      "kind": "smooth_group_order",
+      "expected_classification": "excluded",
+      "purpose": "the prime-order admission rule must reject a Pohlig-Hellman control",
+      "fixture_binding": null,
+      "verification_state": "missing"
+    },
+    {
+      "id": "CTRL-SPECIAL-J",
+      "kind": "structured_endomorphism",
+      "expected_classification": "excluded",
+      "purpose": "the immediately visible j=0 or j=1728 family must remain a separate stratum",
+      "fixture_binding": null,
+      "verification_state": "missing"
+    },
+    {
+      "id": "CTRL-ORDINARY-ADMITTED",
+      "kind": "ordinary_admitted",
+      "expected_classification": "included",
+      "purpose": "at least one independently certified ordinary prime-order curve must pass every filter",
+      "fixture_binding": null,
+      "verification_state": "missing"
+    },
+    {
+      "id": "CTRL-METADATA-MUTATION",
+      "kind": "metadata_mutation",
+      "expected_classification": "invalid",
+      "purpose": "changing one bound identity field must invalidate the certificate or change its digest",
+      "fixture_binding": null,
+      "verification_state": "missing"
+    }
+  ],
+  "algorithm_model": {
+    "uniform": true,
+    "public_input": [
+      "n",
+      "p",
+      "a",
+      "b",
+      "r",
+      "P",
+      "Q",
+      "family definition",
+      "admission certificates"
+    ],
+    "preprocessing_dependencies": [
+      "family",
+      "curve",
+      "subgroup",
+      "generator",
+      "target"
+    ],
+    "preprocessing_charged": true,
+    "advice": "no nonuniform advice",
+    "single_target_primary": true,
+    "multi_target_separate": true,
+    "operation_cost_model": "probabilistic multi-tape Turing machine bit operations, with field/group/oracle counts retained as secondary units"
+  },
+  "cost_accounting": {
+    "primary_unit": "bit operations",
+    "phases": {
+      "instance_generation": true,
+      "setup": true,
+      "preprocessing": true,
+      "transfer_construction": true,
+      "transfer_evaluation": true,
+      "relation_collection": true,
+      "relation_verification": true,
+      "solver": true,
+      "rank_updates": true,
+      "linear_algebra": true,
+      "target_descent": true,
+      "recovery": true,
+      "final_verification": true
+    },
+    "parallelism": "processors and total work both reported",
+    "success_repetitions": "charged to reach declared success probability",
+    "failed_attempts": "retained and charged",
+    "memory": "peak live bits and allocation boundary reported",
+    "stored_data": "persistent advice/tables in bits reported separately",
+    "communication": "messages and transmitted bits reported for parallel/distributed algorithms"
+  },
+  "success_criterion": {
+    "probability_at_least": "2/3",
+    "correctness_check": "verify Q = [s]P in the declared subgroup",
+    "detectable_failure": true,
+    "expected_time_condition": "expectation uses the probability order declared by quantifier.probability_order"
+  },
+  "claim_boundary": {
+    "schema_conformance_means": "required family, quantifier, model, cost, and control metadata are present",
+    "schema_conformance_does_not_mean": "the curve arithmetic, certificates, sampler distribution, hardness, or asymptotic claim is mathematically verified",
+    "experiment_limit": "finite experiments can falsify named instruments, heuristics, cost models, or architectures only",
+    "nonexistence_limit": "nonexistence requires a proof covering the explicitly stated computation model and family quantifiers"
+  }
+}
