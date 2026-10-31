@@ -195,16 +195,23 @@ resume_problems() {
 }
 
 state_hash() {
+  local untracked_files metadata="" f entry
+  untracked_files="$(git ls-files --others --exclude-standard)" || return 1
+  # Collect outside the hash pipeline so metadata failures reach the caller.
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    [[ "$f" =~ $EXCLUDE_RE ]] && continue
+    [[ "$f" = .resume/* ]] && continue
+    if [ -f "$f" ]; then
+      entry="$(file_stat "$f")" || return 1
+      metadata+="$entry"$'\n'
+    fi
+  done <<< "$untracked_files"
   {
     git rev-parse HEAD 2>/dev/null || true
     git diff --binary HEAD 2>/dev/null || true
     [ -f .resume/RESUME.md ] && cat .resume/RESUME.md
-    # No untracked files (or only excluded ones) is a valid clean state.
-    # Keep the filtering pipeline out of the hash producer's pipefail path;
-    # file_stat failures inside the loop still propagate normally.
-    while IFS= read -r f; do
-      if [ -f "$f" ]; then file_stat "$f"; fi
-    done < <(git ls-files --others --exclude-standard | grep -Ev "$EXCLUDE_RE" | grep -v '^\.resume/' || true)
+    if [ -n "$metadata" ]; then printf '%s' "$metadata"; fi
   } | shasum -a 256 | cut -d' ' -f1
 }
 
@@ -260,7 +267,8 @@ cmd_status() {
   echo "spec files:"; spec_files | sed 's/^/  /'
   local p; p="$(resume_problems)"
   if [ -n "$p" ]; then echo "RESUME.md : NOT READY"; printf '%s\n' "$p" | sed 's/^/  /'; else echo "RESUME.md : ok"; fi
-  if [ -f .resume/.last-push ] && [ "$(cut -d' ' -f1 .resume/.last-push)" = "$(state_hash)" ]; then
+  local hash; hash="$(state_hash)" || die "cannot hash the current worktree"
+  if [ -f .resume/.last-push ] && [ "$(cut -d' ' -f1 .resume/.last-push)" = "$hash" ]; then
     echo "last push : current ($(cut -d' ' -f2- .resume/.last-push))"
   else
     echo "last push : stale or none"
@@ -272,7 +280,7 @@ cmd_push() {
   [ "${1:-}" = "--force" ] && force=1
   cd "$(top)"
   mkdir -p .resume
-  local hash; hash="$(state_hash)"
+  local hash; hash="$(state_hash)" || die "cannot hash the current worktree"
   if [ $force = 0 ] && [ -f .resume/.last-push ] && [ "$(cut -d' ' -f1 .resume/.last-push)" = "$hash" ]; then
     echo "checkpoint: unchanged since $(cut -d' ' -f2- .resume/.last-push)"; return 0
   fi
@@ -311,7 +319,7 @@ cmd_push() {
   : > "$stage/untracked.list"; : > "$stage/skipped-untracked.txt"
   while IFS= read -r f; do
     [ -f "$f" ] || continue
-    sz="$(file_stat "$f" size)"
+    sz="$(file_stat "$f" size)" || die "cannot size untracked file $f"
     if [ "$sz" -gt "$maxb" ] || [ $((total + sz)) -gt "$capb" ]; then
       printf '%s\t%s bytes\n' "$f" "$sz" >> "$stage/skipped-untracked.txt"
     else

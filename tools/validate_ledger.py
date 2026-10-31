@@ -975,13 +975,40 @@ def check_measured_bound(path: str, body: dict, ctx: Ctx) -> None:
 
 
 # A declared run artifact may be stored compressed or as a blob-store pointer
-# (tools/artifact_store.py, docs/artifact-storage.md); any one form satisfies it.
+# (tools/artifact_store.py, docs/artifact-storage.md) or the canonical
+# .artifacts.json manifest (docs/artifacts.md); any one form satisfies presence.
+# This does not download or verify remote bytes: native replay still does that.
 ARTIFACT_STORED_FORMS = ("", ".gz", ".blob.json", ".gz.blob.json")
 
 
 def _artifact_stored(run_dir: str, name: str) -> bool:
-    return any(os.path.isfile(os.path.join(run_dir, name + suffix))
-               for suffix in ARTIFACT_STORED_FORMS)
+    if any(os.path.isfile(os.path.join(run_dir, name + suffix))
+           for suffix in ARTIFACT_STORED_FORMS):
+        return True
+
+    def unique_fields(pairs):
+        fields = {}
+        for key, value in pairs:
+            if key in fields:
+                raise ValueError("duplicate artifact manifest key")
+            fields[key] = value
+        return fields
+
+    try:
+        with open(os.path.join(run_dir, ".artifacts.json"), encoding="utf-8") as handle:
+            manifest = json.load(handle, object_pairs_hook=unique_fields)
+    except (OSError, ValueError):
+        return False
+    if not isinstance(manifest, dict) or manifest.get("schema") != "artifacts.manifest/v1":
+        return False
+    files = manifest.get("files")
+    entry = files.get(name) if isinstance(files, dict) else None
+    if not isinstance(entry, dict):
+        return False
+    digest, size = entry.get("sha256"), entry.get("bytes")
+    return (isinstance(digest, str)
+            and re.fullmatch(r"[0-9a-f]{64}", digest) is not None
+            and type(size) is int and size >= 0)
 
 
 def check_ledger_record(path: str, rec_type: str, ctx: Ctx):

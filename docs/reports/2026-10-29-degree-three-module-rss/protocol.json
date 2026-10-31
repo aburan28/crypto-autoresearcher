@@ -1,0 +1,345 @@
+{
+ "schema": "experiment.protocol/v1",
+ "protocol_id": "MEAS-20261029-degree3-module-rss",
+ "version": 1,
+ "created": "2026-10-29",
+ "repository": "crypto-autoresearcher",
+ "study_dir": "docs/reports/2026-10-29-degree-three-module-rss",
+ "authors": [
+  "Claude Code session (formal lane)"
+ ],
+ "links": {
+  "problem": "problems/formal-workspace-build-exceeds-16gb.md",
+  "report": "docs/reports/2026-10-29-degree-three-module-rss/README.md",
+  "note": "RETROSPECTIVE: written after the single measurement ran (2026-10-29 ~03:30 UTC); not a preregistration. It records what was done so the export can be bound and reviewed. freeze.filed_before_affected_data is false."
+ },
+ "question": "On the cloud container, what is the peak anonymous memory of elaborating CryptoResearch.Semaev.BooleanParityDegreeThreeRankCertificate with LEAN_NUM_THREADS=1, and does that setting keep it under the container's limit?",
+ "claims": [
+  {
+   "id": "C1",
+   "text": "With LEAN_NUM_THREADS=1 the elaboration was OOM-killed by the session's memory cgroup at about 339 s with anon-rss 13,520,596 kB, so the module's peak anonymous memory exceeds 13.5 GB (a lower bound) and LEAN_NUM_THREADS=1 does not bring it under a 13.36 GiB cap.",
+   "class": "exact_computation",
+   "decided_by": [
+    "C-bound"
+   ]
+  },
+  {
+   "id": "C2",
+   "text": "The 2026-10-23 container OOM and the hosted-runner success are explained by this lower bound against the container's 13.36 GiB command cgroup versus ~16 GB on the runner.",
+   "class": "heuristic_estimate",
+   "decided_by": []
+  }
+ ],
+ "hypotheses": [],
+ "arms": [
+  {
+   "id": "hosted-default",
+   "role": "reference",
+   "description": "the same module in the hosted lean-verification job (ubuntu-latest, plain lake build, default Lean threads), observed in job logs 122905972990 (579 s) and 123070123680 (671 s); completed, memory not recorded",
+   "instrument": {
+    "repo": "crypto-autoresearcher",
+    "commit": "b0e03a1620237b135d3bbf81ad826f9a9e41532c",
+    "build": [
+     [
+      "lake",
+      "build"
+     ]
+    ],
+    "binary_sha256": null,
+    "flags": {},
+    "env": {},
+    "threads": 4
+   },
+   "parameters": {
+    "LEAN_NUM_THREADS": "default"
+   }
+  },
+  {
+   "id": "threads1",
+   "role": "candidate",
+   "description": "lake env lean on the module with LEAN_NUM_THREADS=1, dependencies prebuilt",
+   "instrument": {
+    "repo": "crypto-autoresearcher",
+    "commit": "1896454c43bede18d19fb51362d748ed3246227e",
+    "build": [
+     [
+      "lake",
+      "env",
+      "lean",
+      "CryptoResearch/Semaev/BooleanParityDegreeThreeRankCertificate.lean"
+     ]
+    ],
+    "binary_sha256": null,
+    "flags": {},
+    "env": {
+     "LEAN_NUM_THREADS": "1"
+    },
+    "threads": 1
+   },
+   "parameters": {
+    "LEAN_NUM_THREADS": 1
+   }
+  }
+ ],
+ "controls": {
+  "aa": {
+   "present": false,
+   "comparison": null,
+   "not_applicable_reason": "one run per arm; the claims are an absolute lower bound (C1) and a heuristic explanation (C2), not an arm difference"
+  },
+  "positive": {
+   "present": false,
+   "arm": null,
+   "expected_detection": null,
+   "not_applicable_reason": "the kill is confirmed independently by the kernel OOM record (dmesg-oom.txt), which names the process and its anon-rss"
+  },
+  "negative": {
+   "present": false,
+   "arm": null,
+   "null_population": null,
+   "not_applicable_reason": "no null population; the claim is a lower bound on one deterministic elaboration"
+  }
+ },
+ "variable_ledger": {
+  "independent": [],
+  "factors": [
+   {
+    "name": "module_source",
+    "treatment": "fixed",
+    "value": "sha256 e9db5830...0751e9 at main 1896454c",
+    "how": "committed file"
+   },
+   {
+    "name": "toolchain",
+    "treatment": "fixed",
+    "value": "Lean 4.35.0-rc1, Mathlib 7fa22735",
+    "how": "lean-toolchain and lake-manifest.json pins; lake exe cache get"
+   },
+   {
+    "name": "lean_threads",
+    "treatment": "fixed",
+    "value": 1,
+    "how": "LEAN_NUM_THREADS=1 in the environment"
+   },
+   {
+    "name": "memory_limit",
+    "treatment": "measured",
+    "how": "memcg memory.limit_in_bytes 14341885952 recorded in host.txt"
+   },
+   {
+    "name": "host",
+    "treatment": "measured",
+    "how": "MemTotal, SwapTotal, nproc in host.txt"
+   }
+  ],
+  "comparisons": [
+   {
+    "id": "C-bound",
+    "arms": [
+     "threads1"
+    ],
+    "differs_in": [],
+    "design": "absolute",
+    "reason": "C1 is an absolute lower bound read from the threads1 run and the kernel OOM record",
+    "threshold": "peak_anon_rss_kb > 13500000 with a CONSTRAINT_MEMCG kill of the lean process"
+   },
+   {
+    "id": "C-host",
+    "arms": [
+     "hosted-default",
+     "threads1"
+    ],
+    "differs_in": [
+     "host",
+     "memory_limit",
+     "lean_threads"
+    ],
+    "design": "confounded",
+    "reason": "host, memory limit and thread setting all differ; used only to frame C2 as a heuristic, never to attribute a difference to one factor"
+   }
+  ],
+  "aa_not_applicable": "one run per arm; the reference arm is an existing observation from job logs, not a run of this protocol",
+  "crosses_map": false
+ },
+ "randomization": {
+  "arm_order": "fixed",
+  "arm_order_reason": "one arm, one run",
+  "seed_derivation": {
+   "method": "harness_drawn",
+   "seeds": [],
+   "nonce": null,
+   "note": "Lean elaboration is deterministic; there is no seed"
+  },
+  "instance_sampling": {
+   "rule": "one module",
+   "independent_of_arm": true
+  },
+  "blinding": {
+   "analysis_labels_masked": false,
+   "how": "not masked: single arm",
+   "unmasked_at": null
+  }
+ },
+ "sample_size": {
+  "instances": 1,
+  "replicates": 1,
+  "warmups": 0,
+  "power": {
+   "method": "other",
+   "alpha": 0.05,
+   "tests_in_family": 1,
+   "correction": "none",
+   "rank_test_n": null,
+   "min_attainable_two_sided_p": null,
+   "passes": true,
+   "note": "no statistical test; a lower bound read from one run and the kernel record"
+  },
+  "preflight_runtime": {
+   "fixed_seconds": 240,
+   "per_sample_seconds": 700,
+   "threads": 1,
+   "estimated_total_seconds": 940,
+   "measured_on": "hosted job logs: module 579-671 s; dependency build 236 s here"
+  }
+ },
+ "metrics": {
+  "primary": [
+   {
+    "id": "peak_anon_rss_kb",
+    "name": "peak anonymous RSS",
+    "unit": "kB",
+    "kind": "counted",
+    "definition": "maximum RssAnon of the lean process over 0.5 s samples, and anon-rss in the kernel OOM record",
+    "source": "threads1.anon.tsv RssAnon_kb; dmesg-oom.txt",
+    "aggregation": "max",
+    "resolution": "1 kB, 0.5 s sampling",
+    "uncertainty": "none_exact"
+   }
+  ],
+  "secondary": [
+   {
+    "id": "peak_vm_hwm_kb",
+    "name": "lean VmHWM",
+    "unit": "kB",
+    "kind": "counted",
+    "definition": "maximum VmHWM of the lean process",
+    "source": "threads1.samples.tsv lean_hwm_kb",
+    "aggregation": "max",
+    "resolution": "1 kB",
+    "uncertainty": "none_exact"
+   },
+   {
+    "id": "time_to_kill_s",
+    "name": "time to OOM kill",
+    "unit": "s",
+    "kind": "timed",
+    "definition": "from process start to the last sample before exit",
+    "source": "threads1.summary wall_s",
+    "aggregation": "per_row",
+    "resolution": "0.5 s",
+    "uncertainty": "none_exact"
+   }
+  ]
+ },
+ "measurement": {
+  "isolation_required": "none",
+  "warmups": 0,
+  "order": "sequential",
+  "clock": "monotonic",
+  "counters": [],
+  "record": [
+   "MemTotal",
+   "SwapTotal",
+   "nproc",
+   "memcg limit_in_bytes",
+   "module sha256",
+   "revision"
+  ],
+  "timed_primary_justification": null
+ },
+ "execution": {
+  "backend": "local",
+  "queue": null,
+  "placement": {
+   "instance_type": "claude.ai cloud session container",
+   "cpus": 4,
+   "spot": false
+  },
+  "measurement_class": "measurement",
+  "timeout_seconds": 3600,
+  "checkpoint": {
+   "policy": "none",
+   "interval_seconds": null,
+   "grace_seconds": null,
+   "restore_validation": "none",
+   "after_restore": {
+    "wall_time": "invalid",
+    "counted_units": "valid"
+   }
+  },
+  "retries": {
+   "infrastructure_only": true,
+   "max_attempts": 1
+  }
+ },
+ "stopping_rules": [
+  {
+   "rule": "one run of the threads1 arm, stop when the process exits or is killed (decided before running; not written down until this retrospective record)",
+   "kind": "fixed_n",
+   "preregistered": true
+  }
+ ],
+ "invalidation_rules": [
+  "a kill by the sampler's own watchdog would make the peak a lower bound set by the watchdog, not the limit; it did not fire"
+ ],
+ "decision_rule": {
+  "text": "C1 holds if the kernel OOM record names the lean process with anon-rss above 13.5 GB under CONSTRAINT_MEMCG (C-bound). C-host is confounded and decides nothing; C2 stays a heuristic estimate.",
+  "comparison_ids": [
+   "C-bound"
+  ],
+  "threshold": "anon-rss > 13,500,000 kB",
+  "statistic": "max anon-rss",
+  "interval": "none (exact read)",
+  "multiple_comparison_correction": "none",
+  "effect_size_measure": "none",
+  "verdict_vocabulary": [
+   "supported_within_scope",
+   "invalid_measurement",
+   "inconclusive"
+  ]
+ },
+ "analysis_plan": {
+  "script": null,
+  "inputs": [
+   "threads1.anon.tsv",
+   "threads1.samples.tsv",
+   "dmesg-oom.txt",
+   "host.txt"
+  ],
+  "outputs": [
+   "README.md table and lower bound"
+  ],
+  "blinded": false,
+  "frozen_before_data": false
+ },
+ "reporting": {
+  "export_schema": "experiment.export/v1",
+  "review_schema": "experiment.review/v1",
+  "graphs": [],
+  "report_dir": "."
+ },
+ "inadmissible": [
+  "reading the lower bound as the module's peak",
+  "reading the 13.36 GiB cap as the hosted runner's limit",
+  "reading the timed value as a performance claim"
+ ],
+ "literature": [],
+ "amendments": [],
+ "freeze": {
+  "status": "draft",
+  "protocol_sha256": null,
+  "commit": null,
+  "frozen_at": null,
+  "filed_before_affected_data": false
+ }
+}

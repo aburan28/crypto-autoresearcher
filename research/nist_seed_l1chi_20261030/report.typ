@@ -9,6 +9,8 @@
 
 *Study* `research/nist_seed_l1chi_20261030`, run 2026-10-30 UTC. The run followed the frozen protocol `PROTOCOL.md` / `protocol.json` (sha256 `039665e8…`), merged in PR \#2763 before any target was evaluated. The checkpoint gate passed before each run, and the records are in `runs/`.
 
+*Consolidated.* An independent study, `research/nist_seed_lvalue_20261030` (x = $10^8$, exact $D_K$; canonical), gives the same result. On the 61 shared curves, log L at $10^6$ agrees to $2.9 dot 10^(-14)$, and prime239v1 is at the 0.247th percentile there. See `CROSSCHECK.md`.
+
 *Measured.*
 
 - *Positive control passes.* For secp256k1, log $P_"DK" = -0.503074$ against the exact $log(pi\/(3 sqrt(3))) = -0.503189$, within the calibrated tolerance $tau = 8.65 dot 10^(-4)$. The calibration used 2,000 fundamental discriminants in $[-10^13, -10^12]$, h from PARI `quadclassunit` (GRH), with mean error $-2 dot 10^(-6)$.
