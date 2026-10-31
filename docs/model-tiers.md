@@ -158,6 +158,13 @@ usage when the backend reports them) go to `<card stem>.lane/`.
 - `--via auto` (default): Conductor when `conductor delphi profiles` lists a
   `director` profile, else standalone delphi when a key is set, else an
   `IMPEDIMENT` (exit 2) before anything is written.
+- `--route`: each step's model comes from Delphi's capability registry
+  (`delphi route`: the cheapest model measured good enough on the step's
+  family, `card-compile` or `assess`, from the suites in
+  `evals/calibration/`). A reply the tool refuses goes to the next model in the
+  route's escalation chain, at most twice; a compile reply whose findings are
+  all specification errors is the design's gap and is never escalated.
+  Standalone delphi only; `lane.json` records each route and attempt.
 - Exit 0: ran and assessed. 1: a reply was refused; nothing was written for it
   and the reply is kept. 2: impediment. 3: the run stopped at a failing
   command, which is a result, and was assessed.
