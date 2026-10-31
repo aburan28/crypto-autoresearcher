@@ -493,3 +493,112 @@ def test_lane_without_a_backend_is_an_impediment_that_writes_nothing(tmp_path, m
                    {"conductor": "/nonexistent/conductor", "delphi": "/nonexistent/delphi"}, repo, lines.append)
     assert code == 2 and lines[-1].startswith("IMPEDIMENT no batch backend")
     assert not (repo / "cards").exists()
+
+
+# ---------------------------------------------------------------------------
+# Lane --route: Delphi's registry chooses each step's model; refused replies escalate
+# ---------------------------------------------------------------------------
+
+def _routed_delphi(tmp_path, routes, behaviour, log):
+    """A stand-in delphi with `route` (routes: family -> route JSON or an error string) and
+    `run`, whose answer depends on the model: ok, bad (an invented digest), refuse, specerr."""
+    return _fake(tmp_path, "delphi", f"""
+args = sys.argv[1:]
+routes, behaviour, log = {routes!r}, {behaviour!r}, {str(log)!r}
+if args[0] == "route":
+    family = args[args.index("-family") + 1]
+    r = routes[family]
+    print(json.dumps({{"route": {{}}, "error": r}} if isinstance(r, str) else {{"route": r}}))
+    sys.exit(1 if isinstance(r, str) else 0)
+out = args[args.index("-out") + 1]
+prompt = args[args.index("-prompt") + 1]
+model = args[args.index("-model") + 1]
+open(log, "a").write(json.dumps({{"provider": args[args.index("-provider") + 1], "model": model,
+                                 "effort": args[args.index("-effort") + 1] if "-effort" in args else ""}}) + "\\n")
+kind = behaviour.get(model, "ok")
+row = {{"id": "prompt-1", "status": "succeeded", "model": model, "batch_id": "b-" + model}}
+if kind == "refuse":
+    row.update(status="refused", refusal={{"category": "test"}})
+elif kind == "bad":
+    row["text"] = answer(prompt, "0" * 64)
+elif kind == "specerr":
+    row["text"] = answer(prompt).replace("specification_errors: []", "specification_errors:\\n- the design gives no timeout")
+else:
+    row["text"] = answer(prompt)
+os.makedirs(out, exist_ok=True)
+open(os.path.join(out, "results.jsonl"), "w").write(json.dumps(row) + "\\n")
+""")
+
+
+def _route(choice, *escalation):
+    return {"choice": choice, "escalation": list(escalation), "basis": f"{choice} measured good enough"}
+
+
+def _calls(log):
+    return [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
+
+
+def _run_routed(tmp_path, routes, behaviour, via="delphi"):
+    repo = _lane_repo(tmp_path)
+    (tmp_path / "bin").mkdir()
+    log = tmp_path / "delphi.log"
+    lines = []
+    code = tc.lane(["design.md"], ["tools/emit.py"], "cards/c.yaml", "out/assessment.yaml", via,
+                   {"delphi": _routed_delphi(tmp_path / "bin", routes, behaviour, log), "route": True},
+                   repo, lines.append)
+    record = json.loads((repo / "cards/c.lane/lane.json").read_text()) if (repo / "cards/c.lane/lane.json").exists() else None
+    return code, lines, _calls(log), record, repo
+
+
+def test_lane_route_sends_each_step_to_its_routed_model(tmp_path):
+    code, lines, calls, record, _ = _run_routed(tmp_path, {
+        "card-compile": _route("vllm:glm-5.3", "anthropic:claude-sonnet-5-5@high"),
+        "assess": _route("anthropic:claude-haiku-5-5")}, {})
+    assert code == 0, lines
+    assert calls == [{"provider": "vllm", "model": "glm-5.3", "effort": ""},
+                     {"provider": "anthropic", "model": "claude-haiku-5-5", "effort": ""}]
+    assert record["routes"]["compile"]["basis"] == "vllm:glm-5.3 measured good enough"
+    assert record["calls"]["compile"]["target"]["model"] == "glm-5.3"
+    assert any("routed to vllm:glm-5.3" in line for line in lines)
+
+
+def test_lane_route_escalates_a_reply_the_tool_refuses(tmp_path):
+    code, lines, calls, record, repo = _run_routed(tmp_path, {
+        "card-compile": _route("vllm:glm-5.3", "anthropic:claude-sonnet-5-5@high"),
+        "assess": _route("anthropic:claude-haiku-5-5")}, {"glm-5.3": "bad"})
+    assert code == 0, lines
+    assert [c["model"] for c in calls] == ["glm-5.3", "claude-sonnet-5-5", "claude-haiku-5-5"]
+    assert calls[1]["effort"] == "high"
+    assert record["calls"]["compile"]["accepted"] is False
+    assert record["calls"]["compile-escalation-1"]["accepted"] is True
+    assert (repo / "cards/c.yaml").is_file()
+
+
+def test_lane_route_escalates_a_model_refusal(tmp_path):
+    code, lines, calls, record, _ = _run_routed(tmp_path, {
+        "card-compile": _route("anthropic:claude-haiku-5-5", "anthropic:claude-sonnet-5-5@high"),
+        "assess": _route("anthropic:claude-haiku-5-5")}, {"claude-haiku-5-5": "refuse"})
+    # Compile escalates past the refusal; assess has nowhere to escalate and stops there.
+    assert [c["model"] for c in calls] == ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
+    assert "refused" in record["calls"]["compile"] and record["calls"]["compile-escalation-1"]["accepted"]
+    assert code == 1 and record["outcome"] == "assessment_refused"
+
+
+def test_lane_route_never_escalates_a_specification_error(tmp_path):
+    code, lines, calls, record, repo = _run_routed(tmp_path, {
+        "card-compile": _route("vllm:glm-5.3", "anthropic:claude-sonnet-5-5@high"),
+        "assess": _route("anthropic:claude-haiku-5-5")}, {"glm-5.3": "specerr"})
+    assert code == 1 and record["outcome"] == "card_refused"
+    assert [c["model"] for c in calls] == ["glm-5.3"], "a design's gap must not be escalated to a pricier model"
+    assert not (repo / "cards/c.yaml").exists()
+
+
+def test_lane_route_refuses_conductor_and_an_unroutable_family(tmp_path):
+    code, lines, calls, _, _ = _run_routed(tmp_path, {"card-compile": _route("vllm:glm-5.3"),
+                                                       "assess": _route("vllm:glm-5.3")}, {}, via="conductor")
+    assert code == 2 and "--route needs standalone delphi" in lines[-1] and calls == []
+    code, lines, calls, record, _ = _run_routed(tmp_path / "second", {
+        "card-compile": "no model qualifies for card-compile: considered: vllm:glm-5.3 (worse)",
+        "assess": _route("vllm:glm-5.3")}, {})
+    assert code == 2 and "no routed model for card-compile" in lines[-1] and calls == []
+    assert record["outcome"] == "impeded"

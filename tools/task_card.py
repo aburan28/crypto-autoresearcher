@@ -45,7 +45,7 @@ it; never edit a copy.
     python3 tools/task_card.py ingest <reply.md> --expect card --out <card.yaml>
     python3 tools/task_card.py ingest <reply.md> --expect assessment --card <card.yaml> --out <assessment.yaml>
     python3 tools/task_card.py lane --design <spec> [--bind <path>]... --card <card.yaml> \
-        --assessment <assessment.yaml> [--via auto|conductor|delphi] [--task T-42]
+        --assessment <assessment.yaml> [--via auto|conductor|delphi] [--task T-42] [--route]
 
 BATCH LANE. `request` prints a single-turn prompt with every fact computed
 (HEAD, sha256s, the receipt, what changed on disk), for a batch API: Delphi
@@ -55,7 +55,9 @@ in crypto-autoresearcher. `ingest` writes the reply only when it is
 mechanically right. Between them, `run` executes the card with no model.
 `lane` does all of it end to end through one backend: Conductor-hosted
 Delphi (the key is in the project vault) or standalone `delphi` (the key is
-ANTHROPIC_API_KEY); `--via auto` picks whichever is connected.
+ANTHROPIC_API_KEY); `--via auto` picks whichever is connected. `--route` asks
+`delphi route` which model each step's task family goes to (Delphi's capability
+registry) and escalates a step the tool refuses to the next model in the chain.
 
 Exit status: 0 clean / completed, 1 findings, 2 the card could not be read or
 `run` refused to start, 3 `run` stopped at a failing command (a result to
@@ -868,6 +870,37 @@ def pick_backend(via: str, conductor: str, delphi: str) -> str:
                     "delphi needs ANTHROPIC_API_KEY")
 
 
+# The task family of each director step, as Delphi's calibration suites name it.
+FAMILY = {"compile": "card-compile", "assess": "assess"}
+
+
+class _Refused(CardError):
+    """The model declined to answer (delphi status refused): worth escalating, unlike an
+    infrastructure error, which a stronger model would not fix."""
+
+
+def _target(spec: str) -> dict[str, str]:
+    provider, _, rest = spec.partition(":")
+    model, effort = rest, ""
+    if "@" in rest[1:]:
+        model, effort = rest[:rest.rindex("@")], rest[rest.rindex("@") + 1:]
+    return {"provider": provider, "model": model, "effort": effort}
+
+
+def route_for(family: str, opts: dict[str, Any]) -> dict[str, Any]:
+    """`delphi route -family F -json`: the chosen model, its escalation chain and the basis."""
+    proc = subprocess.run([opts["delphi"], "route", "-family", family, "-json"], capture_output=True, text=True)
+    try:
+        data = json.loads(proc.stdout)
+    except ValueError:
+        raise CardError(f"delphi route -family {family} failed ({proc.returncode}): "
+                        f"{proc.stderr.strip()[-400:]}") from None
+    if data.get("error"):
+        raise CardError(f"no routed model for {family}: {data['error']}")
+    r = data["route"]
+    return {"family": family, "choice": r["choice"], "escalation": r.get("escalation") or [], "basis": r["basis"]}
+
+
 def _ask(backend: str, prompt: Path, workdir: Path, name: str, opts: dict[str, Any]) -> tuple[str, dict]:
     """One batch call; returns the answer text and what the backend reported."""
     if backend == "conductor":
@@ -878,8 +911,11 @@ def _ask(backend: str, prompt: Path, workdir: Path, name: str, opts: dict[str, A
             raise CardError(f"conductor delphi ask failed ({proc.returncode}): {proc.stderr.strip()[-400:]}")
         return proc.stdout, {"profile": DIRECTOR_PROFILE, "stderr_tail": _tail(proc.stderr.encode())}
     out = workdir / name
-    argv = [opts["delphi"], "run", "-model", opts["model"], "-effort", "high", "-every", "30s",
-            "-out", str(out), "-prompt", prompt.read_text(encoding="utf-8")]
+    target = opts.get("target") or {"provider": "anthropic", "model": opts["model"], "effort": "high"}
+    argv = [opts["delphi"], "run", "-provider", target["provider"], "-model", target["model"]]
+    if target.get("effort"):
+        argv += ["-effort", target["effort"]]
+    argv += ["-every", "30s", "-out", str(out), "-prompt", prompt.read_text(encoding="utf-8")]
     proc = subprocess.run(argv, capture_output=True, text=True)
     results = out / "results.jsonl"
     if proc.returncode != 0 or not results.is_file():
@@ -887,6 +923,8 @@ def _ask(backend: str, prompt: Path, workdir: Path, name: str, opts: dict[str, A
     rows = [json.loads(line) for line in results.read_text(encoding="utf-8").splitlines() if line.strip()]
     result = rows[-1]
     meta = {k: result.get(k) for k in ("status", "model", "batch_id", "usage", "stop_reason", "truncated")}
+    if result.get("status") == "refused":
+        raise _Refused(f"the model declined: {json.dumps(result.get('refusal'))}")
     if result.get("status") != "succeeded":
         raise CardError(f"delphi returned status {result.get('status')}: "
                         f"{json.dumps(result.get('refusal') or result.get('error'))}")
@@ -909,42 +947,77 @@ def lane(designs: list[str], binds: list[str], card_out: str, assessment_out: st
                 raise CardError(f"{path} already exists; cards and assessments are write-once")
         if workdir.exists():
             raise CardError(f"{rel(repo, workdir)} already exists; every lane gets a fresh record")
-        backend = pick_backend(via, opts["conductor"], opts["delphi"])
+        if opts.get("route"):
+            # Routing is Delphi's capability registry, which standalone delphi reads.
+            if via == "conductor":
+                raise CardError("--route needs standalone delphi (delphi route); Conductor-hosted Delphi "
+                                "uses its fixed director profile")
+            if not shutil.which(opts["delphi"]):
+                raise CardError(f"--route needs the delphi binary ({opts['delphi']} not found)")
+            backend = "delphi"
+        else:
+            backend = pick_backend(via, opts["conductor"], opts["delphi"])
         record["backend"] = backend
         say(f"LANE backend {backend}")
         workdir.mkdir(parents=True)
 
-        def call(name: str, text: str) -> str:
-            prompt = workdir / f"{name}.prompt.md"
+        def call(stage: str, text: str, accept) -> list[str]:
+            """Ask, and let accept (ingest) judge the reply; with --route a refused reply goes to
+            the next model in the escalation chain, except a compile reply whose findings are all
+            specification errors: that is the design's gap, not the model's."""
+            prompt = workdir / f"{stage}.prompt.md"
             prompt.write_text(text, encoding="utf-8")
-            say(f"LANE {name}: submitted, waiting for the batch")
-            answer, meta = _ask(backend, prompt, workdir, name, opts)
-            (workdir / f"{name}.reply.md").write_text(answer, encoding="utf-8")
-            record["calls"][name] = {"prompt_sha256": sha256_bytes(text.encode()),
-                                     "reply_sha256": sha256_bytes(answer.encode()), **meta}
-            say(f"LANE {name}: answered" + (f" (batch {meta['batch_id']}, usage {json.dumps(meta['usage'])})"
-                                            if meta.get("batch_id") else ""))
-            return answer
+            targets: list[dict[str, str] | None] = [None]
+            if opts.get("route"):
+                plan = route_for(FAMILY[stage], opts)
+                record.setdefault("routes", {})[stage] = plan
+                say(f"LANE {stage}: routed to {plan['choice']} ({plan['basis']})")
+                targets = [_target(t) for t in [plan["choice"], *plan["escalation"]]]
+            findings: list[str] = []
+            for attempt, target in enumerate(targets):
+                name = stage if attempt == 0 else f"{stage}-escalation-{attempt}"
+                say(f"LANE {name}: submitted" + (f" to {target['provider']}:{target['model']}" if target else "")
+                    + ", waiting for the batch")
+                try:
+                    answer, meta = _ask(backend, prompt, workdir, name, dict(opts, target=target))
+                except _Refused as exc:
+                    record["calls"][name] = {"prompt_sha256": sha256_bytes(text.encode()), "target": target,
+                                             "refused": str(exc)}
+                    findings = [str(exc)]
+                    say(f"LANE {name}: {exc}")
+                    continue
+                (workdir / f"{name}.reply.md").write_text(answer, encoding="utf-8")
+                findings = accept(answer)
+                record["calls"][name] = {"prompt_sha256": sha256_bytes(text.encode()),
+                                         "reply_sha256": sha256_bytes(answer.encode()), "target": target,
+                                         "accepted": not findings, **meta}
+                say(f"LANE {name}: answered" + (f" (batch {meta['batch_id']}, usage {json.dumps(meta['usage'])})"
+                                                if meta.get("batch_id") else ""))
+                if not findings or all(f.startswith("specification_error:") for f in findings):
+                    return findings
+                if attempt + 1 < len(targets):
+                    say(f"LANE {name}: refused by the tool ({findings[0]}); escalating")
+            return findings
 
-        reply = call("compile", compile_request(designs, binds, card_out, repo))
-        findings = ingest(reply, card_out, "card", None, repo)
+        findings = call("compile", compile_request(designs, binds, card_out, repo),
+                        lambda reply: ingest(reply, card_out, "card", None, repo))
         if findings:
             record["outcome"] = "card_refused"
             for item in findings:
                 say(f"INGEST: {item}")
-            say(f"LANE FAIL card refused; reply kept at {rel(repo, workdir / 'compile.reply.md')}")
+            say(f"LANE FAIL card refused; replies kept in {rel(repo, workdir)}")
             return 1
         card_path, card_sha, card = load_card(card_out, repo)
         say(f"CARD OK {card_path} sha256 {card_sha}")
         receipt = run_card(card_path, card_sha, card, repo)
         say(brief(receipt, card["receipt"], sha256_file(repo / card["receipt"])))
-        reply = call("assess", assess_request(card_path, card_sha, card, None, repo))
-        findings = ingest(reply, assessment_out, "assessment", card, repo)
+        findings = call("assess", assess_request(card_path, card_sha, card, None, repo),
+                        lambda reply: ingest(reply, assessment_out, "assessment", card, repo))
         if findings:
             record["outcome"] = "assessment_refused"
             for item in findings:
                 say(f"INGEST: {item}")
-            say(f"LANE FAIL assessment refused; reply kept at {rel(repo, workdir / 'assess.reply.md')}")
+            say(f"LANE FAIL assessment refused; replies kept in {rel(repo, workdir)}")
             return 1
         verdict = yaml.safe_load((repo / assessment_out).read_text(encoding="utf-8"))["execution_assessment"]
         record.update(outcome=verdict["outcome"], recommendation=verdict["recommendation"],
@@ -1015,10 +1088,12 @@ def main(argv: list[str] | None = None) -> int:
     run_lane.add_argument("--via", choices=("auto", "conductor", "delphi"), default="auto")
     run_lane.add_argument("--task", help="conductor: link each delegation to this Conductor task")
     run_lane.add_argument("--model", default=DIRECTOR_MODEL, help="delphi: the director model")
+    run_lane.add_argument("--route", action="store_true",
+                          help="let `delphi route` choose each step's model and escalate refused replies")
     args = parser.parse_args(argv)
     if args.command == "lane":
         return lane(args.design, args.bind or [], args.card, args.assessment, args.via,
-                    {"task": args.task, "model": args.model})
+                    {"task": args.task, "model": args.model, "route": args.route})
     if args.command in ("request", "ingest"):
         if args.command == "request" and args.mode == "compile" and not (args.design and args.out):
             parser.error("request compile needs --design and --out")
