@@ -1,0 +1,56 @@
+--- frozen/render_report.py
++++ presentation/render_report.presentation.py
+@@ -213,8 +213,7 @@
+                         s, n = row["verified_attempt_successes"], row["observed_attempts"]
+                         if s is not None and n:
+                             values[y, x] = s/n
+-                            interval = interval_bounds(row["q_wilson95"])
+-                            labels[y][x] = f"{s}/{n}" + (f"\n[{interval[0]:.2g},{interval[1]:.2g}]" if interval is not None else "\n[det]" if arm == "bsgs_reference" else "")
++                            labels[y][x] = f"{s}/{n}"
+                     else:
+                         value = rational_number(row["cold_restart_model_group_work"])
+                         if value is not None:
+@@ -240,9 +239,11 @@
+                     ax.text(x, y, labels[y][x], ha="center", va="center", fontsize=7.5, color=color)
+             if metric == "q":
+                 title, bar = "Verified success events / attempted trials", "q = s/N (per curve/arm)"
++                detail = "Cells show s/N; supplied Wilson intervals are retained unchanged in per-curve-arm.csv; BSGS is deterministic"
+             else:
+                 title, bar = "Modeled cold solver group-call work: S + mean(C)/q", "log10(max(1, modeled group-call count))"
+-            ax.set_title(f"{RUN}: {title}\nCurves {start+1}–{start+len(panel)}; ? missing/unverified, U undefined; q labels include registered95% bounds", fontsize=10)
++                detail = "Same-family modeled group calls only; U undefined, ? missing/unverified; no confidence interval is drawn"
++            ax.set_title(f"{RUN}: {title}\nCurves {start+1}–{start+len(panel)}. {detail}", fontsize=9)
+             fig.colorbar(image, ax=ax, fraction=0.018, pad=0.02, label=bar)
+             fig.tight_layout()
+             stem = f"{metric}-panel-{start//10+1}"
+@@ -282,7 +283,7 @@
+         f"Operational status: {census.get('operational_status')}; independent arithmetic/coverage check: {report.get('pass')}; retained verifier errors: {len(report['errors'])}.", "",
+         f"Observed curve fixtures: {len(fixtures)}; retained per-curve/arm metric rows: {len(rows)}. Registered arms: {len(ARMS)}.", "",
+         "The fixed recipes are (alpha,beta)=(1,-4),(-2,-1), a=1,2,3,5, with four fresh blinded trials per public target. Conversion x=a*b^-1*x' mod r is publicly checked. BSGS runs once per target; the uniform-candidate control makes four attempts. Identity is excluded from primary success rates.", "",
+-        f"Source revision: {compute.get('source_revision_c','not reported')}. Official protocol: `{census.get('protocol_sha256')}`. Standalone compute plan: `{census.get('screen_plan_sha256',census.get('compute_plan_sha256'))}`. Source manifest: `{census.get('source_fingerprint')}`.", "",
++        "Source and protocol byte bindings are listed on separate lines in the reproduction section below; full bindings also remain in report-inputs.json.", "",
+         "## Complete arm counts", "", "Totals below are labelled sums of retained per-curve records, not a pooled statistical inference. Unique IDs are distinct within curve/arm; successes are attempt events.", ""]
+     lines += markdown_table(["Arm","Observed / planned attempts","Verified events","Unique target IDs","Zero-success domains","Unverified domains"], [[x["arm_id"],f"{x['observed_attempts']} / {x['planned_attempts']}",x["verified_attempt_successes"],x["unique_target_ids_recovered"],x["zero_success_domains"],x["unverified_domains"]] for x in sums])
+     lines += ["", "The full per-curve/arm table is `per-curve-arm.csv`, including every reported status, unresolved/unattempted count, registered Wilson interval, undefined ratio and first-success prefix. No zero-success domain is removed.", "", "## Cost definitions and full vectors", "",
+@@ -296,14 +297,17 @@
+     for paragraph in LIMITS:lines += [paragraph, ""]
+     lines += ["Canonical research graphs were checked by scope: this descriptive report changes no scientific status or verified global theorem edge. The figures below are fresh derived views of the retained records.", "", "## Recorded per-curve comparisons", ""]
+     for figure in figures:
+-        lines += [f"### {figure['stem']}", "", f"![{RUN}: {figure['metric']} including all registered arms]({figure['stem']}.png)", ""]
+-    lines += ["## Reproduction and immutable inputs", "", "The postrun directory retains the exact verifier invocation, independent report, census, original export and file-check receipts. This renderer imports no candidate, generator or verifier code. All input byte bindings are listed in `report-inputs.json`; the renderer source is included alongside the report. Historical absolute paths are provenance and are restored or explicitly rebased during artifact hydration, never rewritten inside an earlier run record.", ""]
++        lines += [r"\clearpage", "", f"### {figure['stem']}", "", f"![{RUN}: {figure['metric']} including all registered arms]({figure['stem']}.png){{width=95%}}", ""]
++    lines += [r"\clearpage", "", "## Reproduction and immutable inputs", "", "The postrun directory retains the exact verifier invocation, independent report, census, original export and file-check receipts. This renderer imports no candidate, generator or verifier code. All input byte bindings are listed in `report-inputs.json`; the renderer source is included alongside the report. Historical absolute paths are provenance and are restored or explicitly rebased during artifact hydration, never rewritten inside an earlier run record.", ""]
++    for label, value in [("Source revision", compute.get("source_revision_c", "not reported")), ("Official protocol", census.get("protocol_sha256")), ("Standalone compute plan", census.get("screen_plan_sha256", census.get("compute_plan_sha256"))), ("Source manifest", census.get("source_fingerprint"))]:
++        lines += [label + ":", "", "```text", str(value), "```", ""]
+     text = "\n".join(lines)
+     (out/"report.md").write_text(text)
+-    shutil.copyfile(__file__, out/"render_report.py")
++    shutil.copyfile(__file__, out/"render_report.presentation.py")
++    (out/"presentation-header.tex").write_text("\\usepackage{float}\n\\floatplacement{figure}{H}\n")
+     pandoc, engine = shutil.which("pandoc"), shutil.which("xelatex")
+     need(pandoc and engine, "installed Pandoc/XeLaTeX required for this renderer")
+-    command = [pandoc,"report.md","--pdf-engine=xelatex","-V","geometry:landscape,margin=15mm","-V","fontsize=10pt","-V","mainfont=DejaVu Sans","-V","monofont=DejaVu Sans Mono","-o","report.pdf"]
++    command = [pandoc,"report.md","--pdf-engine=xelatex","-H","presentation-header.tex","-V","geometry:landscape,margin=15mm","-V","fontsize=10pt","-V","mainfont=DejaVu Sans","-V","monofont=DejaVu Sans Mono","-o","report.pdf"]
+     result = subprocess.run(command,cwd=out,capture_output=True,text=True)
+     (out/"render.stdout.txt").write_text(result.stdout);(out/"render.stderr.txt").write_text(result.stderr)
+     with (out/"report-inputs.json").open("x") as f:json.dump({"schema":"classical.ecdlp.transfer-study.report-inputs/v1","experiment_id":EXPERIMENT,"run_id":RUN,"input_bindings":bindings,"renderer_sha256":sha(__file__),"figures":figures,"render_argv":command,"render_returncode":result.returncode,"pdf_inspected":False},f,sort_keys=True,indent=2);f.write("\n")

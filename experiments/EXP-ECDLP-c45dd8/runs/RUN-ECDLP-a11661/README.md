@@ -1,0 +1,9 @@
+# RUN-ECDLP-a11661
+
+One official supervisor trial executed the frozen classical non-generic constructor screen. Its 74,880 fixed point cases include62,400 candidate and12,480 control cases, with5,760 recovery-group records. The transport checker returned0; this original envelope leaves mathematical validity to the separate frozen independent verifier and report. No scientific retry ran.
+
+Modal VM sb-01M5ZV53CAER5SNBDFG5E3HY93 passed the actualUID1000/sourcepermission/count plan-only probe, ran one scientific submission, returned complete sealed outputs and was terminated. The existing B2 image staged the exact six Python modules from2311b9d30c346fca4f06ef1ce25af78d92f4be7d; no native binary, secret, network or private scalar input was used. All clocks remain unqualified.
+
+modal-evidence.tar.gz retains the original114MB case/recovery streams, compute-summary/completion, observed identity/source/input checks and controller custody. The member manifest is small and committed. .artifacts.json and one compatible blob pointer bind stored archive bytes; object-readback.json records a complete S3 GET/size/SHA verification. checkpoint-readback.json records the authorized clean/pushed checkpoint and gate0 before this actual launch.
+
+Hydrate using `python3 tools/artifacts/artifacts.py pull experiments/EXP-ECDLP-c45dd8/runs/RUN-ECDLP-a11661`, verify the blob/member hashes, safely extract regular modal/ members under this run directory, then invoke `python3 harness/classical_ecdlp_nongeneric_screen/driver.py check --out experiments/EXP-ECDLP-c45dd8/runs/RUN-ECDLP-a11661`. Historical absolute paths are provenance. Independent verification is in the subsequent report; correct finite bits or scalar recovery alone do not establish a global algorithm, new exponent, independent counter replay or qualified timing.

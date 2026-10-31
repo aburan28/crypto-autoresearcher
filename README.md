@@ -65,6 +65,33 @@ concrete costs, memory requirements, and affected-vs-safe scope honestly. The
 orchestration machinery below exists to produce results of that shape — and to
 block claims that fall short of its honesty standards.
 
+## Measured classical ECDLP observations
+
+[EXP-ECDLP-787704](experiments/EXP-ECDLP-787704/reports/composition/report.md),
+RUN-ECDLP-53b08d: complete finite enumeration on 48 retained functions, independently
+reconciled. These descriptive counts are separate for every cell; they establish
+no full solver-cost or new-population claim.
+
+| Cell (radius, erasure cap) | Curves with exact q > 0 | Curves with exact q = 0 | Successful states, descriptive sum |
+| --- | --- | --- | --- |
+| (0, 0) | 7/48 | 41/48 | 42 |
+| (0, 2) | 7/48 | 41/48 | 42 |
+| (1, 0) | 35/48 | 13/48 | 260 |
+| (1, 2) | 35/48 | 13/48 | 262 |
+| (2, 0) | 48/48 | 0/48 | 1982 |
+| (2, 2) | 48/48 | 0/48 | 2008 |
+
+Each cell enumerates the same 821638 nonzero states; all 4929828 dependent
+scalar/cells agree with the independent mathematical implementation. Seven frozen
+protocol/export findings remain open. Exact per-function denominators, analytical
+conditional-uniform references, all negative branches and qualifications are in the
+[independent summary](coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-f7bbdf/reviews/TASK-20261030-cd89e7/independent-summary.json) and
+[raw summary](experiments/EXP-ECDLP-787704/runs/RUN-ECDLP-53b08d/summary.json.gz). The committed-Git-only
+`tools/progress_metrics.py --ref <commit> --since 2026-10-30` reads these summaries,
+emits neutral counts, and emits nothing when required committed data is missing or
+inconsistent. Matched candidate/BSGS solver runs and complete cost validation are
+next; no baseline exponent is assumed.
+
 ## Repository map
 
 ```text

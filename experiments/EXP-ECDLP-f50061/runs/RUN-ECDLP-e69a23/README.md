@@ -1,0 +1,9 @@
+# RUN-ECDLP-e69a23
+
+One official supervisor trial ran the frozen EXP-ECDLP-f50061 parameter sweep. The parent, 5,248 native children and transport checker completed; all child slots are retained. Native outputs report 335,765 solved cases and 107 count-limit censored cases out of 335,872. Public equation verification and frozen analysis are published separately with the run report; this original transport envelope does not assert those later findings.
+
+The original Modal VM was sb-01M5ZSV4W4MEM9B2C06EBX2B9E. Its receipt records exactly one create, one scientific exec, complete sealed readback and termination. All clocks are unqualified. Reused public inputs make this exploratory. Source hashes, successful zero-native plan probe, all execution records and all partial/censored outputs are retained inside modal-evidence.tar.gz. Do not rerun this run ID.
+
+The 294,022,947-byte evidence bundle and gzip member manifest are stored through .artifacts.json, with compatible .blob.json pointers. object-readback.json records actual complete S3 GET/size/SHA verification for both. checkpoint-readback.json records the authorized clean/pushed resume checkpoint and gate zero before execution. No credentials are stored.
+
+To hydrate, run `python3 tools/artifacts/artifacts.py pull experiments/EXP-ECDLP-f50061/runs/RUN-ECDLP-e69a23`. Decompress modal-evidence-manifest.json.gz to its original logical filename, verifying content SHA 938b17ff666689dfd94685c65b62f9658e88654db35d2b00b127a6d6dbad4eb3. Safely extract the verified archive under this run directory; all members are regular files beneath modal/, and the manifest lists exact sizes/hashes. `python3 harness/classical_ecdlp_parameter_sweep/driver.py check --out experiments/EXP-ECDLP-f50061/runs/RUN-ECDLP-e69a23` checks original transport integrity. Historical absolute paths are provenance; restored public verification uses actual restored paths without changing original records.

@@ -1,0 +1,7 @@
+# Native YAML completion / JSON reader compatibility
+
+Open representation/custody obstruction,not mathematicalnegative. Candidate RUN939237 driver0/controllercomplete/engine0return,14sealedfiles2166858222bytes,quiescence/actualACKtrue; nativecheck1 JSONDecodeError atdriver.check completedYAML. Originalnativeinvalid_output/checkstderr/YAML/receipt stay exact. Exactretained driverJSON witness7898ed6b86985fa31955fa8f21bccdb4deee6cc389165071fbc89d274205de37; authority6ce9937047cb26279f61a128ecc45751dc135a78.
+
+Raw5635/S3fullGET precedes newadministrative FULLnativeJSONview with strictoriginalsubset/fulltree/type/schema/source/payload/readonly proofs,isolatedsnapshot and freshindependentvalidation. Unchanged fullC4drivercheck/authenticate_inputs stillprecede allhostlabels. No innertransport,fallback,fakeoutput_validated,C4/M4/framework/plan/protocol/approval edit,newRUN/VM or scientificrerun. Generalmodern-manifest resolver remains separatelyopen; explicit checked storage-to-logical-byte mapping is required.
+
+Actualarchive100884062bytes SHA8fb134de9313842a6690e49cc9c9ad18065fd1c752894a49733f622d0e56e775/39members; root reverified51nativehashes. Metadata feasibility only: exactwitness/native strictsubset/JSONroundtrip,not independentbridge or scientificqualification. Freshcompatpostrun/index/report mustretain nativefailure and knownpredata unqualifiedcalibrationresolution. Linked DEC346631/tasks5d4c8d,5b0e13,3b5feb; prospectivecbafhold publishedbefore5635binding.

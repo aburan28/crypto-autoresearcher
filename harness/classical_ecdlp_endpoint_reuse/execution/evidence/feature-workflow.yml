@@ -1,0 +1,223 @@
+name: Iso Lab experiment
+on:
+  pull_request:
+    paths:
+      - taskq/deploy/eks-karpenter/**
+      - .github/workflows/isolab-experiment.yml
+  workflow_dispatch:
+    inputs:
+      source_revision:
+        description: Full commit SHA to build and test; blank uses this workflow commit
+        type: string
+        default: ''
+      spec_path:
+        description: Repository ecbench.spec/v1 JSON file at the tested commit
+        type: string
+        default: taskq/deploy/eks-karpenter/l2-validation.json
+      instance_type:
+        description: Spot worker type; c8a has one thread per core
+        type: string
+        default: c8a.2xlarge
+      seconds:
+        description: Kubernetes deadline including provisioning (1..3600)
+        type: string
+        default: '900'
+      resumable:
+        description: CRIU/EBS computation recovery, then one fresh L2 benchmark epoch
+        type: boolean
+        default: false
+      checkpoint_seconds:
+        description: Periodic computation checkpoint interval (30..900 seconds)
+        type: string
+        default: '120'
+      max_restores:
+        description: Maximum restored computation attempts (1..5)
+        type: string
+        default: '2'
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && vars.ISOLAB_BUILD_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          sparse-checkout: taskq/deploy/eks-karpenter
+      - name: Verify request, build identity and MCP contracts
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.99.1 --profile minimal
+          cargo +1.99.1 test --locked --release --manifest-path taskq/deploy/eks-karpenter/mcp/Cargo.toml
+          cargo +1.99.1 run --locked --release --manifest-path taskq/deploy/eks-karpenter/mcp/Cargo.toml -- tools \
+            | diff - taskq/deploy/eks-karpenter/contracts/mcp-tools.json
+          taskq/deploy/eks-karpenter/remote/test-contract.sh
+          taskq/deploy/eks-karpenter/remote/test-build-verification.sh
+          taskq/deploy/eks-karpenter/remote/test-publish-image.sh
+          taskq/deploy/eks-karpenter/resume/test-publisher.sh
+          cargo +1.99.1 test --locked --release --manifest-path taskq/deploy/eks-karpenter/resume/fixture/Cargo.toml
+          cargo +1.99.1 test --locked --release --manifest-path taskq/deploy/eks-karpenter/resume/progress/Cargo.toml
+          cargo +1.99.1 test --locked --release --manifest-path taskq/deploy/eks-karpenter/resume/controller/Cargo.toml
+          cargo +1.99.1 run --locked --release --manifest-path taskq/deploy/eks-karpenter/resume/fixture/Cargo.toml -- \
+            verify taskq/deploy/eks-karpenter/resume/validation/20261021/progress-after.log \
+            1048576 taskq/deploy/eks-karpenter/resume/validation/20261021/progress-before.log
+  build:
+    needs: contracts
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && vars.ISOLAB_BUILD_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      SOURCE_REVISION: ${{ inputs.source_revision || github.sha }}
+    steps:
+      - name: Validate the immutable source revision
+        run: '[[ "$SOURCE_REVISION" =~ ^[a-f0-9]{40}$ ]]'
+      - name: Check out workflow tooling
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          path: control
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            taskq/deploy/eks-karpenter
+      - name: Check out the tested commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.SOURCE_REVISION }}
+          path: source
+          persist-credentials: false
+          sparse-checkout: |
+            src
+            tests
+            examples
+      - name: Materialize native build inputs
+        working-directory: source
+        run: ../control/scripts/sparse-checkout.sh apply --profile minimal --path isogeny_algos --path crates
+      - name: Install the pinned native toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends musl-tools
+          rustup toolchain install 1.99.1 --profile minimal --target x86_64-unknown-linux-musl
+      - name: Build the tested commit without AWS credentials
+        run: control/taskq/deploy/eks-karpenter/build-bundle source "$SOURCE_REVISION" "$RUNNER_TEMP/isolab-build"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: isolab-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/isolab-build/ecbench
+            ${{ runner.temp }}/isolab-build/build-info.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+  experiment:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)) && vars.ISOLAB_ACTIONS_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.ISOLAB_AWS_REGION }}
+      ISOLAB_BUCKET: ${{ vars.ISOLAB_RESULTS_BUCKET }}
+      ISOLAB_CODEBUILD_PROJECT: ${{ vars.ISOLAB_CODEBUILD_PROJECT }}
+      ISOLAB_IMAGE_REPOSITORY: ${{ vars.ISOLAB_IMAGE_REPOSITORY }}
+      ISOLAB_CLIENT_OUTPUT: ${{ github.workspace }}/isolab-launch-output
+      SOURCE_REVISION: ${{ inputs.source_revision || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          sparse-checkout: taskq/deploy/eks-karpenter
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: isolab-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/isolab-build
+      - name: Install publisher tools when absent
+        run: |
+          set -euo pipefail
+          if ! command -v aws >/dev/null; then
+            curl --fail --silent --show-error --location https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o "$RUNNER_TEMP/awscliv2.zip"
+            unzip -q "$RUNNER_TEMP/awscliv2.zip" -d "$RUNNER_TEMP/awscli-install"
+            sudo "$RUNNER_TEMP/awscli-install/aws/install"
+          fi
+      - name: Read the experiment spec from the tested commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPEC_PATH: ${{ inputs.spec_path }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_REVISION" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$SPEC_PATH" =~ ^[a-zA-Z0-9_./-]+\.json$ && "$SPEC_PATH" != /* && "/$SPEC_PATH/" != *"/../"* ]]
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$SPEC_PATH?ref=$SOURCE_REVISION" \
+            | jq -er .content | tr -d '\n' | base64 -d > "$RUNNER_TEMP/isolab-spec.json"
+      - name: Obtain temporary AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.ISOLAB_TRIGGER_ROLE_ARN }}
+          role-session-name: isolab-${{ github.run_id }}
+          role-duration-seconds: 7200
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      - name: Publish the commit image and resolve its immutable digest
+        run: taskq/deploy/eks-karpenter/publish-image "$RUNNER_TEMP/isolab-build" "$SOURCE_REVISION" "$RUNNER_TEMP/isolab-image.json"
+      - name: Add the trusted recovery runtime
+        if: inputs.resumable
+        run: taskq/deploy/eks-karpenter/resume/publish-runtime "$RUNNER_TEMP/isolab-image.json" "$RUNNER_TEMP/isolab-recovery-image.json"
+      - name: Prepare the versioned experiment request
+        env:
+          INSTANCE_TYPE: ${{ inputs.instance_type }}
+          DEADLINE: ${{ inputs.seconds }}
+          RESUMABLE: ${{ inputs.resumable }}
+          CHECKPOINT_SECONDS: ${{ inputs.checkpoint_seconds }}
+          MAX_RESTORES: ${{ inputs.max_restores }}
+        run: |
+          set -euo pipefail
+          [[ "$DEADLINE" =~ ^[1-9][0-9]{0,3}$ && "$DEADLINE" -le 3600 ]]
+          if [[ "$RESUMABLE" == true ]]; then
+            [[ "$DEADLINE" -ge 180 && "$INSTANCE_TYPE" == c8a.2xlarge ]]
+            [[ "$CHECKPOINT_SECONDS" =~ ^[0-9]{2,3}$ && "$CHECKPOINT_SECONDS" -ge 30 && "$CHECKPOINT_SECONDS" -le 900 ]]
+            [[ "$MAX_RESTORES" =~ ^[1-5]$ ]]
+            jq -n --slurpfile spec "$RUNNER_TEMP/isolab-spec.json" --slurpfile build "$RUNNER_TEMP/isolab-image.json" \
+              --slurpfile runtime "$RUNNER_TEMP/isolab-recovery-image.json" \
+              --arg name "gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --arg instance "$INSTANCE_TYPE" \
+              --argjson deadline "$(($(date -u +%s)+DEADLINE))" --argjson interval "$CHECKPOINT_SECONDS" --argjson restores "$MAX_RESTORES" \
+              '{schema:"isolab.eks.resumable/v1",run_name:$name,deadline_unix_seconds:$deadline,build:$build[0],runtime_image_uri:$runtime[0].runtime_image_uri,
+                spec:$spec[0],instance_type:$instance,checkpoint_interval_seconds:$interval,max_restores:$restores}' > "$RUNNER_TEMP/isolab-request.json"
+            exit 0
+          fi
+          jq -n --slurpfile spec "$RUNNER_TEMP/isolab-spec.json" --slurpfile build "$RUNNER_TEMP/isolab-image.json" \
+            --arg name "gh-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --arg instance "$INSTANCE_TYPE" \
+            --argjson seconds "$DEADLINE" --arg rev "$SOURCE_REVISION" --arg workflow "$GITHUB_SHA" \
+            --arg url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{schema:"isolab.eks.request/v1",job:{job_name:$name,instance_type:$instance,seconds:$seconds,spec:$spec[0],build:$build[0]},
+              provenance:{harness:"github-actions",source_revision:$rev,workflow_revision:$workflow,run_url:$url}}' > "$RUNNER_TEMP/isolab-request.json"
+          taskq/deploy/eks-karpenter/remote/validate-request "$RUNNER_TEMP/isolab-request.json" >/dev/null
+      - name: Launch, await and verify the EKS experiment
+        if: '!inputs.resumable'
+        run: taskq/deploy/eks-karpenter/remote/launch-remote "$RUNNER_TEMP/isolab-request.json"
+      - name: Submit resumable computation and verify its fresh L2 epoch
+        if: inputs.resumable
+        run: |
+          set -euo pipefail
+          taskq/deploy/eks-karpenter/resume/fetch-client "$RUNNER_TEMP/isolab-recovery-client"
+          client="$RUNNER_TEMP/isolab-recovery-client/isolab-eks-recovery"
+          "$client" submit "$RUNNER_TEMP/isolab-request.json" "$ISOLAB_CLIENT_OUTPUT"
+          "$client" wait "$RUNNER_TEMP/isolab-request.json" "$ISOLAB_CLIENT_OUTPUT"
+      - name: Report the outcome
+        if: always()
+        run: |
+          if [[ -f "$ISOLAB_CLIENT_OUTPUT/result.json" ]]; then
+            if jq -e '.schema=="isolab.eks.recovery-result/v1"' "$ISOLAB_CLIENT_OUTPUT/result.json" >/dev/null; then
+              jq -r '"Iso Lab resumable run: `\(.state.request.run_name)`\n\nOutcome: **\(.state.phase)**; restored attempts: \(.state.restores).\n\nTested commit: `\(.state.request.build.source_revision)`\n\nFresh L2 epoch: `\(.benchmark.job_name)`; S3 payload hashes verified: \(.benchmark.payload_hashes_verified).\n\nComputation timing is excluded. Private checkpoint, computation, and fresh epoch receipts remain in S3."' "$ISOLAB_CLIENT_OUTPUT/result.json" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            jq -r '"Iso Lab job: `\(.job_name)`\n\nOutcome: **\(.state)**.\n\nTested commit: `\(.build.source_revision)`\n\nNative SHA-256: `\(.build.ecbench_sha256)`\n\nFull receipts and measurements are retained in the private lab S3 bucket."' \
+              "$ISOLAB_CLIENT_OUTPUT/result.json" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'No final experiment receipt. Inspect the build, publisher or launcher error.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi

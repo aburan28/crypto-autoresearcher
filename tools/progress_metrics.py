@@ -13,6 +13,16 @@ Sources (committed, read at --ref):
                                              completed finite Prym census counts/ranks
   experiments/EXP-ECDLP-a9b6a5/runs/RUN-ECDLP-967315/verification.json
                                              completed width16 Prym counts/ranks
+  experiments/EXP-ECDLP-2b4ff1/reports/run-20261027T1934Z/data.json
+                                             endpoint-reuse execution/public-witness observations
+  experiments/EXP-ECDLP-f50061/reports/run-20261027T2311Z/observations.json
+                                             parameter-sweep counts, retaining censored cases
+  experiments/EXP-ECDLP-c45dd8/reports/run-20261027T2329Z/observations.json
+                                             fixed NG screen counts, including covariance views
+  experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/observations.json
+                                             fresh transfer counts, events and distinct target-arm pairs
+  docs/reports/classical-ecdlp-controlled-followup-20261029/observations/observations.json
+                                             source-bound failed-run operational/coverage counts
 Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 """
 # ---- committed-state progress-metrics exporter contract ----
@@ -22,6 +32,7 @@ Run: python3 tools/progress_metrics.py [--ref origin/main] [--since YYYY-MM-DD]
 import argparse
 import datetime as dt
 import json
+import hashlib
 import math
 import os
 import subprocess
@@ -361,6 +372,410 @@ def claims(ref):
          label="structured speedup claims (progress-fidelity)", source=f"claims/*.json@{ref}")
 
 
+def endpoint_reuse_observations(ref, since):
+    """Actual process/public-witness counts; no native-cost qualification."""
+    path = "experiments/EXP-ECDLP-2b4ff1/reports/run-20261027T1934Z/data.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.descriptive-run-report-data/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-2b4ff1"
+                or data.get("run_id") != "RUN-ECDLP-b883bf" or date < since):
+            return
+        flow, verification = data["flow"], data["verification"]
+        if verification.get("status") != "public_equations_and_trace_pass":
+            return
+        values = {
+            "completed_children": flow["completed"],
+            "public_fixtures": verification["public_fixtures"],
+            "public_target_ids": verification["public_target_ids"],
+            "verified_case_witnesses": verification["verified_case_witnesses"],
+        }
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    if any(type(value) is not int or value < 0 for value in values.values()):
+        return
+    labels = {
+        "completed_children": "completed native children (execution observation)",
+        "public_fixtures": "public fixtures checked",
+        "public_target_ids": "public target identities checked",
+        "verified_case_witnesses": "public-equation witnesses verified (native counters not replayed)",
+    }
+    for name, value in values.items():
+        emit(f"endpoint_reuse.b883bf.{name}", value, date=date,
+             problem="ecdlp-endpoint-reuse", unit="count", better="neutral",
+             label=f"RUN-ECDLP-b883bf: {labels[name]}", source=f"{path}@{ref}")
+
+
+def endpoint_reuse_sweep_observations(ref, since):
+    """Actual sweep counts, including censoring; no cost or clock qualification."""
+    path = "experiments/EXP-ECDLP-f50061/reports/run-20261027T2311Z/observations.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.parameter-sweep.observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-f50061"
+                or data.get("run_id") != "RUN-ECDLP-e69a23"
+                or data.get("protocol_sha256") != "f882380374559faae1b50d86c1583c06c36738fc5dce43d2861fadaa6204b812"
+                or data.get("public_equation_verification") != "passed"
+                or data.get("all_clocks_wall_valid") is not False
+                or data.get("native_counter_replay_verified") is not False or date < since):
+            return
+        labels = {
+            "completed_children": "completed native children (execution observation)",
+            "public_fixtures": "public fixtures checked",
+            "public_target_ids": "unique public target identities checked",
+            "observed_target_arm_cases": "observed target-arm cases, including censoring",
+            "verified_case_witnesses": "solved public-equation witnesses verified (native counters not replayed)",
+            "censored_target_arm_cases": "retained censored target-arm cases",
+        }
+        values = {name: data[name] for name in labels}
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    if (any(type(value) is not int or value < 0 for value in values.values())
+            or values["observed_target_arm_cases"] != values["verified_case_witnesses"] + values["censored_target_arm_cases"]):
+        return
+    for name, value in values.items():
+        emit(f"endpoint_reuse.e69a23.{name}", value, date=date,
+             problem="ecdlp-endpoint-reuse", unit="count", better="neutral",
+             label=f"RUN-ECDLP-e69a23: {labels[name]}", source=f"{path}@{ref}")
+
+
+def nongeneric_screen_observations(ref, since):
+    """Neutral fixed-screen counts; repeated coordinate views remain counted."""
+    path = "experiments/EXP-ECDLP-c45dd8/reports/run-20261027T2329Z/observations.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.nongeneric-screen.observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-c45dd8"
+                or data.get("run_id") != "RUN-ECDLP-a11661"
+                or data.get("protocol_sha256") != "31d6425d88c3217ddab47fe3fbc295a6ec6b0af3513942f0fc2a9156ccea7d3d"
+                or data.get("verification_status") != "passed"
+                or data.get("all_clocks_wall_valid") is not False
+                or data.get("candidate_counter_execution_replayed") is not False or date < since):
+            return
+        labels = {
+            "observed_cases": "retained fixed-screen cases, including undefined outcomes and covariance views",
+            "candidate_cases": "retained candidate-template cases, including covariance views",
+            "control_cases": "retained control-arm cases, including covariance views",
+            "passing_groups": "base/view groups passing the fixed public gate",
+            "templates_with_passing_groups": "templates with one or more passing base/view groups",
+            "verified_recovered_targets": "verified fresh recovery targets across repeated coordinate views",
+            "fresh_predicate_evaluations": "executed fresh recovery predicate evaluations",
+        }
+        values = {name: data[name] for name in labels}
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    if (any(type(value) is not int or value < 0 for value in values.values())
+            or values["observed_cases"] != values["candidate_cases"] + values["control_cases"]
+            or values["templates_with_passing_groups"] > 40):
+        return
+    for name, value in values.items():
+        emit(f"nongeneric.a11661.{name}", value, date=date,
+             problem="ecdlp-nongeneric-screen", unit="count", better="neutral",
+             label=f"RUN-ECDLP-a11661: {labels[name]}", source=f"{path}@{ref}")
+
+
+def transfer_study_observations(ref, since):
+    """Neutral actual counts; successful attempt events and recovered pairs differ."""
+    path = "experiments/EXP-ECDLP-8dc19d/reports/run-20261028T1728Z/observations.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    try:
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.transfer-study.observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-8dc19d"
+                or data.get("run_id") != "RUN-ECDLP-994f70"
+                or data.get("protocol_sha256") != "fa961d179668d86e1dfcdc393d80c60e4f6a6f3ac541b9015f6011beba050c71"
+                or data.get("verification_status") != "passed"
+                or data.get("cohort_complete") is not True
+                or data.get("all_clocks_wall_valid") is not False
+                or data.get("counter_execution_replayed") is not False or date < since):
+            return
+        labels = {
+            "fresh_curves": "distinct fresh public curves retained",
+            "target_ids": "distinct fresh public target identities retained",
+            "attempt_rows": "retained primary attempt rows, including failed and undefined outcomes",
+            "checked_attempt_rows": "primary attempt rows checked by the independent verifier",
+            "working_baseline_verified_target_ids": "unique targets verified by the working BSGS reference",
+            "candidate_success_events": "verified candidate attempt success events, including repeated successes",
+            "unique_target_arm_pairs_recovered": "distinct recovered target-arm pairs, with retries deduplicated",
+        }
+        values = {name: data[name] for name in labels}
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    if (any(type(value) is not int or value < 0 for value in values.values())
+            or values["checked_attempt_rows"] > values["attempt_rows"]
+            or values["working_baseline_verified_target_ids"] > values["target_ids"]
+            or values["unique_target_arm_pairs_recovered"] > values["candidate_success_events"]):
+        return
+    for name, value in values.items():
+        emit(f"transfer.994f70.{name}", value, date=date,
+             problem="ecdlp-fixed-circuit-transfer", unit="count", better="neutral",
+             label=f"RUN-ECDLP-994f70: {labels[name]}", source=f"{path}@{ref}")
+
+
+def controlled_followup_observations(ref, since):
+    """Source-bound operational counts from the retained failed attempt.
+
+    A failed infrastructure attempt is an observation. Missing scientific
+    measurements are never zero recoveries, predicate calls, or solver results.
+    Read each payload at the same committed ref, even with a dirty checkout.
+    """
+    path = "docs/reports/classical-ecdlp-controlled-followup-20261029/observations/observations.json"
+    text = show(ref, path)
+    if text is None:
+        return
+    run = "experiments/EXP-ECDLP-956f81/runs/RUN-ECDLP-c8d9b0/"
+    post = "experiments/EXP-ECDLP-956f81/postrun/"
+    roles = {
+        "receipt": run + "execution-receipt.json",
+        "raw": run + "raw-result.json",
+        "postrun": post + "postrun-result.json",
+        "export": post + "export.canonical-paths.json",
+        "validation": post + "export.validation.json",
+        "protocol": "experiments/EXP-ECDLP-956f81/protocol.json",
+    }
+    try:
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.controlled-followup.failed-observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-956f81"
+                or data.get("run_id") != "RUN-ECDLP-c8d9b0"
+                or data.get("native_status") != "infrastructure_error"
+                or data.get("postrun_status") != "incomplete"
+                or data.get("scientific_validity") != "not_assessed"
+                or data.get("wall_valid") is not False
+                or data.get("counter_replay_qualified") is not False or date < since):
+            return
+        bindings = data["metric_source_sha256"]
+        if set(bindings) != set(roles.values()):
+            return
+        docs = {}
+        for role, source_path in roles.items():
+            blob = show(ref, source_path)
+            if (blob is None or not isinstance(bindings[source_path], str)
+                    or hashlib.sha256(blob.encode()).hexdigest() != bindings[source_path]):
+                return
+            docs[role] = json.loads(blob)
+        receipt, raw, postrun = docs["receipt"], docs["raw"], docs["postrun"]
+        export, validation = docs["export"], docs["validation"]
+        controller = raw["controller"]
+        if (bindings[roles["protocol"]] != "0b6e90a9cf9d79dd40fc43966c8aefd15cd6007feeb8ebf76f5ced3bb3149636"
+                or receipt.get("schema") != "crypto.autoresearch.trial_receipt.v1"
+                or receipt.get("run_id") != data["run_id"]
+                or receipt.get("status") != data["native_status"]
+                or type(receipt.get("returncode")) is not int or receipt.get("returncode") != 1
+                or receipt.get("check_returncode") is not None
+                or receipt["artifact_sha256"].get("raw-result.json") != bindings[roles["raw"]]
+                or raw.get("experiment_id") != data["experiment_id"] or raw.get("run_id") != data["run_id"]
+                or raw.get("operational_status") != "failed" or controller.get("status") != "failed"
+                or controller.get("collection_complete") is not False or controller.get("files") != []
+                or raw.get("scientific_validity") != "not_assessed"
+                or postrun.get("status") != "incomplete" or postrun.get("wall_valid") is not False
+                or postrun.get("scientific_validity") != "not_assessed"
+                or postrun.get("counter_replay_qualified") is not False
+                or export.get("schema") != "experiment.export/v1" or not isinstance(export.get("runs"), list)
+                or validation.get("schema_compliant") is not True
+                or validation.get("protocol_qualified") is not False
+                or not isinstance(validation.get("findings"), list)
+                or not all(isinstance(x, str) for x in validation["findings"])
+                or validation["findings"] != postrun.get("export_findings")):
+            return
+        values = {
+            "attempted_trials": 1,  # One actual native receipt, not protocol.planned.
+            "completed_trials": 0,  # Retained native infrastructure_error terminal status.
+            "failed_infrastructure_trials": 1,
+            "timed_out_trials": 0,
+            "vm_creates_recorded": controller["vm_creates"],
+            "candidate_engine_execs_recorded": controller["engine_execs"],
+            "retained_logical_evaluator_rows": len(export["runs"]),
+            "missing_coverage_findings": len(validation["findings"]),
+        }
+        if (any(type(v) is not int or v < 0 for v in values.values())
+                or values["candidate_engine_execs_recorded"] > values["vm_creates_recorded"]
+                or values["retained_logical_evaluator_rows"] != 0
+                or data["measured_counts"] != values
+                or any(type(v) is not int for v in data["measured_counts"].values())):
+            return
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return
+    for name, value in values.items():
+        emit(f"controlled.c8d9b0.{name}", value, date=date,
+             problem="ecdlp-controlled-followup", unit="count", better="neutral",
+             label=f"RUN-ECDLP-c8d9b0: {name.replace('_', ' ')} (operational/coverage only)",
+             source=f"{path}@{ref}")
+
+
+def controlled_followup_080f41_observations(ref, since):
+    """Retained successor counts, with native failure and two shared rows.
+
+    Resolve every source at the same committed ref. Large export payloads are
+    identity blob pointers in Git: authenticate their identities and the plain
+    verification/report/review facts, without a GET or pretending the payload
+    is a plain Git JSON blob. This is descriptive custody, not reference replay.
+    """
+    path = "docs/reports/classical-ecdlp-controlled-followup-20261029/observations-080f41/observations.json"
+    run = "experiments/EXP-ECDLP-080f41/runs/RUN-ECDLP-939237/"
+    post = "experiments/EXP-ECDLP-080f41/postrun-from-view-346631/"
+    reviews = "coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-cbf9d7/reviews/"
+    roles = {
+        "receipt": run + "execution-receipt.json",
+        "raw": run + "raw-result.json",
+        "verification": post + "verification.json",
+        "postrun": post + "postrun-result.json",
+        "validation": post + "export.validation.json",
+        "protocol": "experiments/EXP-ECDLP-080f41/protocol.json",
+        "native_report": "experiments/EXP-ECDLP-080f41/reports/run-20261029T2258Z/observations.json",
+        "source_export_pointer": post + "export.json.blob.json",
+        "root_export_pointer": "experiments/EXP-ECDLP-080f41/export.json.blob.json",
+        "integrity_review": reviews + "TASK-20261029-830629/experiment.review.json",
+        "blind_review": reviews + "TASK-20261029-fe803f/experiment.review.json",
+        "integrity_checks": reviews + "TASK-20261029-830629/checks.json",
+    }
+    try:
+        text = show(ref, path)
+        if text is None:
+            return
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.controlled-followup.reviewed-observations/v1"
+                or data.get("experiment_id") != "EXP-ECDLP-080f41"
+                or data.get("run_id") != "RUN-ECDLP-939237" or date < since
+                or data.get("native_status") != "invalid_output"
+                or data.get("postrun_status") != "complete"
+                or data.get("scientific_validity") != "not_assessed"
+                or data.get("wall_valid") is not False
+                or data.get("counter_replay_qualified") is not False):
+            return
+        bindings = data["metric_source_sha256"]
+        if set(bindings) != set(roles.values()):
+            return
+        docs = {}
+        for role, source in roles.items():
+            blob = show(ref, source)
+            if (blob is None or not isinstance(bindings[source], str)
+                    or hashlib.sha256(blob.encode()).hexdigest() != bindings[source]):
+                return
+            docs[role] = json.loads(blob)
+        receipt, raw = docs["receipt"], docs["raw"]
+        verify, postrun, valid = docs["verification"], docs["postrun"], docs["validation"]
+        native, integrity = docs["native_report"], docs["integrity_checks"]
+        controller = raw["controller"]
+        if (receipt.get("schema") != "crypto.autoresearch.trial_receipt.v1"
+                or receipt.get("run_id") != data["run_id"]
+                or receipt.get("status") != "invalid_output"
+                or type(receipt.get("returncode")) is not int or receipt["returncode"] != 0
+                or type(receipt.get("check_returncode")) is not int or receipt["check_returncode"] != 1
+                or receipt.get("published") is not False
+                or receipt["artifact_sha256"].get("raw-result.json") != bindings[roles["raw"]]
+                or raw.get("run_id") != data["run_id"]
+                or raw.get("experiment_id") != data["experiment_id"]
+                or controller.get("status") != "complete"
+                or controller.get("collection_complete") is not True
+                or controller.get("vm_creates") != 1 or controller.get("engine_execs") != 1
+                or native.get("run_id") != data["run_id"]
+                or native.get("experiment_id") != data["experiment_id"]
+                or native["controller"] != {k: controller[k] for k in (
+                    "collection_complete", "engine_execs", "engine_returncode", "sandbox_id",
+                    "status", "termination_ack", "uid1000_quiescent", "vm_creates")}
+                or native.get("host_postrun_status") != "complete"
+                or native.get("host_postrun_errors") != []
+                or verify.get("status") != "checked"
+                or verify.get("observed") != integrity["raw"]["counts"]
+                or postrun.get("status") != "complete" or postrun.get("errors") != []
+                or postrun.get("scientific_validity") != "not_assessed"
+                or postrun.get("export_findings") != []
+                or postrun.get("wall_valid") is not False
+                or postrun.get("counter_replay_qualified") is not False
+                or verify.get("wall_valid") is not False
+                or verify.get("counter_replay_qualified") is not False
+                or valid != {"findings": [], "protocol_qualified": True, "schema_compliant": True}
+                or docs["protocol"].get("protocol_id") != data["experiment_id"]
+                or docs["protocol"].get("freeze", {}).get("status") != "frozen"
+                or docs["protocol"]["freeze"].get("protocol_sha256") != data["protocol_semantic_sha256"]):
+            return
+        views = data["export_views"]
+        for view, role, review in (("source", "source_export_pointer", "integrity_review"),
+                                   ("root_derivative", "root_export_pointer", "blind_review")):
+            pointer, binding = docs[role], views[view]
+            if (pointer.get("schema") != "crypto.autoresearch.blob_pointer.v1"
+                    or pointer.get("encoding") != "identity"
+                    or pointer.get("sha256") != binding["payload_sha256"]
+                    or pointer.get("content_sha256") != binding["payload_sha256"]
+                    or type(pointer.get("size")) is not int
+                    or pointer["size"] != binding["payload_bytes"]
+                    or pointer.get("content_size") != pointer["size"]
+                    or pointer.get("uri") != ("s3://setec-astronomy-artifacts/store/sha256/"
+                        + binding["payload_sha256"][:2] + "/" + binding["payload_sha256"])
+                    or docs[review].get("schema") != "experiment.review/v1"
+                    or docs[review]["export"]["sha256"] != binding["payload_sha256"]
+                    or docs[review]["protocol_sha256"] != data["protocol_semantic_sha256"]):
+                return
+        rows = native["logical_evaluator_rows"]
+        if (len(rows) != 2 or {row["run_id"] for row in rows} !=
+                {data["run_id"] + ".original", data["run_id"] + ".incremental"}
+                or any(row["instance_id"] != "candidate-vm" or row["replicate"] != 0
+                       or row["status"] != "succeeded" for row in rows)):
+            return
+        by_arm = {row["arm"]: row["measurements"]["counted"] for row in rows}
+        for arm, method in (("confirmation_original", "original"),
+                            ("confirmation_incremental", "incremental")):
+            if by_arm[arm] != integrity["raw"]["methods"][method]:
+                return
+        coverage, counted = native["coverage"], verify["observed"]
+        summaries = native["recorded_summaries"]
+        primary = next(x for x in summaries["six_cell_totals"] if x["cell"] == "t1.e2")
+        if (coverage["retained_decoder_cells"] != counted["cells"]
+                or coverage["retained_physical_trace_records"] != counted["traces"]
+                or primary["candidate_events"] != integrity["raw"]["cell_summary"]["t1.e2"]["successes"]):
+            return
+        values = {
+            "native_attempts": len([receipt]),
+            "native_invalid_output_trials": int(receipt["status"] == "invalid_output"),
+            "native_completed_trials": int(receipt["status"] == "output_validated"),
+            "vm_creates_recorded": controller["vm_creates"],
+            "candidate_engine_execs_recorded": controller["engine_execs"],
+            "logical_evaluator_rows": len(rows),
+            "retained_curves": coverage["retained_curves"],
+            "retained_decoder_cells": counted["cells"],
+            "retained_physical_traces": counted["traces"],
+            "retained_single_records": counted["singles"],
+            "retained_setups": counted["setups"],
+            "paired_confirmation_attempts": integrity["raw"]["paired"],
+            "original_strict_recovery_events": by_arm["confirmation_original"]["strict_recovered_events"],
+            "incremental_strict_recovery_events": by_arm["confirmation_incremental"]["strict_recovered_events"],
+            "primary_t1e2_recovery_events": primary["candidate_events"],
+            "primary_t1e2_recovered_targets": primary["candidate_curve_target_pairs"],
+            "primary_t1e2_recorded_uniform_events": primary["uniform_events"],
+            "calibration_arm_records": summaries["calibration_summary"]["arm_records"],
+            "calibration_undefined_draws": summaries["calibration_summary"]["undefined_draws"],
+        }
+        if (any(type(v) is not int or v < 0 for v in values.values())
+                or data["measured_counts"] != values
+                or any(type(v) is not int for v in data["measured_counts"].values())):
+            return
+    except (KeyError, TypeError, ValueError, AttributeError, StopIteration):
+        return
+    for name, value in values.items():
+        emit(f"controlled.939237.{name}", value, date=date,
+             problem="ecdlp-controlled-followup", unit="count", better="neutral",
+             label=f"RUN-ECDLP-939237: {name.replace('_', ' ')} (retained observations; shared population)",
+             source=f"{path}@{ref}")
+
+
 def p256_factor_base_checks(ref, since):
     """Count completed engineering packages; this is no scientific verdict.
 
@@ -425,6 +840,125 @@ def p256_factor_base_pass2_preparation(ref, since):
          label="P-256 second-pass source packages prepared (no execution or scientific verdict)",
          source=f"{path}@{ref}")
 
+
+def host_reference_audit_observations(ref, since):
+    """Neutral retained-audit coverage, authenticated entirely at one Git ref.
+
+    Read the small law/truth counts directly. Authenticate the large cost
+    payload through its completed release and committed identity pointer plus
+    modern manifest; never fetch or fall back to hydrated/worktree bytes.
+    Coverage describes inspected records, never algorithm performance.
+    """
+    base = "coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-128d4e/"
+    path = "experiments/EXP-ECDLP-080f41/reports/review-DEC-20261030-c55f30/observations.json"
+    owners = {"law": "TASK-20261030-3393bd", "truth": "TASK-20261030-88d5bd", "cost": "TASK-20261030-f55ebb"}
+    def record(name, expected_sha):
+        text = show(ref, name)
+        if text is None or hashlib.sha256(text.encode("utf-8")).hexdigest() != expected_sha:
+            raise ValueError("missing or changed committed source")
+        return json.loads(text)
+    def count(value):
+        if type(value) is not int or value < 0:
+            raise ValueError("coverage must be a measured integer")
+        return value
+    try:
+        text = show(ref, path)
+        if text is None:
+            return
+        data = json.loads(text)
+        date = dt.date.fromisoformat(data["recorded_at"][:10]).isoformat()
+        if (data.get("schema") != "classical.ecdlp.host-reference-audit.observations/v1"
+                or data.get("run_id") != "RUN-ECDLP-939237"
+                or data.get("experiment_id") != "EXP-ECDLP-080f41"
+                or data.get("batch_id") != "BATCH-128d4e" or date < since
+                or data.get("source_launch_status") != "invalid_output"
+                or data.get("check_returncode") != 1 or data.get("published") is not False
+                or data.get("wall_valid") is not False
+                or data.get("native_counter_replay_qualified") is not False
+                or data.get("scientific_status_changed") is not False):
+            return
+        sources = data["metric_sources"]
+        if set(sources) != set(owners):
+            return
+        plain = {}
+        for role, task in owners.items():
+            source = sources[role]
+            logical = base + "reviews/" + task + "/checks.json"
+            if source.get("task_id") != task or source.get("joint_id") != "J-" + role or source.get("path") != logical:
+                return
+            release_path = source["release_path"]
+            prefix = base + "claims/" + task + "."
+            epoch = release_path[len(prefix):-len(".release.json")] if release_path.startswith(prefix) and release_path.endswith(".release.json") else ""
+            if not epoch.isdigit() or int(epoch) < 1:
+                return
+            release = record(release_path, source["release_sha256"])
+            if (release.get("task_id") != task or release.get("outcome") != "completed"
+                    or release.get("epoch") != int(epoch)
+                    or release.get("artifact_sha256", {}).get(logical) != source["payload_sha256"]):
+                return
+            stored = source["stored_path"]
+            if stored == logical:
+                value = record(stored, source["stored_sha256"])
+                if source["stored_sha256"] != source["payload_sha256"]:
+                    return
+                if value.get("task_id") != task:
+                    return
+                plain[role] = value
+            elif stored == logical + ".blob.json":
+                pointer = record(stored, source["stored_sha256"])
+                digest = source["payload_sha256"]
+                if (pointer.get("schema") != "crypto.autoresearch.blob_pointer.v1"
+                        or pointer.get("encoding") != "identity"
+                        or pointer.get("sha256") != digest or pointer.get("content_sha256") != digest
+                        or pointer.get("size") != source["payload_bytes"]
+                        or pointer.get("content_size") != source["payload_bytes"]
+                        or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest)
+                        or pointer.get("uri") != "s3://setec-astronomy-artifacts/store/sha256/" + digest[:2] + "/" + digest):
+                    return
+                modern_path = base + "reviews/" + task + "/.artifacts.json"
+                if source.get("modern_manifest_path") != modern_path:
+                    return
+                modern = record(modern_path, source["modern_manifest_sha256"])
+                entry = modern.get("files", {}).get("checks.json", {})
+                if modern.get("schema") != "artifacts.manifest/v1" or entry.get("sha256") != digest or entry.get("bytes") != source["payload_bytes"]:
+                    return
+            else:
+                return
+        if not {"law", "truth"} <= set(plain):
+            return
+        law = plain["law"]["phase2_retained_audit"]["totals"]
+        truth = plain["truth"]["coverage"]
+        checks = {
+            "curves_checked": count(truth["curves"]),
+            "orientation_draws_checked": count(law["null_draws"]),
+            "uniform_rows_checked": count(truth["uniform_rows"]),
+            "decoder_word_records_checked": count(truth["decoder_words"]),
+            "decoder_public_equations_checked": count(truth["decoder_public_equations"]),
+            "bsgs_final_equations_checked": count(truth["BSGS_targets"]),
+            "prepared_setup_equations_checked": count(truth["setup_base_equations"]),
+            "zero_budget_rows_checked": count(truth["uniform_M0_rows"]),
+        }
+        if (checks["uniform_rows_checked"] != count(law["uniform_rows"])
+                or checks["decoder_word_records_checked"] != count(law["reconstructed_decoder_words"])
+                or checks["zero_budget_rows_checked"] != count(law["uniform_zero_M"])):
+            return
+        values = data["audit_coverage"]
+        if not isinstance(values, dict) or set(values) - set(checks):
+            return
+        output = []
+        for name, expected in checks.items():
+            actual = values.get(name)
+            if actual is None:
+                continue  # Unknown or missing is omitted, never zero-filled.
+            if count(actual) != expected:
+                return
+            output.append((name, actual))
+    except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
+        return
+    for name, value in output:
+        emit("audit.939237." + name, value, date=date, problem="ecdlp-host-reference-audit",
+             unit="count", better="neutral", kind="gauge",
+             label="RUN-ECDLP-939237: inspected " + name.replace("_", " "), source=path + "@" + ref)
 
 def prime_field_fixed_panels(ref, since):
     """Exact completed-panel observations; method references are never summed."""
@@ -502,6 +1036,173 @@ def prime_field_residual_panels(ref, since):
             emit(prefix+'.'+c['cell_id']+'.'+c['arm']+'.base_rank_gain',c[gain_key],unit='dimensions',label='Additional rank on original15 base columns after any outside elimination',**common)
 
 
+
+def exact_density_787704_observations(ref, since):
+    """Exact fixed-population census; neutral counts, not an attack-cost claim.
+
+    Only the two committed, small summaries are read. Missing, malformed or
+    inconsistent sources emit no gauges (unknown), never fabricated zeroes.
+    """
+    import gzip
+    import io
+    from fractions import Fraction
+
+    raw_path = "experiments/EXP-ECDLP-787704/runs/RUN-ECDLP-53b08d/summary.json.gz"
+    review_path = ("coordination/goals/GOAL-ECDLP-e70832/batches/BATCH-f7bbdf/"
+                   "reviews/TASK-20261030-cd89e7/independent-summary.json")
+    day = "2026-10-30"
+    if day < since:
+        return
+
+    def read_committed(path, compressed=False):
+        result = subprocess.run(["git", "-C", str(REPO), "show", f"{ref}:{path}"],
+                                capture_output=True, timeout=10)
+        if result.returncode or len(result.stdout) > 2 * 1024 * 1024:
+            raise ValueError("missing/oversized committed source")
+        data = result.stdout
+        if compressed:
+            with gzip.GzipFile(fileobj=io.BytesIO(data)) as stream:
+                data = stream.read(2 * 1024 * 1024 + 1)
+        if len(data) > 2 * 1024 * 1024:
+            raise ValueError("oversized decoded source")
+        def unique(pairs):
+            value = {}
+            for key, item in pairs:
+                if key in value:
+                    raise ValueError("duplicate JSON key")
+                value[key] = item
+            return value
+        def finite(value):
+            raise ValueError("non-finite JSON")
+        return json.loads(data, object_pairs_hook=unique, parse_constant=finite)
+
+    def count(value):
+        return type(value) is int and value >= 0
+
+    try:
+        raw = read_committed(raw_path, True)
+        review = read_committed(review_path)
+        if (not isinstance(raw, dict) or raw.get("status") != "complete"
+                or raw.get("mode") != "census" or raw.get("attack_claimed") is not False
+                or raw.get("wall_valid") is not False
+                or review.get("schema") != "independent.exact-density.full-review-summary/v1"
+                or review.get("run_id") != "RUN-ECDLP-53b08d"
+                or review.get("experiment_id") != "EXP-ECDLP-787704"
+                or review.get("no_advantage_cost_family_or_status_claim") is not True
+                or review.get("joint_verdicts") != {"J-predicate": "holds",
+                    "J-list-density-reference": "holds", "J-blinding": "holds", "J-integrity": "breaks"}):
+            return
+        curves = raw["curves"]
+        certificates = review["curve_certificates"]
+        if not isinstance(curves, list) or len(curves) != 48 or len(certificates) != 48:
+            return
+        domains = {}
+        for i, (curve, certificate) in enumerate(zip(curves, certificates)):
+            if (curve["curve_index"] != i or certificate["curve_index"] != i
+                    or not isinstance(curve["curve_id"], str) or curve["curve_id"] in domains
+                    or not count(curve["states"]) or curve["states"] == 0
+                    or certificate["curve_id"] != curve["curve_id"]
+                    or certificate["orbit_points"] != curve["states"] + 1
+                    or certificate["python_native_query_equations"] != curve["states"] + 1
+                    or not re.fullmatch(r"[0-9a-f]{64}", curve["sha256"])
+                    or certificate["state_stream_sha256"] != curve["sha256"]):
+                return
+            domains[curve["curve_id"]] = (i, curve["states"])
+        if len(raw["rows"]) != 288 or len(review["rows"]) != 288:
+            return
+        checked = {}
+        totals = {(t, e): {"successes": 0, "positive": 0, "zero": 0, "M": 0}
+                  for t in (0, 1, 2) for e in (0, 2)}
+        raw_rows = {}
+        for row in raw["rows"]:
+            key = (row["curve_id"], row["radius"], row["erasure_cap"])
+            if key in raw_rows:
+                return
+            raw_rows[key] = row
+        for row in review["rows"]:
+            key = (row["curve_id"], row["radius"], row["erasure_cap"])
+            if key in checked or key not in raw_rows or key[1:] not in totals:
+                return
+            source = raw_rows[key]
+            i, states = domains[key[0]]
+            success = row["success_numerator"]
+            size = row["sum_M"]
+            if (not count(success) or success > states or not count(size)
+                    or row["curve_index"] != i or row["states"] != states
+                    or source["states"] != states or row["arm_id"] != "circuit2.a1"
+                    or source["arm_id"] != "circuit2.a1"
+                    or row["success_denominator"] != states
+                    or row["uniform_numerator"] != size
+                    or row["uniform_denominator"] != states ** 2
+                    or source["q"] != [success, states]
+                    or source["uniform_reference"] != [size, states ** 2]
+                    or list(Fraction(success, states).as_integer_ratio()) != row["q_reduced"]
+                    or list(Fraction(size, states ** 2).as_integer_ratio()) != row["uniform_reduced"]
+                    or source["histograms"] != row["histograms"]):
+                return
+            fields = {"word_count": "words", "legal_count": "legal", "empty_count": "empty",
+                      "zero_candidate_checks": "zero_checks", "M": "sumM", "success": "successes"}
+            if any(not count(row["totals"][a]) or row["totals"][a] != source["totals"][b]
+                   for a, b in fields.items()):
+                return
+            status = row["histograms"]["status"]
+            if (any(not count(n) for n in status.values()) or sum(status.values()) != states
+                    or status.get("RECOVERED", 0) != success):
+                return
+            checked[key] = (success, states, size)
+            cell = totals[key[1:]]
+            cell["successes"] += success
+            cell["M"] += size
+            cell["positive"] += int(success > 0)
+            cell["zero"] += int(success == 0)
+        if set(checked) != {(c, t, e) for c in domains for t, e in totals}:
+            return
+        states = sum(n for _, n in domains.values())
+        if review["new_counts"] != {"new_states": states, "new_scalar_cells": states * 6,
+                                     "orbit_points_including_identity": states + len(domains)}:
+            return
+        descriptive = review["descriptive_cell_totals"]
+        if len(descriptive) != 6:
+            return
+        seen = set()
+        for cell in descriptive:
+            key = (cell["radius"], cell["erasure_cap"])
+            if key in seen or key not in totals:
+                return
+            seen.add(key)
+            exact = totals[key]
+            if (cell["curves_with_zero_q"] != exact["zero"]
+                    or cell["sum_successes"] != exact["successes"] or cell["sum_M"] != exact["M"]):
+                return
+        integrity = review["integrity"]
+        if (integrity["native_returncode"] != 0 or integrity["native_check_returncode"] != 0
+                or integrity["frozen_protocol_export_returncode"] != 1
+                or len(integrity["findings"]) != 7):
+            return
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError, OSError,
+            EOFError, subprocess.TimeoutExpired):
+        return
+
+    common = dict(date=day, problem="ecdlp-coordinate-predicate", better="neutral",
+                  source=f"{raw_path}@{ref}; {review_path}@{ref}")
+    prefix = "ecdlp.exact_density.787704"
+    for suffix, value, unit, label in [
+        ("curves", len(domains), "curves", "Fixed functions enumerated and independently reconciled"),
+        ("nonzero_states", states, "states", "Complete nonzero scalar domain; identity excluded"),
+        ("scalar_cells", states * 6, "scalar/cells", "Six dependent cells, not independent trials"),
+        ("orbit_points", states + len(domains), "points", "Orbit/query equations including all identities"),
+        ("per_curve_cell_rows", len(checked), "rows", "Exact separate q and conditional-reference laws"),
+        ("export_findings", len(integrity["findings"]), "findings", "Open historical frozen export defects; no mathematical verdict")]:
+        emit(prefix + "." + suffix, value, unit=unit, label=label, **common)
+    for (radius, cap), cell in sorted(totals.items()):
+        cell_id = f"t{radius}.e{cap}"
+        for suffix, value, unit, label in [
+            ("curves_positive_q", cell["positive"], "curves", "Curves with exact q > 0; no transfer claim"),
+            ("curves_zero_q", cell["zero"], "curves", "Curves with exact q = 0; tested functions only"),
+            ("successful_states_sum", cell["successes"], "states", "Descriptive sum; not a pooled probability"),
+            ("list_sizes_sum", cell["M"], "scalars", "Sum of retained nonzero list sizes; not primitive work")]:
+            emit(prefix + "." + cell_id + "." + suffix, value, unit=unit,
+                 label=f"{cell_id}: {label}", **common)
 def prime_field_direct_panel(ref, since):
     """A3 exact relation equivalence; enumerate descriptors and table queries separately."""
     date='2026-10-30'
@@ -570,10 +1271,18 @@ def main():
     prym_equation_diversity(a.ref)
     funnel(a.ref, a.since)
     claims(a.ref)
+    endpoint_reuse_observations(a.ref, a.since)
+    endpoint_reuse_sweep_observations(a.ref, a.since)
+    nongeneric_screen_observations(a.ref, a.since)
+    transfer_study_observations(a.ref, a.since)
+    controlled_followup_observations(a.ref, a.since)
+    controlled_followup_080f41_observations(a.ref, a.since)
+    host_reference_audit_observations(a.ref, a.since)
     p256_factor_base_checks(a.ref, a.since)
     p256_factor_base_pass2_preparation(a.ref, a.since)
     prime_field_fixed_panels(a.ref, a.since)
     prime_field_residual_panels(a.ref, a.since)
+    exact_density_787704_observations(a.ref, a.since)
     prime_field_direct_panel(a.ref, a.since)
     prime_field_holdout_panel(a.ref, a.since)
 

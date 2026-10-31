@@ -1,0 +1,9 @@
+# Exact screen custody and export
+
+The original frozen verifier,48-arm finite-object export and official file checker allreturned0. postrun-original.tar.gz retains all15originalpostrunfiles/43898439logicalbytes with exact member hashes and roundtrip receipt in postrun-storage-manifest.json. export-original.json.gz preserves the original23262118byte export. The separately constructed canonical export.json is23261372bytes at SHA9cce0e5c450021f6236b049e5ccebbcafe44c71aaaefd85702ca80d7da6c540f; its parent existed before lint andbothadapter/filecheckpassed. Small companions retain actual zero findings.
+
+report-original.tar.gz preserves all28finalreport/rendering/inspectionmembers,5592404logicalbytes. The publication PDF has11pages and was visually inspected after the original layout draft was preserved. No candidate/verifier rerun or source edit repaired data. postrun-tools-source.tar.gz and its manifest preserve the mechanical mapping/renderer source; six scientific modules remain sourceC2311b9d30c346fca4f06ef1ce25af78d92f4be7d.
+
+Hydrate via tools/artifacts/artifacts.py, verify blob hashes, and decompress export gzip files to their logical names. Restore the raw run's modal/ tree from its verified archive. Exactexportbindings also reference the recorded outside subtree /workspace/classical-ecdlp-endpoint-reuse/continuation-nongeneric/postrun-actual-01; safely extract the full postrun archive there to replay original checks, or execute the retained frozen verifier/mapper using restored new-location paths while preserving historical records.
+
+All74880cases/5760recoverygroups are retained. The60passingcandidategroups/780recoveries are generator-specific and include10isomorphiccoordinateviews. Validator-only truth-half controls are excluded. See generator-specific-findings.md and observations.json for the two circuits. No qualified timing, independently replayed counter or new complexity exponent follows from this finite record.
