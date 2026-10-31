@@ -1,0 +1,9 @@
+# Prior source context and limits
+
+The selected decision is DEC-20261030-af5218: exact cold kernel fidelity, fourteen fixed residual cases and twenty-four F5 native integration slots independently passed. DEC-20261030-722a2d supplies the one-way cold successful-certificate implication. UNKNOWN, cap changes and whole SAT trajectories are not ordered by that implication. This task measures the unresolved complete worker cost; no additional theory round is needed.
+
+The root full-cost interface audit identifies `answer.refuter_diagnostics` outside legacy `phases`, and two actual encoding constructions (producer and accepted verifier). A new exporter must retain both rather than inherit the old extractor's omission. Private module loading, common validation, eager support over all generators, sidecar deepcopy/checkpoint serialization, failed calls, native search, final verification and reconstruction must enter the complete worker boundary. Named arithmetic/event counters remain separate units and are not a CPU-instruction total.
+
+Previously retrieved primary sources: PySAT Propagator API (official engines documentation and installed1.9.dev17 source), IPASIR-UP SAT2023 sections2.2-2.4/4.1, and Saccomani et al.2026 sectionsIII.C-D/IV.B. These establish callback/identity versus completeness interfaces; no source benchmark or broad novelty is reproduced. The root's current immutable crypto HARNESS/ISOLAB_AGENTS source reads and precise access limits are in isolated-route-audit.json. No new literature search or trial occurred in this preview.
+
+Earlier grouped raw-degree acceptance remains DEC-20261029-0857a9 with its variable-count and presentation qualifications. This cost comparison neither revises nor retests that theorem. Shared signed charts remain a separately selected continuation.
