@@ -62,7 +62,7 @@ open MvPolynomial
 variable {σ k : Type*} [Field k]
 
 /-- The field equations `x_i^q - x_i`, as a generating set. -/
-def fieldEqGens (σ k : Type*) [Field k] (q : ℕ) : Set (MvPolynomial σ k) :=
+noncomputable def fieldEqGens (σ k : Type*) [Field k] (q : ℕ) : Set (MvPolynomial σ k) :=
   Set.range fun i : σ => (X i : MvPolynomial σ k) ^ q - X i
 
 /-- Total weight of an exponent vector. -/

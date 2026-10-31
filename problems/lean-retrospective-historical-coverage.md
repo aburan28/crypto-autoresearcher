@@ -4,7 +4,7 @@
 - **Kind:** formalization gap; semantic-review gap; incomplete prose-claim inventory
 - **Affected work:** [three-repository retrospective](../research/lean_retrospective_20261018/README.md), all past claims requested by the owner on 2026-10-18
 - **Next action owner:** unassigned formalization and independent-review tasks
-- **Last updated:** 2026-10-18
+- **Last updated:** 2026-10-19
 
 ## Problem
 
@@ -94,3 +94,28 @@ The missing reachability proof, concrete bridges, broader target clauses and
 empirical replays above remain open; no exit criterion is closed by workflow
 tests alone. Versioned status diagrams and semantic-review-v2 metadata point
 to the current narrow review while preserving original frozen artifacts.
+
+
+### 2026-10-19 foundation retrofit
+
+The [new study](../research/lean_foundations_20261019/README.md) supplies the full
+reachability equivalence with an explicit shortest word, actual additive-point
+actions, the companion kernel witness, and a canonical cyclic encoding with
+exact-order injectivity. The shared library additionally derives both rho
+recovery branches from actual walk points and an explicit Bézout transport
+inverse. New machine checks and independent review are tracked there; this
+entry does not borrow the earlier 19-declaration verdict.
+
+The broader inventory/empirical obligations and the full group/path-algebra
+presentation and surjectivity clauses remain open. Concrete geometric maps,
+point-order certificates for particular instances, parsers and C refinement
+remain application obligations. The next step is to review the new exact
+statements, then map additional historical claims and their required bridges.
+
+Direct new edits to `aburan28/crypto` currently lack its required Conductor
+task admission: the command and `.conductor/WORKFLOW.md` are absent in the
+selected checkout and current fetched main. Reusable transport foundations
+are implemented in `aburan28/crypto-lean` while that integration prerequisite
+is unresolved. A working Conductor task/check and workflow file would unblock
+the consumer pin update; this is an infrastructure limit, not a mathematical
+obstruction. The earlier crypto PR remains separately tracked.
