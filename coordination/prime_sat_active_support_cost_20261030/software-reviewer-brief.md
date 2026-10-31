@@ -1,0 +1,7 @@
+# Independent cost-software review TASK-20261030-f00426
+
+Read the exact inline/standalone software-review-plan and software-contract. Independently inspect target code and author fixed assertions before executing your own bounded suite; do not read new producer test_cost_contract.py, software-results.json, README or outcomes. This is source/software fidelity, not a blind mathematical theorem proof or a benchmark. All six joints have one owner: you.
+
+Exactly24 existing F5 native slots per suite, at most4suite attempts; zero curve/reference/remote/scientific executions. Mock route receipts never establish L2. Sources may be inspected, no producer file may be changed. Write only your four declared paths. Preserve failed attempts rather than adapting scientific fixtures. Source-only checks cannot be reported as executed software assertions.
+
+Requested runtime: fresh native gpt-6.1-sol/xhigh/fork_turns=none, task_name active_support_cost_software_reviewer. Actual serving model/provider/effort/context floors remain unverified. No opaque UUID promised. Administrative identity/schema/ownership requests permitted, mathematical/output content forbidden before sealing. Use review_attestation wrapper, task_id, joints_owned, verdicts, sources_read as nonempty literal strings, and truthful independence/blindness booleans. Rich provenance belongs separate fields. No source repair or full scientific acceptance.

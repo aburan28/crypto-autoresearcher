@@ -1,0 +1,4016 @@
+[
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "Rejection hides odd mask biases to second order: key recovery needs eps^-4 signatures for a linear y tilt, eps^-2 for an even bias",
+  "class": "mechanism",
+  "claim": "If the mask y has density proportional to 1 + eps*f(y/gamma1) instead of uniform, the accepted z = y + c s1 has conditional mean E[z_j | u_j] = a + g*u_j with u = c s1, and least squares of z on rot(c) recovers s1 from N* = 16 sigma_z^2 / (tau g^2) signatures. For an ODD defect f(x) = x the gain is second order, g = eps^2 B^2/(3 G^2), so N* scales as eps^-4; for an EVEN defect f(x) = x^2 it is first order, g = -2 eps B^2/(3 G^2), so N* scales as eps^-2 (G = gamma1, B = gamma1 - beta). At toyDSA(32,2,2) with gamma1 = 2^6 the two fitted slopes are -4 and -2 within +-0.5, and eps = 0 gives no recovery.",
+  "mechanism": "Rejection sampling hides u only because the accepted density of z, p(z - u) restricted to the box, is flat. For a perturbed density the u-dependence of the accepted mean comes from the perturbation's derivative inside the box: an even perturbation (curvature, as produced by summed or edge-biased samplers) has a z-linear cross term -2 eps u z / G^2 at first order, while an odd linear tilt moves the mean only through the normalising constant 1 - eps u / G, a second-order effect. So the parity of a sampler defect, not its size, sets the exponent of the signature count, which is the quantity a defect triage needs and which the uniform-y proof does not discuss.",
+  "tracked_object": "the number of accepted toyDSA signatures N* at which least-squares rounding returns s1 exactly, against defect size eps, for odd and even defects",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "slope of log N* vs log eps, odd defect",
+    "direction": "lower",
+    "minimum_effect": "fitted slope in [-4.5, -3.5] over eps in {1, 2^-1, 2^-2}",
+    "falsified_by": "slope above -3 (first-order leak)"
+   },
+   {
+    "id": "P2",
+    "metric": "slope of log N* vs log eps, even defect",
+    "direction": "lower",
+    "minimum_effect": "fitted slope in [-2.5, -1.5] over eps in {2^-1..2^-4}",
+    "falsified_by": "slope outside [-3, -1]"
+   },
+   {
+    "id": "P3",
+    "metric": "recovery at eps = 0",
+    "direction": "different",
+    "minimum_effect": "zero exact recoveries in 2^24 signatures per key and per-coefficient error rate within 1 percent of chance",
+    "falsified_by": "any exact recovery at eps = 0"
+   }
+  ],
+  "minimal_test": {
+   "design": "Generate toyDSA keys; sign uniformly random messages with a mask sampler perturbed by eps*f; regress z on rot(c); round; compare with s1; find N* on a doubling grid per (f, eps).",
+   "controls": [
+    "null: eps = 0 exact uniform sampler, same N grid",
+    "positive: rejection disabled (z = y + c s1 always output, ILWE regime of KN-LIT-4828)",
+    "A/A: even defect eps = 2^-2 in two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "odd-defect slope is first order (above -3)",
+   "even-defect slope outside [-3, -1]",
+   "eps = 0 yields recovery",
+   "positive control fails at 4x its predicted N (instrument broken)"
+  ],
+  "confounders": [
+   "the closed-form gains assume |u| much smaller than B; at toy gamma1 = 2^6 and beta = 8 this holds only to about 15 percent",
+   "regression conditioning depends on tau/n",
+   "plain rounding only, so a lattice finisher cannot mask the law"
+  ],
+  "interpretation_limits": [
+   "toy ring n = 32 and gamma1 = 2^6: transfer to ML-DSA-44 is through the closed-form gain and sigma_z^2 proportional to gamma1^2, a model stated here and not tested at 2^17",
+   "two defect shapes only; edge and step defects are a separate idea",
+   "no statement about any deployed sampler"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "the accepted-z conditional mean is linear in u with the stated gains",
+    "rigorous_support": "exact integrals of the truncated perturbed density; first-order in u/B",
+    "validation_plan": "measure the empirical slope of E[z|u] on 10^6 single-coefficient samples per (f, eps) and compare with the formulas"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "N* = Theta(sigma_z^2 / (tau g^2)) with g = Theta(eps^2) (odd) or Theta(eps) (even); time O(N n^2 l^2)",
+   "memory_exponent": "O((n l)^2)",
+   "best_known": "no leak at eps = 0; ILWE without rejection needs Theta(sigma_y^2 / tau)",
+   "hidden_overhead": "the normalising-constant term can dominate at large eps",
+   "tradeoff_note": "constant-level and exponent-in-eps measurement; no exponent claim about lattice cost"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4828",
+    "provenance": "kb",
+    "citation_text": "Fouque, Tibouchi et al., LWE without modular reduction (ILWE) and improved side-channel attacks on BLISS (corpus entry)",
+    "relation": "adjacent",
+    "delta": "ILWE gives sample bounds for unbiased linear leakage without rejection; this measures the post-rejection residual leak that a biased y re-opens in ML-DSA, where the ILWE signal is multiplied by a bias-dependent gain that the paper does not price"
+   },
+   {
+    "ref": "KN-LIT-059",
+    "provenance": "kb",
+    "citation_text": "Lyubashevsky, Fiat-Shamir with Aborts, ASIACRYPT 2009",
+    "relation": "adjacent",
+    "delta": "the paradigm whose hiding argument is exactly the property measured here under a stated defect"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Espitau, Fouque, Gerard, Tibouchi, Side-Channel Attacks on BLISS Lattice-Based Signatures, CCS 2017 (recalled, hedged)",
+    "relation": "adjacent",
+    "delta": "BLISS leaked through its Gaussian sampler; this is a uniform-mask FSwA defect law with a parity effect, measured post-rejection"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-4d4e5f",
+   "IDEA-20260821-60ba98"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Parity law of mask-defect leakage at toyDSA(32,2,2)",
+   "objective": "whether the parity of a mask defect sets the exponent of the signature count for key recovery",
+   "instrument": "Python 3.11, NumPy; toyDSA(n,k,l): a NumPy re-implementation of FIPS 204 Algorithms 1-8 with the ring degree n as a parameter (q = 8380417, d = 13, eta, tau, gamma1, gamma2, beta = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked against the PQClean ML-DSA-44 reference at n = 256 on 1000 KAT vectors before any reduced run",
+   "parameters": "toyDSA(32,2,2), gamma1 = 2^6, eta = 1, tau = 8, beta = 8; odd eps in {0, 1, 2^-1, 2^-2}; even eps in {0, 2^-1, 2^-2, 2^-3, 2^-4}; N grid doubling 2^10..2^24; 5 keys per seed block. Predicted N*: even 8.0e3/eps^2, odd 3.2e4/eps^4",
+   "procedure": "1) KAT cross-check. 2) For each key, defect shape and eps, sign until 2^24 accepted signatures or recovery. 3) Accumulate normal equations of z on rot(c); solve at each grid point. 4) Round and compare with s1. 5) N* = smallest grid point with exact recovery on all 5 keys. 6) Fit slopes per shape.",
+   "independent_variables": [
+    {
+     "name": "defect_shape",
+     "levels": [
+      "odd_linear",
+      "even_quadratic"
+     ]
+    },
+    {
+     "name": "defect_eps",
+     "levels": [
+      "0",
+      "2^-4",
+      "2^-3",
+      "2^-2",
+      "2^-1",
+      "1"
+     ]
+    },
+    {
+     "name": "rejection",
+     "levels": [
+      "on",
+      "off"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    },
+    {
+     "name": "message_length",
+     "treatment": "fixed",
+     "value": "32 bytes",
+     "how": "uniform random messages"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "odd_linear eps 2^-1",
+      "even_quadratic eps 2^-1"
+     ],
+     "differs_in": [
+      "defect_shape"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "slope fits per shape over eps"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "eps 0 rejection off",
+      "eps 0 rejection on"
+     ],
+     "differs_in": [
+      "rejection"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "even eps 2^-2 seed-block A",
+      "even eps 2^-2 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "N* per (shape, eps)",
+    "fitted slope per shape"
+   ],
+   "secondary_metrics": [
+    "empirical gain g",
+    "per-coefficient error rate vs N"
+   ],
+   "preregistered_prediction": {
+    "quantity": "N*(shape, eps)",
+    "formula": "16 sigma_z^2 / (tau g^2), g_odd = eps^2 B^2/(3 G^2), g_even = 2 eps B^2/(3 G^2)",
+    "source": "truncated-density mean shift derived in this record with ILWE least-squares variance (KN-LIT-4828)"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n = 32, gamma1 = 2^6 keep N* <= 2^24; transfer through the closed-form gain, stated not tested",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 24,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop a cell once exact recovery holds on all 5 keys at two consecutive grid points",
+    "stop any arm at 2^24 signatures per key"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 and P2 hold in C2, C1 shows the even defect needs fewer signatures than the odd one at eps = 2^-1, C3 confirms the instrument; AA1 noise floor: N* within one grid step",
+   "falsification_criterion": "odd-defect slope above -3 or even-defect slope outside [-3,-1] in C2, or any recovery at eps = 0",
+   "decision_impact": {
+    "on_positive": "publish the parity law as a sampler-triage rule for GOAL-MLDSA-001: even defects are the dangerous class, with a signatures-per-eps table",
+    "on_negative": "record that post-rejection leakage does not follow the parity law and measure the empirical gain directly before any triage rule"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "One signature gives s1 mod 2^b from an exact b-bit LSB leak of y: c is a unit mod 2^b iff tau is odd (ML-DSA-44/65, not 87)",
+  "class": "mechanism",
+  "claim": "If the low b bits of every mask coefficient y_j leak (for example from a table-indexed ExpandMask unpack), then z - y_low = 2^b y_high + c s1 gives c s1 mod 2^b exactly, and since c(1), the sum of tau signs, is congruent to tau mod 2, c is invertible in Z_{2^b}[X]/(X^n+1) whenever tau is odd (39 and 49 at ML-DSA-44/65), so ONE signature yields s1 mod 2^b; at b >= ceil(log2(2 eta + 1)) that is s1 itself. At ML-DSA-87 (tau = 60) c is never a unit mod 2 and one signature leaves a kernel. With with partial leakage (a fraction rho of coefficients) the remaining unknowns are finished with DDGR modular hints plus BKZ.",
+  "mechanism": "X^n + 1 = (X + 1)^n mod 2, so an element of Z_2[X]/(X^n+1) is a unit iff its value at X = 1 is odd, and Hensel lifting extends units to Z_{2^b}. c in B_tau has c(1) congruent to tau mod 2; tau = 39, 49, 60 at ML-DSA-44/65/87, so ML-DSA-87's c is NOT invertible mod 2 and needs a different finish (prediction P3). The z-bound rejection does not alter z = y + c s1 for accepted signatures, so the leak is exact through rejection. Partial leakage turns each known LSB into a modular hint on one linear form of s1, and DDGR's modular-hint integration predicts the remaining block size.",
+  "tracked_object": "the exact recovered s1 mod 2^b from k signatures, and the BKZ block size needed to finish s1 as a function of leak fraction rho",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "signatures needed for s1 mod 2^b at rho = 1",
+    "direction": "lower",
+    "minimum_effect": "exactly 1 signature for tau odd, 100 percent of 50 keys",
+    "falsified_by": "any key with tau odd needing more than 1 signature"
+   },
+   {
+    "id": "P2",
+    "metric": "finishing block size vs rho at toyDSA(128,2,2)",
+    "direction": "lower",
+    "minimum_effect": "beta_finish falls by at least 20 between rho = 0.25 and rho = 1 and matches the DDGR prediction within +-5",
+    "falsified_by": "measured beta outside +-8 of prediction at two or more rho levels"
+   },
+   {
+    "id": "P3",
+    "metric": "tau-parity dependence",
+    "direction": "different",
+    "minimum_effect": "tau even: one signature leaves a kernel mod 2 whose dimension equals the (X+1)-adic valuation of c mod 2, and at most 3 signatures give s1 mod 2^b on 95 percent of keys",
+    "falsified_by": "tau-even arm recovering s1 mod 2 from one signature on any key, or needing more than 5 signatures"
+   }
+  ],
+  "minimal_test": {
+   "design": "Simulate the leak oracle on toyDSA and real-n ML-DSA-44/87 shapes; solve mod 2^b by Hensel-lifted inversion; for rho < 1 integrate modular hints into the primal lattice and run G6K BKZ.",
+   "controls": [
+    "null: leak bits replaced by independent uniform bits (same format), solver must return inconsistent systems",
+    "positive: rho = 1, b = 3 at n = 256 where one-signature recovery is algebraically forced",
+    "A/A: rho = 0.5 run under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "one-signature recovery fails for tau odd at rho = 1",
+   "measured finishing block size deviates from DDGR by more than 8 at most rho levels"
+  ],
+  "confounders": [
+   "noise-free leak model overstates a real side channel",
+   "toy n changes BKZ cost but not the algebra",
+   "ExpandMask packing differs between gamma1 = 2^17 and 2^19; leak model is on y coefficients not bytes"
+  ],
+  "interpretation_limits": [
+   "the algebraic one-signature statement is exact at real n = 256; the rho < 1 lattice finish is measured only at n <= 128 with transfer via DDGR predictions",
+   "leak is simulated, no physical side channel is measured",
+   "no deployed implementation is claimed to leak"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "DDGR modular-hint integration predicts the finishing BKZ block size for these hints",
+    "rigorous_support": "DDGR validated on LWE instances with hints, not on ML-DSA rotations",
+    "validation_plan": "compare predicted vs measured beta at 5 rho levels"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "rho = 1: polynomial, O(n^2 l) per key from one signature; rho < 1: 2^{0.292 beta(rho)}",
+   "memory_exponent": "poly / 2^{0.2075 beta(rho)}",
+   "best_known": "MLWE key recovery at full dimension (no leak)",
+   "hidden_overhead": "Hensel inversion cost is negligible; the finish dominates",
+   "tradeoff_note": "trade signatures for leak fraction: k signatures with rho each roughly equal one with k*rho until saturation"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-118",
+    "provenance": "kb",
+    "citation_text": "Dachman-Soled, Ducas, Gong, Rossi, LWE with Side Information: Attacks and Concrete Security Estimation, CRYPTO 2020",
+    "relation": "adjacent",
+    "delta": "supplies the hint-integration toolkit; this applies it to ML-DSA signature-derived hints and measures prediction vs actual block size"
+   },
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "Albrecht et al., The General Sieve Kernel and New Records in Lattice Reduction, EUROCRYPT 2019",
+    "relation": "adjacent",
+    "delta": "lattice-reduction instrument used for the finishing step and for block-size measurements"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Marzougui, Ulitzsch, Tibouchi, Seifert, Profiling Side-Channel Attacks on Dilithium: A Small Bit-Fiddling Leak Breaks It All, SAC 2022 (recalled, hedged)",
+    "relation": "special_case",
+    "delta": "that work used a single-bit leak of y with many signatures; this states the exact unit condition tau odd, the one-signature algebra at all b, and measures the rho < 1 finishing curve"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "One-signature s1 mod 2^b and the rho finishing curve",
+   "objective": "whether the unit-mod-2^b argument holds exactly and how much lattice work partial LSB leakage leaves",
+   "instrument": "Python/NumPy for algebra; SageMath 10 for Hensel inversion; fpylll 0.6 + G6K for BKZ; DDGR toolkit; toyDSA(n,k,l): a NumPy re-implementation of FIPS 204 Algorithms 1-8 with the ring degree n as a parameter (q = 8380417, d = 13, eta, tau, gamma1, gamma2, beta = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked against the PQClean ML-DSA-44 reference at n = 256 on 1000 KAT vectors before any reduced run",
+   "parameters": "algebra arm at n = 256 with ML-DSA-44 (tau 39), ML-DSA-65 (49), ML-DSA-87 (60) shapes, 50 keys each, b in {1,2,3}; lattice arm toyDSA(128,2,2) and (96,2,2), rho in {0.25,0.5,0.75,1}, b = 2, 10 keys",
+   "procedure": "1) KAT check. 2) For each key, one signature, leak b LSBs of each y coefficient. 3) Solve c s1 = (z - y_low) mod 2^b by inversion. 4) For rho < 1, build primal lattice with modular hints, predict beta with DDGR, run progressive BKZ until s1 found. 5) Certify.",
+   "independent_variables": [
+    {
+     "name": "leak_fraction_rho",
+     "levels": [
+      "0.25",
+      "0.5",
+      "0.75",
+      "1"
+     ]
+    },
+    {
+     "name": "tau_parity",
+     "levels": [
+      "odd",
+      "even"
+     ]
+    },
+    {
+     "name": "leak_source",
+     "levels": [
+      "true_lsb",
+      "random_bits"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    },
+    {
+     "name": "bkz_strategy",
+     "treatment": "fixed",
+     "value": "G6K pump-and-jump default",
+     "how": "same strategy file for all arms"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "rho 0.25",
+      "rho 1"
+     ],
+     "differs_in": [
+      "leak_fraction_rho"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "tau 39",
+      "tau 60"
+     ],
+     "differs_in": [
+      "tau_parity"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "true_lsb",
+      "random_bits"
+     ],
+     "differs_in": [
+      "leak_source"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "rho 0.5 seed-block A",
+      "rho 0.5 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "one-signature recovery rate at rho = 1",
+    "measured finishing beta vs rho"
+   ],
+   "secondary_metrics": [
+    "DDGR predicted beta",
+    "wall time of finish"
+   ],
+   "preregistered_prediction": {
+    "quantity": "beta_finish(rho)",
+    "formula": "DDGR estimator with rho*n*l modular hints mod 2^b",
+    "source": "KN-LIT-118 toolkit"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "algebra at true n = 256; lattice finish at n <= 128 with transfer through DDGR predictions",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop the lattice arm per rho once 10/10 keys recovered or block size 90 reached"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 holds in C2 tau-odd arm, P2 holds in C1, C3 shows random bits never yield a consistent solution; AA1 noise floor: beta differs by at most 4",
+   "falsification_criterion": "C2 tau-odd arm needs more than one signature, or C1 measured beta off DDGR by more than 8 at two levels",
+   "decision_impact": {
+    "on_positive": "record the unit condition as a mechanism fact in the corpus and price LSB leakage per parameter set in GOAL-MLDSA-001's attacker-model taxonomy",
+    "on_negative": "file the discrepancy against DDGR's modular-hint model on rotation-structured hints and stop pricing LSB leaks from it"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "Hedged entropy is load-bearing only if rho'' drops K or mu: signatures-to-s1 vs rnd entropy h for three derivations",
+  "class": "control",
+  "claim": "With the FIPS 204 derivation rho'' = H(K || rnd || mu), signatures-to-key-recovery is infinite at every rnd entropy h from 0 to 256 bits: degraded rnd costs nothing against a passive observer. If K is dropped (rho'' = H(rnd || mu)), one signature plus 2^h ExpandMask evaluations recovers s1; if mu is dropped (rho'' = H(K || rnd)), a mask collision between different messages appears after about 2^{h/2} signatures and one colliding pair gives s1 = (c1 - c2)^{-1}(z1 - z2). Both defective arms verify under a conformant verifier.",
+  "mechanism": "y = ExpandMask(rho'', kappa) is fully determined by rho''. With K inside, an observer cannot evaluate y even when rnd is known; with mu inside, equal rnd on different messages gives unrelated masks. Dropping K makes y a public function of a low-entropy rnd and a known message, so z - y = c s1 and c is invertible mod q with overwhelming probability. Dropping mu makes y depend only on (K, rnd), so equal rnd across messages reuses y with kappa equal whenever both signatures accept on the same iteration, and z1 - z2 = (c1 - c2) s1 exactly. This turns the RQ's hedged-vs-deterministic question into three measured curves.",
+  "tracked_object": "number of signatures and ExpandMask work until exact s1 recovery, as a function of rnd entropy h, for three rho'' derivations",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "signatures to recovery, mu-dropped arm",
+    "direction": "lower",
+    "minimum_effect": "median within factor 2 of sqrt(2 ln 2 * 2^h) / p_same_kappa over h in {8,12,16,20}",
+    "falsified_by": "median off by more than factor 4 at two h levels"
+   },
+   {
+    "id": "P2",
+    "metric": "work to recovery, K-dropped arm",
+    "direction": "lower",
+    "minimum_effect": "1 signature and at most 2^h ExpandMask calls, 100 percent of keys at h <= 24",
+    "falsified_by": "any failure at h <= 24"
+   },
+   {
+    "id": "P3",
+    "metric": "conformant arm",
+    "direction": "different",
+    "minimum_effect": "zero recoveries and zero mask reuses in 2^20 signatures at h = 8",
+    "falsified_by": "any recovery or reuse"
+   }
+  ],
+  "minimal_test": {
+   "design": "Real ML-DSA-44 signing with a rnd source of exactly h bits of entropy; three derivations; passive attacker sees (M, sigma, pk) and knows the rnd distribution.",
+   "controls": [
+    "null: conformant derivation at h = 8 (must show nothing)",
+    "positive: K-dropped at h = 8 (must recover from one signature)",
+    "A/A: mu-dropped at h = 12 under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "conformant derivation shows any mask reuse",
+   "mu-dropped arm recovery count does not follow birthday scaling",
+   "colliding pairs exist but the difference system fails to give s1"
+  ],
+  "confounders": [
+   "kappa alignment: collisions only help when both signatures accept on the same iteration; measured, not assumed",
+   "rnd source modelled as uniform on 2^h values; real RNG failures are non-uniform"
+  ],
+  "interpretation_limits": [
+   "real parameters are used, but rnd entropy is reduced by construction; the result concerns implementations with the stated derivation defects, not FIPS 204 itself",
+   "passive observer only; fault adversaries are a separate idea"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "c1 - c2 is invertible in R_q for independent challenges",
+    "rigorous_support": "q = 1 mod 512, so R_q splits into 256 fields; c1 - c2 nonzero in each slot with probability about 1 - 256/q",
+    "validation_plan": "count non-invertible differences among all colliding pairs"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "K-dropped: 2^h; mu-dropped: 2^{h/2} signatures; conformant: no attack",
+   "memory_exponent": "K-dropped O(1); mu-dropped 2^{h/2} stored signatures",
+   "best_known": "MLWE key recovery",
+   "hidden_overhead": "kappa-alignment probability p_same_kappa = p/(2 - p), about 0.13 at ML-DSA-44 with per-attempt acceptance p about 0.235, divides the mu-dropped yield",
+   "tradeoff_note": "the defective arms show where hedged entropy carries weight; the conformant arm shows it carries none against passive observers"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4dadec",
+    "provenance": "kb",
+    "citation_text": "NIST, FIPS 204 Module-Lattice-Based Digital Signature Standard, 2024",
+    "relation": "adjacent",
+    "delta": "the algorithms under test; body text not read by this program, so every algorithm detail used is re-derived from the PQClean reference and recorded"
+   },
+   {
+    "ref": "KN-LIT-056",
+    "provenance": "kb",
+    "citation_text": "Ducas et al., CRYSTALS-Dilithium, TCHES 2018 / FIPS 204",
+    "relation": "adjacent",
+    "delta": "specification baseline; the scheme's rejection sampling argument assumes exactly uniform y, which this idea perturbs"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Bruinderink, Pessl, Differential Fault Attacks on Deterministic Lattice Signatures, TCHES 2018 (recalled, hedged)",
+    "relation": "adjacent",
+    "delta": "motivated hedging against faults; this isolates the passive role of rnd under derivation defects"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-4d4e5f"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "rnd entropy vs key recovery under three rho'' derivations at ML-DSA-44",
+   "objective": "whether hedged-mode entropy has any passive security weight under the conformant derivation, and its exact weight under two defects",
+   "instrument": "Python with a patched pure-Python FIPS 204 implementation cross-checked against PQClean ML-DSA-44 KATs",
+   "parameters": "ML-DSA-44 real parameters; h in {8, 12, 16, 20, 24}; derivations {conformant, K_dropped, mu_dropped}; 20 keys per cell; cap 2^20 signatures per key",
+   "procedure": "1) KAT check of unpatched code. 2) Patch derivation. 3) Sign random messages with h-bit rnd. 4) Attacker: K-dropped brute force rnd; mu-dropped hash-table on w1/z pairs to detect reuse, then solve difference. 5) Certify against keygen s1.",
+   "independent_variables": [
+    {
+     "name": "derivation",
+     "levels": [
+      "conformant",
+      "K_dropped",
+      "mu_dropped"
+     ]
+    },
+    {
+     "name": "rnd_entropy_h",
+     "levels": [
+      "8",
+      "12",
+      "16",
+      "20",
+      "24"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    },
+    {
+     "name": "message_distribution",
+     "treatment": "fixed",
+     "value": "uniform 32-byte",
+     "how": "fresh per signature"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "mu_dropped h 16",
+      "conformant h 16"
+     ],
+     "differs_in": [
+      "derivation"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "mu_dropped over h grid"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "K_dropped h 8",
+      "K_dropped h 24"
+     ],
+     "differs_in": [
+      "rnd_entropy_h"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "mu_dropped h 12 seed-block A",
+      "mu_dropped h 12 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "signatures to recovery",
+    "ExpandMask calls to recovery"
+   ],
+   "secondary_metrics": [
+    "mask-reuse count",
+    "fraction of reuse pairs with aligned kappa"
+   ],
+   "preregistered_prediction": {
+    "quantity": "median signatures to recovery, mu_dropped",
+    "formula": "sqrt(2 ln 2 * 2^h) / p_same_kappa",
+    "source": "birthday bound with measured kappa alignment"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real ML-DSA-44 parameters; only the RNG entropy is reduced, which is the variable under study",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop a cell at 20/20 recoveries or 2^20 signatures per key"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P3 holds in C1, P1 holds across C2, P2 holds in C3; AA1 noise floor: medians within factor 1.5",
+   "falsification_criterion": "conformant arm in C1 shows any reuse, or C2 medians miss the birthday curve by factor 4 at two levels",
+   "decision_impact": {
+    "on_positive": "write the derivation-defect table into GOAL-MLDSA-001's attacker-model taxonomy: hedged entropy matters passively only under K or mu omission",
+    "on_negative": "investigate why reuse does not convert to recovery (kappa alignment or invertibility) before any taxonomy entry"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "Leaked aborted FSwA transcripts: edge inequalities on rejected z recover s1 far faster than ILWE regression on the same leak",
+  "class": "algorithm",
+  "claim": "If an implementation exposes rejected attempts (z_rej, c_rej) (debug logs, a retry API, or an unprotected loop), each coordinate with |z_j| >= gamma1 - beta gives an inequality on (c s1)_j with threshold uniform in [-beta, beta]. An inequality-constrained solver (linear programming plus BKZ finish) recovers s1 at toyDSA(64,2,2) from at least 30 times fewer rejected attempts than least-squares ILWE regression on the same leaked z, whose requirement is about 16 gamma1^2 / (3 tau).",
+  "mechanism": "A rejected z is y + c s1 with uniform y and no truncation, so its mean carries s1 only with noise variance gamma1^2/3, which is ILWE with huge noise. But z_j lies in [-gamma1 + 1 + u_j, gamma1 + u_j], so coordinates near the edge pin u_j = (c s1)_j from one side with resolution about gamma1 - |z_j|; extreme values give inequalities of width O(beta), roughly 2^10 times tighter information per useful coordinate than the mean. Accumulating thousands of such half-space constraints over the s1 box shrinks the feasible set to one point; the inequality-hint integration of LWE side-information work then finishes.",
+  "tracked_object": "number of leaked rejected attempts until exact s1 recovery, for two solvers on identical leak streams",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "ratio N_ILWE / N_ineq",
+    "direction": "higher",
+    "minimum_effect": ">= 30 at toyDSA(64,2,2) gamma1 = 2^12",
+    "falsified_by": "ratio below 10"
+   },
+   {
+    "id": "P2",
+    "metric": "N_ineq scaling with n*l",
+    "direction": "different",
+    "minimum_effect": "N_ineq grows at most linearly in n*l over n in {32, 64, 96}",
+    "falsified_by": "superlinear growth with exponent > 1.5"
+   },
+   {
+    "id": "P3",
+    "metric": "accepted-only stream",
+    "direction": "different",
+    "minimum_effect": "zero recoveries from 10^6 accepted signatures (rejection hides s1)",
+    "falsified_by": "any recovery from accepted signatures alone"
+   }
+  ],
+  "minimal_test": {
+   "design": "Collect rejected attempts with their c; solver A regresses, solver B builds edge inequalities and runs an LP feasibility shrink plus G6K finish.",
+   "controls": [
+    "null: accepted signatures only, identical counts",
+    "positive: leaked y alongside z, giving exact c s1 per attempt",
+    "A/A: solver B on two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "solver B needs as many attempts as solver A",
+   "accepted-only stream recovers s1"
+  ],
+  "confounders": [
+   "LP tolerance and BKZ finish can trade against each other; both reported",
+   "gamma1 reduced to 2^12 to keep ILWE arm feasible"
+  ],
+  "interpretation_limits": [
+   "toy n <= 96 and gamma1 = 2^12; the ratio transfer to ML-DSA-44 assumes the edge information per attempt scales as beta/gamma1",
+   "the leak is simulated, not a physical channel"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "edge inequalities are approximately independent half-spaces",
+    "rigorous_support": "heuristic; rotations of c share structure",
+    "validation_plan": "measure feasible-set volume decay per inequality vs independent model"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "polynomial LP in n*l with N_ineq = O(n l gamma1/beta) attempts",
+   "memory_exponent": "O(N n l)",
+   "best_known": "ILWE least squares O(gamma1^2/tau) attempts",
+   "hidden_overhead": "LP numerics",
+   "tradeoff_note": "information-per-sample gain, not an exponent change"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4828",
+    "provenance": "kb",
+    "citation_text": "Fouque, Tibouchi et al., LWE without modular reduction (ILWE) and improved side-channel attacks on BLISS (corpus entry)",
+    "relation": "adjacent",
+    "delta": "ILWE gives sample bounds for unbiased linear leakage without rejection; this measures the post-rejection residual leak that a biased y re-opens in ML-DSA, where the ILWE signal is multiplied by a bias-dependent gain that the paper does not price"
+   },
+   {
+    "ref": "KN-LIT-118",
+    "provenance": "kb",
+    "citation_text": "Dachman-Soled, Ducas, Gong, Rossi, LWE with Side Information: Attacks and Concrete Security Estimation, CRYPTO 2020",
+    "relation": "adjacent",
+    "delta": "supplies the hint-integration toolkit; this applies it to ML-DSA signature-derived hints and measures prediction vs actual block size"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Devevey, Fallahpour, Passelegue, Stehle, A Detailed Analysis of Fiat-Shamir with Aborts, CRYPTO 2023 (recalled, hedged)",
+    "relation": "adjacent",
+    "delta": "treats aborted transcripts in proofs; this measures concrete key recovery if they leak"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-60ba98"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Edge-inequality vs regression on leaked rejected transcripts",
+   "objective": "how much faster the edge-inequality solver is than ILWE regression on the same leak, and whether accepted signatures leak nothing",
+   "instrument": "Python/NumPy, SciPy HiGHS LP, fpylll/G6K; toyDSA(n,k,l): a NumPy re-implementation of FIPS 204 Algorithms 1-8 with the ring degree n as a parameter (q = 8380417, d = 13, eta, tau, gamma1, gamma2, beta = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked against the PQClean ML-DSA-44 reference at n = 256 on 1000 KAT vectors before any reduced run",
+   "parameters": "toyDSA(n,2,2) n in {32,64,96}, gamma1 = 2^12, eta = 2, tau = 16; up to 2^22 rejected attempts per key; 5 keys per seed block",
+   "procedure": "1) KAT check. 2) Run signer, log rejected attempts. 3) Solver A least squares on doubling prefix grid. 4) Solver B LP feasibility on edge coordinates, then BKZ on residual box. 5) Certify.",
+   "independent_variables": [
+    {
+     "name": "solver",
+     "levels": [
+      "ilwe_regression",
+      "edge_inequality"
+     ]
+    },
+    {
+     "name": "ring_degree_n",
+     "levels": [
+      "32",
+      "64",
+      "96"
+     ]
+    },
+    {
+     "name": "stream",
+     "levels": [
+      "rejected",
+      "accepted_only"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    },
+    {
+     "name": "run_order",
+     "treatment": "randomized",
+     "value": "arm order shuffled per seed block",
+     "how": "interleave arms trial by trial with a recorded permutation"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "edge_inequality n64",
+      "ilwe_regression n64"
+     ],
+     "differs_in": [
+      "solver"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "edge_inequality over n grid"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "edge_inequality rejected",
+      "edge_inequality accepted_only"
+     ],
+     "differs_in": [
+      "stream"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "edge_inequality n64 seed-block A",
+      "edge_inequality n64 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "attempts to exact recovery per solver"
+   ],
+   "secondary_metrics": [
+    "feasible-set log-volume per attempt",
+    "LP time"
+   ],
+   "preregistered_prediction": {
+    "quantity": "N_ILWE / N_ineq at n = 64",
+    "formula": "(16 gamma1^2 /(3 tau)) / (c0 n l gamma1 / beta)",
+    "source": "variance and edge-density arguments in this record"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 96, gamma1 = 2^12; transfer by the stated per-attempt information model",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at 5/5 recoveries per cell or 2^22 attempts"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 holds in C1, P2 in C2, P3 in C3; AA1 noise floor: counts within factor 1.5",
+   "falsification_criterion": "C1 ratio below 10 or C3 shows accepted-only recovery",
+   "decision_impact": {
+    "on_positive": "add 'aborted transcripts must not leak' as a priced requirement with an attempts-to-key number in the fault/leak taxonomy",
+    "on_negative": "conclude edge information is not exploitable beyond regression and drop aborted-transcript leakage from the priority list"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "Hash arm made measurable: forge at real ML-DSA-44 against defective SampleInBall images of 2^16..2^32 and test cost = |image|",
+  "class": "measurement",
+  "claim": "The SelfTargetMSIS hash arm predicts that a forger who tries random short z and random challenge c needs |image(SampleInBall)| trials, with no lattice work. For three plausible SampleInBall defects (sign bits from only s bytes of the XOF, position loop seeded from a truncated c_tilde, and tau' < tau nonzeros), the measured median trials to a verifying forgery at real ML-DSA-44 are within a factor 2 of the exactly counted image size for image sizes 2^16 to 2^32, and the honest arm's |B_tau| = C(256, tau) 2^tau gives log2 = 192.76 by exact arithmetic, consistent with the same model.",
+  "mechanism": "The verifier accepts if c_tilde equals H(mu || w1Encode(UseHint(h, A z - c t1 2^d))). A forger who picks z with ||z||_inf < gamma1 - beta and h = 0 computes w1 directly; success requires the hash to land on the challenge whose SampleInBall image is c, probability 1/|image| when the challenge was chosen uniformly from the image. The honest cost 2^192.76 is unmeasurable, but the hash arm is a pure counting argument, so defective images let the arm be exercised end to end and its constant measured, which is the cheapest calibration of the arm's model that exists.",
+  "tracked_object": "median hash trials to a verifying forgery, against the exact image size of each SampleInBall variant",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log2 median trials - log2 |image|",
+    "direction": "different",
+    "minimum_effect": "within [-1, +1] for image sizes 2^16..2^32",
+    "falsified_by": "outside [-2, +2] at any size"
+   },
+   {
+    "id": "P2",
+    "metric": "forgeries against honest verifier",
+    "direction": "different",
+    "minimum_effect": "zero in the same total trial budget (2^36)",
+    "falsified_by": "any honest-verifier acceptance"
+   }
+  ],
+  "minimal_test": {
+   "design": "Implement the three defects in the verifier's SampleInBall, count images exactly by enumeration of the seed space, and run the generic hash-arm forger.",
+   "controls": [
+    "null: honest verifier, identical forger and budget",
+    "positive: tau' = 1 defect with image 512 where forgery must be immediate",
+    "A/A: s = 2-byte sign defect under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "median trials deviate from |image| by more than factor 4",
+   "honest verifier accepts a forgery"
+  ],
+  "confounders": [
+   "the defect classes are constructed, not taken from any implementation",
+   "trial counting includes hash and NTT cost; reported separately"
+  ],
+  "interpretation_limits": [
+   "real parameters, but the challenge space is reduced by construction; no statement about the 2^192.76 arm beyond confirming the counting model",
+   "a defect must exist in the VERIFIER for forgery; signer-side defects are a separate question"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "the hash output behaves uniformly over c_tilde so success is 1/|image| per trial",
+    "rigorous_support": "standard ROM modelling of SHAKE256",
+    "validation_plan": "chi-square of image hits over 2^24 trials at image 2^16"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "|image| hash trials",
+   "memory_exponent": "O(1)",
+   "best_known": "2^{192.76} at ML-DSA-44 under honest sampler (hash arm)",
+   "hidden_overhead": "per-trial cost ~ one A z product",
+   "tradeoff_note": "pure constant calibration of the hash arm"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4dadec",
+    "provenance": "kb",
+    "citation_text": "NIST, FIPS 204 Module-Lattice-Based Digital Signature Standard, 2024",
+    "relation": "adjacent",
+    "delta": "the algorithms under test; body text not read by this program, so every algorithm detail used is re-derived from the PQClean reference and recorded"
+   },
+   {
+    "ref": "KN-LIT-059",
+    "provenance": "kb",
+    "citation_text": "Lyubashevsky, Fiat-Shamir with Aborts, ASIACRYPT 2009",
+    "relation": "adjacent",
+    "delta": "the paradigm whose hiding argument is exactly the property measured here under a stated defect"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-5194f9",
+   "IDEA-20260821-5bbea6",
+   "IDEA-20260829-04ffcd",
+   "IDEA-20260808-c1abd1"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Hash-arm forgery against defective SampleInBall at ML-DSA-44",
+   "objective": "whether the hash arm's counting model holds end to end with its constant",
+   "instrument": "C (patched PQClean ML-DSA-44 verify) driven from Python; exact image enumeration in C",
+   "parameters": "ML-DSA-44; defects: sign_bytes s in {2,3,4} (images ~2^16..2^32), truncated seed t in {16,24,32} bits, tau' in {1,2,3}; 50 forgeries per cell; total budget 2^36 trials",
+   "procedure": "1) KAT check. 2) Enumerate each defective image size. 3) Generic forger: random z in box, random c from image, h = 0, test verify. 4) Record trials to each forgery. 5) Honest-verifier arm with same budget.",
+   "independent_variables": [
+    {
+     "name": "sampler",
+     "levels": [
+      "honest",
+      "sign_bytes",
+      "truncated_seed",
+      "reduced_tau"
+     ]
+    },
+    {
+     "name": "image_log2",
+     "levels": [
+      "16",
+      "24",
+      "32"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    },
+    {
+     "name": "cpu_host",
+     "treatment": "measured",
+     "value": "single node",
+     "how": "record CPU model; trials counted not timed"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "sign_bytes image 2^24",
+      "honest"
+     ],
+     "differs_in": [
+      "sampler"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "all defects over image grid"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "sign_bytes s2 seed-block A",
+      "sign_bytes s2 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "median trials to forgery / |image|"
+   ],
+   "secondary_metrics": [
+    "image enumeration counts",
+    "per-trial cycle count"
+   ],
+   "preregistered_prediction": {
+    "quantity": "median trials",
+    "formula": "|image| * ln 2",
+    "source": "geometric distribution with p = 1/|image|"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real ML-DSA-44 arithmetic and hash; only the challenge image is reduced, which is the variable",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop a cell at 50 forgeries or 2^34 trials"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 holds across C2 and P2 in C1; AA1 noise floor: medians within factor 1.3",
+   "falsification_criterion": "any C2 cell outside [-2,+2] in log2 ratio or any C1 honest acceptance",
+   "decision_impact": {
+    "on_positive": "record the hash arm's constant as measured and cite it in GOAL-MLDSA-001's arm comparison",
+    "on_negative": "re-open the hash arm's modelling: the counting argument misses a structural shortcut, escalate to red team"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "Ground truth for l-infinity MSIS: exact box-pruned enumeration at m <= 72 against the l2-sieve-pool filter and the sqrt(m) conversion",
+  "class": "control",
+  "claim": "At small MSIS instances [A | I] x = 0 mod q with q = 8380417, an exact Schnorr-Euchner enumeration with l-infinity box pruning finds the true l-infinity minimum lambda_inf. The probability that a 2^{0.2075 beta} l2 sieve pool contains a vector below the l-infinity bound B is predicted by the Gaussian-coordinate model to within a factor 2, while the naive sqrt(m) l2-to-l-infinity conversion overstates the required block size by at least 6 at m = 64.",
+  "mechanism": "MSIS cost in ML-DSA analyses is computed in l2 and converted. The sieve returns many vectors near the l2 Gaussian heuristic, and their coordinates are roughly Gaussian, so the chance that one has small l-infinity norm is a tail-product, exploitable via the pool. Without a ground-truth lambda_inf, neither conversion has been tested. Exact enumeration in a box is feasible at m <= 72 and gives lambda_inf and the count of short l-infinity vectors exactly, against which both predictions can be scored.",
+  "tracked_object": "lambda_inf and the count of vectors with ||x||_inf <= B, versus the fraction of sieve-pool vectors satisfying the bound",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "pool-hit probability measured/predicted",
+    "direction": "different",
+    "minimum_effect": "ratio in [0.5, 2] at m in {48, 56, 64, 72}",
+    "falsified_by": "ratio outside [0.25, 4] at two m"
+   },
+   {
+    "id": "P2",
+    "metric": "block size overstatement of sqrt(m) conversion",
+    "direction": "higher",
+    "minimum_effect": ">= 6 at m = 64",
+    "falsified_by": "overstatement below 2"
+   }
+  ],
+  "minimal_test": {
+   "design": "Exact box enumeration with pruning for lambda_inf; G6K sieve at increasing beta collecting the pool; compute minimal beta whose pool contains a vector below B.",
+   "controls": [
+    "null: random q-ary lattice with same determinant but no ML-DSA structure (A uniform, no module structure)",
+    "positive: planted short l-infinity vector of norm B/2",
+    "A/A: same instance size under two seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "pool-hit model off by more than factor 4",
+   "sqrt(m) conversion within 2 of measured"
+  ],
+  "confounders": [
+   "module structure vs plain q-ary may matter; the null control separates them",
+   "enumeration correctness at boundary checked by planted control"
+  ],
+  "interpretation_limits": [
+   "m <= 72 is far from ML-DSA dimensions (~2048); transfer assumes the pool-hit model's form is dimension-independent",
+   "measures the conversion model, not ML-DSA security"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "sieve-pool vectors have approximately i.i.d. Gaussian coordinates",
+    "rigorous_support": "heuristic",
+    "validation_plan": "KS test of coordinate distribution of pool vectors at each m"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "enumeration 2^{O(m log m)} at m <= 72 (ground truth only)",
+   "memory_exponent": "poly",
+   "best_known": "l2 sieve with conversion",
+   "hidden_overhead": "none for the model",
+   "tradeoff_note": "calibration of a cost conversion"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-106",
+    "provenance": "kb",
+    "citation_text": "Albrecht et al., The General Sieve Kernel and New Records in Lattice Reduction, EUROCRYPT 2019",
+    "relation": "adjacent",
+    "delta": "lattice-reduction instrument used for the finishing step and for block-size measurements"
+   },
+   {
+    "ref": "KN-LIT-061",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Player, Scott, On the concrete hardness of LWE (LWE estimator), JMC 2015",
+    "relation": "adjacent",
+    "delta": "cost model whose predictions are compared with measured block sizes"
+   },
+   {
+    "ref": "KN-LIT-7662",
+    "provenance": "kb",
+    "citation_text": "Zhang, Zhou, Qu, Refined Approx-SVP Rank Reduction Conditions ... for MSIS Security Estimation, ePrint 2026/607",
+    "relation": "adjacent",
+    "delta": "refines l2 rank-reduction conditions; this provides l-infinity ground truth at small m"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260808-63427b",
+   "IDEA-20260829-04ffcd"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Exact l-infinity MSIS ground truth vs sieve-pool model",
+   "objective": "whether the sieve-pool l-infinity model or the sqrt(m) conversion is calibrated at small m",
+   "instrument": "C++ box enumeration (custom, verified on planted instances), fpylll, G6K",
+   "parameters": "q = 8380417, m in {48,56,64,72}, module shapes from n in {8,16} with k,l giving m; B chosen so the expected count is 1..100; 10 instances per m",
+   "procedure": "1) Build instances. 2) Exact enumeration: lambda_inf and count below B. 3) G6K progressive sieve, record pool at each beta, find minimal beta with a hit. 4) Compare to both models. 5) Planted control.",
+   "independent_variables": [
+    {
+     "name": "dimension_m",
+     "levels": [
+      "48",
+      "56",
+      "64",
+      "72"
+     ]
+    },
+    {
+     "name": "lattice_type",
+     "levels": [
+      "module_mldsa_shape",
+      "plain_qary"
+     ]
+    },
+    {
+     "name": "model",
+     "levels": [
+      "pool_hit",
+      "sqrt_m_conversion"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    },
+    {
+     "name": "sieve_variant",
+     "treatment": "fixed",
+     "value": "G6K bgj1",
+     "how": "same sieve throughout"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "pool_hit m64",
+      "sqrt_m_conversion m64"
+     ],
+     "differs_in": [
+      "model"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "module_mldsa_shape m64",
+      "plain_qary m64"
+     ],
+     "differs_in": [
+      "lattice_type"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "pool_hit over m grid"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "m64 seed-block A",
+      "m64 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "measured minimal beta with l-infinity hit",
+    "pool-hit ratio"
+   ],
+   "secondary_metrics": [
+    "lambda_inf/B",
+    "count below B"
+   ],
+   "preregistered_prediction": {
+    "quantity": "P(hit in pool)",
+    "formula": "1 - (1 - prod_i P(|g_i| <= B))^{|pool|}, g_i Gaussian with variance from GH",
+    "source": "Gaussian-coordinate model"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "m <= 72; transfer only of the model's functional form",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop enumeration per instance at 48 CPU hours, mark unresolved"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C3 and P2 in C1; C2 shows no structure effect beyond AA1 noise floor (beta within 2)",
+   "falsification_criterion": "C3 ratio outside [0.25,4] at two m or C1 overstatement below 2",
+   "decision_impact": {
+    "on_positive": "adopt the pool-hit model for l-infinity conversions in GOAL-MLDSA-001 estimates",
+    "on_negative": "flag both conversions as uncalibrated and require exact small-m checks before any l-infinity estimate is cited"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "Masking order as a measured security parameter for c*s1: traces-to-key vs SNR at order d = 0, 1, 2 in a simulated Hamming-weight model",
+  "class": "measurement",
+  "claim": "In a simulated Hamming-weight leakage of the product c*s1 computed coefficient-wise in the NTT domain with d+1 arithmetic shares and Gaussian noise sigma, the number of signatures needed to recover s1 by correlation/template attack with known c grows as sigma^{2(d+1)} at fixed d. The fitted exponent of traces vs sigma is 2.0, 4.0 and 6.0 within +-0.4 for d = 0, 1, 2, and with a first-order share-recombination flaw (shares summed before NTT multiply) order 2 collapses to the d = 0 curve.",
+  "mechanism": "Masking's theoretical guarantee is that higher-order moments are needed, so the attack's SNR scales as SNR^{d+1}. For ML-DSA the key-dependent intermediate c_hat * s1_hat has public c, so a CPA predicts per key coefficient. Whether a concrete masked c*s1 multiplication in a share representation matches the theoretical law has to be measured, and the flawed arm shows the law depends on implementation, not on order alone.",
+  "tracked_object": "signatures (traces) to full s1 recovery as a function of noise sigma and masking order d",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "fitted exponent of N vs sigma",
+    "direction": "higher",
+    "minimum_effect": "2(d+1) +- 0.4 for d in {0,1,2}",
+    "falsified_by": "exponent off by more than 0.8"
+   },
+   {
+    "id": "P2",
+    "metric": "flawed order-2 arm",
+    "direction": "lower",
+    "minimum_effect": "exponent within 0.4 of the d = 0 value",
+    "falsified_by": "flawed arm exponent >= 4"
+   }
+  ],
+  "minimal_test": {
+   "design": "Simulate leakage traces of a share-wise NTT multiplication; run CPA (d=0) and higher-order centered-product CPA (d >= 1) per NTT coefficient; key-rank estimation; finish with lattice if rank small.",
+   "controls": [
+    "null: leakage independent of s1 (shares re-randomized each sample before leakage), CPA must stay at chance",
+    "positive: d = 0 with sigma = 0.5, recovery in < 50 traces",
+    "A/A: d = 1 sigma = 2 under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "exponents deviate from 2(d+1) by more than 0.8",
+   "flawed arm keeps full order"
+  ],
+  "confounders": [
+   "Hamming-weight with Gaussian noise is a model; real devices differ",
+   "the attack on NTT-domain coefficients ignores c's sparsity structure in the normal domain"
+  ],
+  "interpretation_limits": [
+   "simulation only at real n = 256 arithmetic but modelled leakage; no device measured",
+   "the exponent law, not absolute trace counts, transfers"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "higher-order CPA with centered products is near-optimal for this model",
+    "rigorous_support": "standard result for HW leakage",
+    "validation_plan": "compare with template attack at d = 1 on a subset"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "traces ~ sigma^{2(d+1)}",
+   "memory_exponent": "O(traces)",
+   "best_known": "unmasked CPA",
+   "hidden_overhead": "per-trace work O(n)",
+   "tradeoff_note": "measures masking's exponent, not lattice cost"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-c42d33",
+    "provenance": "kb",
+    "citation_text": "Zhao et al., When Module Lattice Leaks: Horizontal Fusion Attacks on ML-DSA Implementation, ePrint 2026/1904",
+    "relation": "adjacent",
+    "delta": "horizontal fusion on real implementations; this provides the controlled exponent law in a simulated model with a flawed-masking positive control"
+   },
+   {
+    "ref": "KN-LIT-180ad5",
+    "provenance": "kb",
+    "citation_text": "Ravi et al., Side-Channel and Fault-Injection Attacks on Kyber and Dilithium: Survey and New Results, ePrint 2022/737",
+    "relation": "adjacent",
+    "delta": "survey context"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Masking-order exponent for c*s1 leakage",
+   "objective": "whether simulated masked c*s1 obeys the sigma^{2(d+1)} law and whether a recombination flaw breaks it",
+   "instrument": "Python/NumPy simulator of share-wise NTT multiply at ML-DSA-44 shapes; numba for CPA",
+   "parameters": "ML-DSA-44 shapes (n = 256, l = 4); d in {0,1,2}; sigma in {0.5,1,2,4,8}; flawed-d2 arm; 3 keys per seed block; cap 10^7 traces",
+   "procedure": "1) Generate key and signatures; 2) produce leakage traces per model; 3) CPA or higher-order CPA per coefficient; 4) key rank; 5) fit exponent.",
+   "independent_variables": [
+    {
+     "name": "masking_order_d",
+     "levels": [
+      "0",
+      "1",
+      "2",
+      "2_flawed"
+     ]
+    },
+    {
+     "name": "noise_sigma",
+     "levels": [
+      "0.5",
+      "1",
+      "2",
+      "4",
+      "8"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    },
+    {
+     "name": "leakage_model",
+     "treatment": "fixed",
+     "value": "Hamming weight",
+     "how": "same model all arms"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "d 2",
+      "d 2_flawed"
+     ],
+     "differs_in": [
+      "masking_order_d"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "exponent fit per d"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "d1 sigma2 seed-block A",
+      "d1 sigma2 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "traces to recovery",
+    "fitted exponent"
+   ],
+   "secondary_metrics": [
+    "key rank vs traces"
+   ],
+   "preregistered_prediction": {
+    "quantity": "exponent of N in sigma",
+    "formula": "2(d+1)",
+    "source": "masking theory"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "real arithmetic sizes, simulated leakage; transfer is of the exponent law only",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 24,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop a cell at 10^7 traces"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C2 and P2 in C1; AA1 noise floor: trace counts within factor 1.5",
+   "falsification_criterion": "C2 exponent off by > 0.8 for any d or C1 flawed arm exponent >= 4",
+   "decision_impact": {
+    "on_positive": "record masking order as a priced axis in the fault/side-channel taxonomy with measured exponents",
+    "on_negative": "report that the simulated law fails and identify which assumption (independence of shares) broke"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "A defective ExpandA zeroing NTT slots of A leaks s2 in those slots from pk alone: block size vs number of bad slots",
+  "class": "mechanism",
+  "claim": "R_q splits into 256 slots because q = 1 mod 512. If ExpandA returns A whose NTT-domain entries vanish in a set S of slots (a plausible rejection-sampling or buffer-offset bug), then t_hat = A_hat s1_hat + s2_hat gives s2_hat exactly in S, and the MLWE instance restricted to the complement has dimension (256 - |S|) per polynomial. Measured at toyDSA(64,2,2) with true q, key recovery by primal BKZ needs a block size that drops linearly in |S| with slope matching the estimator's dimension reduction within 15 percent, and full recovery at |S| = n needs no lattice reduction.",
+  "mechanism": "Each zero slot is a linear constraint on s2's NTT coordinates; since s2 is short in the coefficient domain, |S| known NTT coordinates of s2 are |S| perfect linear hints on a short vector, which DDGR integrates as dimension reduction. The partial-NTT projection idea in the lane studies homomorphic images of the verification equation; here the defect is in A itself and the leak is from the public key without any signature.",
+  "tracked_object": "BKZ block size to recover (s1, s2) from pk only as a function of the number of zeroed NTT slots |S|",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "slope of beta vs |S|",
+    "direction": "lower",
+    "minimum_effect": "measured slope within 15 percent of DDGR/estimator slope",
+    "falsified_by": "slope differs by more than 30 percent"
+   },
+   {
+    "id": "P2",
+    "metric": "|S| = 0 control",
+    "direction": "different",
+    "minimum_effect": "no recovery at block sizes below estimator prediction minus 5",
+    "falsified_by": "recovery more than 5 below prediction"
+   }
+  ],
+  "minimal_test": {
+   "design": "Inject zero slots into ExpandA output; run DDGR prediction and progressive BKZ on the residual primal lattice.",
+   "controls": [
+    "null: |S| = 0 honest ExpandA",
+    "positive: |S| = n, recovery by linear algebra",
+    "A/A: |S| = n/4 under two seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "slope mismatch beyond 30 percent",
+   "|S| = 0 recovery far below prediction"
+  ],
+  "confounders": [
+   "slot choice (which roots) could matter; randomized",
+   "toy n changes BKZ cost scale"
+  ],
+  "interpretation_limits": [
+   "toy n = 64 lattice; transfer via estimator slope only",
+   "defect is constructed"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "known NTT coordinates of s2 act as perfect hints",
+    "rigorous_support": "linear algebra",
+    "validation_plan": "verify DDGR dimension count vs measured"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{0.292 beta(|S|)}",
+   "memory_exponent": "2^{0.2075 beta(|S|)}",
+   "best_known": "MLWE primal",
+   "hidden_overhead": "none",
+   "tradeoff_note": "dimension reduction per bad slot"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-118",
+    "provenance": "kb",
+    "citation_text": "Dachman-Soled, Ducas, Gong, Rossi, LWE with Side Information: Attacks and Concrete Security Estimation, CRYPTO 2020",
+    "relation": "adjacent",
+    "delta": "supplies the hint-integration toolkit; this applies it to ML-DSA signature-derived hints and measures prediction vs actual block size"
+   },
+   {
+    "ref": "KN-LIT-061",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Player, Scott, On the concrete hardness of LWE (LWE estimator), JMC 2015",
+    "relation": "adjacent",
+    "delta": "cost model whose predictions are compared with measured block sizes"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-5535fe"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Zeroed-NTT-slot ExpandA: block size vs |S|",
+   "objective": "how much each zeroed NTT slot of A lowers key-recovery cost from the public key",
+   "instrument": "SageMath, fpylll/G6K, DDGR toolkit; toyDSA(n,k,l): a NumPy re-implementation of FIPS 204 Algorithms 1-8 with the ring degree n as a parameter (q = 8380417, d = 13, eta, tau, gamma1, gamma2, beta = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked against the PQClean ML-DSA-44 reference at n = 256 on 1000 KAT vectors before any reduced run",
+   "parameters": "toyDSA(64,2,2) true q; |S| in {0, 8, 16, 32, 64}; 5 keys per seed block",
+   "procedure": "1) KAT check. 2) Defective keygen. 3) Extract s2 slots. 4) Build reduced primal lattice. 5) Predict and run BKZ. 6) Certify.",
+   "independent_variables": [
+    {
+     "name": "zeroed_slots",
+     "levels": [
+      "0",
+      "8",
+      "16",
+      "32",
+      "64"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    },
+    {
+     "name": "slot_choice",
+     "treatment": "randomized",
+     "value": "uniform subset",
+     "how": "per key"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "zeroed 32",
+      "zeroed 0"
+     ],
+     "differs_in": [
+      "zeroed_slots"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "slope over grid"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "zeroed 16 seed-block A",
+      "zeroed 16 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "block size to recovery"
+   ],
+   "secondary_metrics": [
+    "DDGR prediction",
+    "wall time"
+   ],
+   "preregistered_prediction": {
+    "quantity": "beta(|S|)",
+    "formula": "DDGR estimator with |S| perfect hints",
+    "source": "KN-LIT-118"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n = 64; slope transfer by estimator",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at beta 80 per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C2 and P2 in C1; AA1 noise floor beta within 3",
+   "falsification_criterion": "C2 slope off by more than 30 percent",
+   "decision_impact": {
+    "on_positive": "add pk-side NTT-slot sanity checks to the defensive conformance list with a priced per-slot loss",
+    "on_negative": "record that slot leaks do not behave as perfect hints and investigate the lattice structure"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "Naive threshold ML-DSA leaks through the mask sum: an Irwin-Hall shaped y makes post-rejection z regress on c s1 with gain near 1",
+  "class": "measurement",
+  "claim": "A naive T-party threshold signer that sums per-party uniform masks y = sum y_i and applies the FIPS rejection bound produces accepted z whose conditional mean is E[z_j | u_j] = g_T * u_j with g_T >= 0.8 for T >= 3, so least-squares on public signatures recovers s1 with about 16 sigma_z^2/(tau g_T^2) signatures. At toyDSA(64,2,2) with gamma1 = 2^10 this is predicted at about 1.4*10^5 signatures for T = 4 with per-party range gamma1/T, while T = 1 (uniform) shows no recovery at 10^6.",
+  "mechanism": "Rejection sampling hides u only if the mask density is flat over the acceptance window; a sum of T uniforms is piecewise polynomial with density falling toward the box edge, so truncating y + u to the box barely changes the mean shift u. The gain g_T = 1 - 2B p_T(B)/P_T(|Y| < B) approaches 1 as the density at the edge vanishes. Threshold designs that rescale per-party ranges or use boundary-clearance techniques exist precisely to avoid this; measuring the naive leak quantifies what they protect.",
+  "tracked_object": "signatures to exact s1 recovery as a function of party count T",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "gain g_T measured vs closed form",
+    "direction": "different",
+    "minimum_effect": "within 5 percent for T in {2,3,4,8}",
+    "falsified_by": "deviation over 15 percent"
+   },
+   {
+    "id": "P2",
+    "metric": "N* at T = 4",
+    "direction": "lower",
+    "minimum_effect": "within factor 2 of 1.4*10^5",
+    "falsified_by": "above 6*10^5"
+   },
+   {
+    "id": "P3",
+    "metric": "T = 1",
+    "direction": "different",
+    "minimum_effect": "zero recoveries at 10^6",
+    "falsified_by": "any recovery"
+   }
+  ],
+  "minimal_test": {
+   "design": "Simulate naive threshold signing (sum of masks, single rejection), regress z on c.",
+   "controls": [
+    "null: T = 1 uniform mask",
+    "positive: no rejection at T = 4",
+    "A/A: T = 3 under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "gain far from closed form",
+   "T = 1 recovers"
+  ],
+  "confounders": [
+   "per-party range choice (gamma1/T vs gamma1) changes the shape; both measured",
+   "toy gamma1"
+  ],
+  "interpretation_limits": [
+   "toy n and gamma1; transfer via the closed-form gain which is parameter-free in shape",
+   "no published threshold scheme is claimed vulnerable"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "regression variance formula holds with non-uniform z",
+    "rigorous_support": "least squares",
+    "validation_plan": "compare empirical variance"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "N* = O(sigma_z^2/(tau g_T^2))",
+   "memory_exponent": "O(n l)^2",
+   "best_known": "no leak for uniform mask",
+   "hidden_overhead": "none",
+   "tradeoff_note": "constant-level leak quantification"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-1900",
+    "provenance": "kb",
+    "citation_text": "Kao, TALUS: Threshold ML-DSA with One-Round Online Signing via Boundary Clearance and Carry Elimination, arXiv 2603.22109",
+    "relation": "adjacent",
+    "delta": "a threshold design addressing mask-sum issues; this measures the naive baseline it must beat"
+   },
+   {
+    "ref": "KN-LIT-4828",
+    "provenance": "kb",
+    "citation_text": "Fouque, Tibouchi et al., LWE without modular reduction (ILWE) and improved side-channel attacks on BLISS (corpus entry)",
+    "relation": "adjacent",
+    "delta": "ILWE gives sample bounds for unbiased linear leakage without rejection; this measures the post-rejection residual leak that a biased y re-opens in ML-DSA, where the ILWE signal is multiplied by a bias-dependent gain that the paper does not price"
+   }
+  ],
+  "related_internal": [],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Mask-sum leak in naive threshold ML-DSA",
+   "objective": "how strongly a naive threshold mask sum leaks s1 after rejection",
+   "instrument": "Python/NumPy; toyDSA(n,k,l): a NumPy re-implementation of FIPS 204 Algorithms 1-8 with the ring degree n as a parameter (q = 8380417, d = 13, eta, tau, gamma1, gamma2, beta = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked against the PQClean ML-DSA-44 reference at n = 256 on 1000 KAT vectors before any reduced run",
+   "parameters": "toyDSA(64,2,2), gamma1 = 2^10, T in {1,2,3,4,8}, per-party range {gamma1/T, gamma1}; up to 10^6 signatures; 5 keys",
+   "procedure": "1) KAT check. 2) Threshold-sum signer. 3) Regression on doubling grid. 4) Certify. 5) Compare gain to closed form.",
+   "independent_variables": [
+    {
+     "name": "parties_T",
+     "levels": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "8"
+     ]
+    },
+    {
+     "name": "per_party_range",
+     "levels": [
+      "gamma1_over_T",
+      "gamma1"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "T 4",
+      "T 1"
+     ],
+     "differs_in": [
+      "parties_T"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "gain vs T"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "T4 gamma1_over_T",
+      "T4 gamma1"
+     ],
+     "differs_in": [
+      "per_party_range"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "T 3 seed-block A",
+      "T 3 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "N*(T)",
+    "gain g_T"
+   ],
+   "secondary_metrics": [
+    "per-coefficient error"
+   ],
+   "preregistered_prediction": {
+    "quantity": "g_T",
+    "formula": "1 - 2B p_T(B)/P_T(|Y| < B)",
+    "source": "truncated-density mean shift"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "toy gamma1; gain is shape-determined",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop per cell at 5/5 recoveries or 10^6 signatures"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C2, P2 and P3 in C1, C3 reported; AA1 noise floor: N* within factor 1.5",
+   "falsification_criterion": "C2 gains off by > 15 percent or C1 T = 1 recovery",
+   "decision_impact": {
+    "on_positive": "record the naive threshold leak as the baseline every threshold ML-DSA proposal is measured against",
+    "on_negative": "conclude rejection still hides the sum and look for the error in the gain model"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "Hedging priced against faults: differential recovery needs 2^{h/2} same-message queries with h-bit rnd; census of mode-independent faults",
+  "class": "composition",
+  "claim": "For single-bit faults on c (or on mu before the challenge hash), differential recovery z - z' = (c - c') s1 needs two signatures of the same message with the same mask. In deterministic mode this needs 2 signing queries; with an rnd source of h bits it needs about 2^{h/2} same-message queries; with caller-supplied rnd (an API exposing it) it collapses to 2. Measured on real ML-DSA-44 with simulated faults, median queries to recovery fit 2^{h/2} within factor 2 for h in {8..24}, and a census of fault positions shows which positions are mode-independent (attack works in hedged mode at h = 256).",
+  "mechanism": "rho'' = H(K || rnd || mu): equal masks need equal (rnd, mu). A fault after rho'' (e.g. on c) with the mask reused gives an exact linear relation. Hedging thus converts a 2-query attack into a birthday search over rnd. Faults that do not need mask reuse (e.g. zeroing y, skipping the addition) are unaffected by hedging; the census separates the two classes, which is a mode-dependent fault boundary.",
+  "tracked_object": "same-message signing queries to s1 recovery, per fault position and per rnd entropy h",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log2 median queries vs h",
+    "direction": "different",
+    "minimum_effect": "slope 0.5 +- 0.1",
+    "falsified_by": "slope outside [0.35, 0.65]"
+   },
+   {
+    "id": "P2",
+    "metric": "mode-independent positions",
+    "direction": "different",
+    "minimum_effect": "the census assigns each of 12 fault positions to exactly one class with 100 percent agreement across seeds",
+    "falsified_by": "a position whose class changes across seeds"
+   }
+  ],
+  "minimal_test": {
+   "design": "Real ML-DSA-44 with simulated single faults at 12 positions in Sign; vary h; attacker queries the same message until a usable pair.",
+   "controls": [
+    "null: fault-free signing, no recovery",
+    "positive: deterministic mode with fault on c",
+    "A/A: h = 16 under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "slope not 0.5",
+   "census inconsistent"
+  ],
+  "confounders": [
+   "fault model idealized (exact bit flip, chosen position)"
+  ],
+  "interpretation_limits": [
+   "simulated faults only; real fault success rates are not measured",
+   "real parameters"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "rnd is uniform over 2^h values",
+    "rigorous_support": "construction",
+    "validation_plan": "chi-square of rnd values"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{h/2} queries",
+   "memory_exponent": "2^{h/2} stored signatures",
+   "best_known": "2 queries deterministic",
+   "hidden_overhead": "none",
+   "tradeoff_note": "query complexity, not computation"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-340675",
+    "provenance": "kb",
+    "citation_text": "Shin et al., Differential Fault Attack on ML-DSA using Coefficients Computable from Public Information, ePrint 2026/1344",
+    "relation": "adjacent",
+    "delta": "a DFA with public fault identification; this prices the hedged-mode defence per fault class"
+   },
+   {
+    "ref": "KN-LIT-4f3b80",
+    "provenance": "kb",
+    "citation_text": "Jendral, A Single-Trace Side-Channel Attack on ML-DSA: Full-Key Recovery from a Single Faulty Signature, ePrint 2024/238",
+    "relation": "adjacent",
+    "delta": "a single-faulty-signature attack that is mode-independent by construction; populates the mode-independent class"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-818196",
+   "IDEA-20260901-1c87ca",
+   "IDEA-20260828-6e79b4"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Fault-position census by signing mode and rnd entropy at ML-DSA-44",
+   "objective": "the query price hedging imposes on each fault class and which classes it does not affect",
+   "instrument": "Python FIPS 204 implementation with fault-injection hooks, cross-checked against PQClean KATs",
+   "parameters": "ML-DSA-44; positions: c_tilde bit, c coefficient sign, mu bit, w1 bit, y zeroing, z addition skip, kappa, NTT twiddle, s1 load, h bit, rho'' bit, A entry; h in {0 (deterministic), 8, 12, 16, 20, 24, 256}; 20 keys per cell",
+   "procedure": "1) KAT. 2) For each position and h, query same message repeatedly with one faulty signing among them. 3) Attacker searches for usable pairs and solves. 4) Certify. 5) Classify positions.",
+   "independent_variables": [
+    {
+     "name": "rnd_entropy_h",
+     "levels": [
+      "0",
+      "8",
+      "12",
+      "16",
+      "20",
+      "24",
+      "256"
+     ]
+    },
+    {
+     "name": "fault_position",
+     "levels": [
+      "c_sign",
+      "y_zero",
+      "mu_bit",
+      "z_skip",
+      "others_8"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "c_sign h 0",
+      "c_sign h 16"
+     ],
+     "differs_in": [
+      "rnd_entropy_h"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "c_sign h 256",
+      "y_zero h 256"
+     ],
+     "differs_in": [
+      "fault_position"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "c_sign slope over h"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "c_sign h 16 seed-block A",
+      "c_sign h 16 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "queries to recovery"
+   ],
+   "secondary_metrics": [
+    "class assignment per position"
+   ],
+   "preregistered_prediction": {
+    "quantity": "median queries",
+    "formula": "1 + sqrt(2 ln 2 * 2^h)",
+    "source": "birthday on rnd"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real parameters; faults simulated",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop per cell at 20 recoveries or 2^26 queries"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C3, P2 and C2 shows y_zero recovers at h = 256 while c_sign does not; AA1 noise floor medians within factor 1.5",
+   "falsification_criterion": "C3 slope outside [0.35,0.65] or C2 classes inconsistent across seeds",
+   "decision_impact": {
+    "on_positive": "add a mode-dependence column to the fault-boundary table of GOAL-MLDSA-001",
+    "on_negative": "report that hedging does not price as birthday and audit the derivation"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "Passive y leakage: deterministic mode lets an attacker average repeated signatures, hedged does not; measure the trace-count gap",
+  "class": "measurement",
+  "claim": "Under simulated Hamming-weight leakage of y coefficients with noise sigma, deterministic ML-DSA lets an attacker re-sign one message R times to average noise to sigma/sqrt(R) on the same y, then use z - y = c s1. For sigma in {2, 4, 8}, deterministic mode needs a total number of signatures at least 5 times smaller than hedged mode to recover s1 at ML-DSA-44 shapes; at sigma <= 0.5 the gap disappears (single-trace regime).",
+  "mechanism": "In hedged mode each signature uses a fresh y, so per-signature leakage must be combined across different y via c s1 (a vertical attack on the key); in deterministic mode the attacker gets repeated looks at the same y and can reduce y-noise first, then needs only a few distinct messages. The gap is a measurable cost of the deterministic option in a passive model, complementing the fault-based argument for hedging.",
+  "tracked_object": "total signatures to s1 recovery for deterministic vs hedged signing at matched noise",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "N_hedged / N_det at sigma = 4",
+    "direction": "higher",
+    "minimum_effect": ">= 5",
+    "falsified_by": "< 2"
+   },
+   {
+    "id": "P2",
+    "metric": "gap at sigma = 0.5",
+    "direction": "different",
+    "minimum_effect": "ratio within [0.7, 1.5]",
+    "falsified_by": "ratio > 3"
+   }
+  ],
+  "minimal_test": {
+   "design": "Simulate HW leakage of each y coefficient; attacker posterior on y_j, combine with z to posterior on (c s1)_j, solve via belief propagation / lattice finishing.",
+   "controls": [
+    "null: leakage independent of y",
+    "positive: sigma = 0 exact y",
+    "A/A: hedged sigma = 4 two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "no gap at moderate noise",
+   "gap at single-trace noise"
+  ],
+  "confounders": [
+   "HW model",
+   "attacker strategy optimality"
+  ],
+  "interpretation_limits": [
+   "simulated leakage at real ML-DSA-44 sizes; transfer of the ratio only",
+   "no device"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "per-coefficient posteriors can be combined independently",
+    "rigorous_support": "heuristic",
+    "validation_plan": "compare with exact joint on a 16-coefficient subproblem"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "N ~ sigma^2 / R scaling",
+   "memory_exponent": "O(N n)",
+   "best_known": "single-trace attacks",
+   "hidden_overhead": "none",
+   "tradeoff_note": "constant-level comparison of modes"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4f3b80",
+    "provenance": "kb",
+    "citation_text": "Jendral, single-trace attack on hedged ML-DSA, ePrint 2024/238",
+    "relation": "adjacent",
+    "delta": "single-trace regime; this measures the multi-trace regime where mode matters"
+   },
+   {
+    "ref": "KN-LIT-118",
+    "provenance": "kb",
+    "citation_text": "Dachman-Soled, Ducas, Gong, Rossi, LWE with Side Information: Attacks and Concrete Security Estimation, CRYPTO 2020",
+    "relation": "adjacent",
+    "delta": "supplies the hint-integration toolkit; this applies it to ML-DSA signature-derived hints and measures prediction vs actual block size"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-4d4e5f"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Deterministic vs hedged under simulated y leakage",
+   "objective": "the passive trace-count advantage deterministic mode gives an attacker",
+   "instrument": "Python/NumPy simulator, ML-DSA-44 shapes, fpylll finish",
+   "parameters": "ML-DSA-44; sigma in {0.5,1,2,4,8}; R repeats in {1,4,16,64}; 5 keys per seed block; cap 10^6 signatures",
+   "procedure": "1) Sign. 2) Generate leakage. 3) Posterior on y, then c s1. 4) Solve and certify.",
+   "independent_variables": [
+    {
+     "name": "signing_mode",
+     "levels": [
+      "deterministic",
+      "hedged"
+     ]
+    },
+    {
+     "name": "noise_sigma",
+     "levels": [
+      "0.5",
+      "1",
+      "2",
+      "4",
+      "8"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    },
+    {
+     "name": "repeat_count_R",
+     "treatment": "fixed",
+     "value": "best R per sigma chosen in a pilot",
+     "how": "frozen before main run"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "deterministic sigma4",
+      "hedged sigma4"
+     ],
+     "differs_in": [
+      "signing_mode"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "ratio vs sigma"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "hedged sigma4 seed-block A",
+      "hedged sigma4 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "signatures to recovery per mode"
+   ],
+   "secondary_metrics": [
+    "posterior entropy per coefficient"
+   ],
+   "preregistered_prediction": {
+    "quantity": "N_hedged/N_det",
+    "formula": "approximately R_opt for sigma > 1",
+    "source": "noise averaging"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "real sizes, simulated leakage",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at recovery or 10^6 signatures"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C1 and P2 in C2; AA1 noise floor within factor 1.5",
+   "falsification_criterion": "C1 ratio < 2",
+   "decision_impact": {
+    "on_positive": "add the passive deterministic-mode penalty to the hedged-vs-deterministic attacker-model entry",
+    "on_negative": "record that deterministic mode has no passive penalty in this model"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-001",
+  "title": "ExpandS defect calibration: does the estimator predict measured BKZ cost for low-variance vs low-entropy skewed secrets?",
+  "class": "control",
+  "claim": "If ExpandS has a defect that makes coefficients of s1 nonuniform on [-eta, eta] (for example a mod-5 bias from reading a nibble with a wrong rejection bound), the secret's entropy per coefficient drops. At toyDSA(64..112,2,2), measured primal block size to recover the key tracks the estimator's prediction with the defective distribution's variance within +-5, and the variance (not entropy) governs it, so a high-entropy low-variance defect lowers cost more than a low-entropy same-variance one.",
+  "mechanism": "Primal attacks depend on the secret's standard deviation through the uSVP condition, not on entropy; hybrid attacks depend on entropy. A sampler defect therefore can lower one or the other. Measuring both defect shapes against the estimator tests whether its MLWE calibration holds for the skewed distributions defects produce.",
+  "tracked_object": "BKZ block size to recover the key for honest vs two defective s1 distributions",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "measured - predicted beta",
+    "direction": "different",
+    "minimum_effect": "within +-5 for all arms",
+    "falsified_by": "outside +-8"
+   },
+   {
+    "id": "P2",
+    "metric": "variance vs entropy effect",
+    "direction": "different",
+    "minimum_effect": "low-variance arm beta at least 4 lower than equal-variance low-entropy arm",
+    "falsified_by": "difference < 2"
+   }
+  ],
+  "minimal_test": {
+   "design": "Progressive BKZ on primal embeddings with three secret distributions, compared to estimator predictions.",
+   "controls": [
+    "null: honest uniform eta = 2",
+    "positive: ternary {-1,0,1} with known lower cost",
+    "A/A: honest under two seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "predictions miss by > 8",
+   "no variance-vs-entropy distinction"
+  ],
+  "confounders": [
+   "toy dims"
+  ],
+  "interpretation_limits": [
+   "toy n <= 112; transfer via estimator",
+   "defect shapes are constructed"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "uSVP success condition is the governing predictor",
+    "rigorous_support": "standard",
+    "validation_plan": "compare success probability curve to KN-LIT-5601 style model"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{0.292 beta}",
+   "memory_exponent": "2^{0.2075 beta}",
+   "best_known": "estimator predictions",
+   "hidden_overhead": "none",
+   "tradeoff_note": "calibration only"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-061",
+    "provenance": "kb",
+    "citation_text": "Albrecht, Player, Scott, On the concrete hardness of LWE (LWE estimator), JMC 2015",
+    "relation": "adjacent",
+    "delta": "cost model whose predictions are compared with measured block sizes"
+   },
+   {
+    "ref": "KN-LIT-5601",
+    "provenance": "kb",
+    "citation_text": "Postlethwaite, Virdia, On the Success Probability of Solving Unique SVP via BKZ",
+    "relation": "adjacent",
+    "delta": "success model used for predictions"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260808-5a748c"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Estimator calibration on defective ExpandS secrets",
+   "objective": "whether the estimator's MLWE calibration holds for defect-skewed secrets",
+   "instrument": "SageMath, lattice-estimator, fpylll/G6K; toyDSA(n,k,l): a NumPy re-implementation of FIPS 204 Algorithms 1-8 with the ring degree n as a parameter (q = 8380417, d = 13, eta, tau, gamma1, gamma2, beta = tau*eta, omega as in ML-DSA-44 unless stated), cross-checked against the PQClean ML-DSA-44 reference at n = 256 on 1000 KAT vectors before any reduced run",
+   "parameters": "toyDSA(n,2,2) n in {64,80,96,112}; distributions {uniform_eta2, low_variance, low_entropy}; 5 keys",
+   "procedure": "1) KAT. 2) keys from each distribution. 3) Predict. 4) Progressive BKZ. 5) Certify.",
+   "independent_variables": [
+    {
+     "name": "secret_distribution",
+     "levels": [
+      "uniform_eta2",
+      "low_variance",
+      "low_entropy"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "low_variance",
+      "low_entropy"
+     ],
+     "differs_in": [
+      "secret_distribution"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "measured vs predicted all arms"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "uniform seed-block A",
+      "uniform seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "measured beta"
+   ],
+   "secondary_metrics": [
+    "predicted beta"
+   ],
+   "preregistered_prediction": {
+    "quantity": "beta",
+    "formula": "lattice-estimator primal_usvp with defect variance",
+    "source": "KN-LIT-061"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n <= 112",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at beta 80"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C2 and P2 in C1; AA1 noise floor beta within 3",
+   "falsification_criterion": "C2 misses by > 8",
+   "decision_impact": {
+    "on_positive": "certify the estimator for skewed secrets in MLWE pricing",
+    "on_negative": "flag estimator miscalibration for skewed secrets"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-ffa0f5",
+  "title": "Cross-implementation differential verify: the boundary cases FIPS 204's verifier must reject, fuzzed across five open implementations",
+  "class": "tooling",
+  "claim": "Mutating valid ML-DSA signatures at the predicate boundaries (||z||_inf exactly gamma1 - beta, hint index lists non-increasing or with nonzero padding, omega-th hint slot, trailing bytes, c_tilde length) and running them through PQClean, liboqs, BoringSSL/AWS-LC, RustCrypto ml-dsa, and Go circl, at least one implementation-pair disagrees on at least one boundary class, or all agree on every class and the harness's positive control (a deliberately loosened verifier) is flagged on all classes. Either outcome is decidable.",
+  "mechanism": "Byte-level verifier semantics are where conformance bugs live; an accept fibre counted in one spec is not the same as agreement across implementations. A differential oracle with targeted boundary mutations finds disagreements cheaply, and a planted off-by-one verifier calibrates the harness's detection power.",
+  "tracked_object": "per boundary class, the accept/reject vector across implementations",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "harness detection of planted verifier bug",
+    "direction": "higher",
+    "minimum_effect": "100 percent of planted classes flagged within 10^5 mutations",
+    "falsified_by": "any planted class missed"
+   },
+   {
+    "id": "P2",
+    "metric": "disagreement count",
+    "direction": "different",
+    "minimum_effect": "reported exactly per class with 0 allowed",
+    "falsified_by": "harness crash or non-determinism"
+   }
+  ],
+  "minimal_test": {
+   "design": "Generate valid signatures, apply boundary mutators, query all verifiers, record vectors.",
+   "controls": [
+    "null: unmutated valid signatures (all accept)",
+    "positive: planted <= vs < verifier",
+    "A/A: same mutation stream under two run orders"
+   ]
+  },
+  "falsification_conditions": [
+   "planted bug missed",
+   "non-deterministic verdicts"
+  ],
+  "confounders": [
+   "implementation versions"
+  ],
+  "interpretation_limits": [
+   "defensive conformance only; disagreements are reported to maintainers, not exploited",
+   "covers only implemented classes"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "boundary mutators cover the relevant predicate edges",
+    "rigorous_support": "derived from Algorithm 8 predicates",
+    "validation_plan": "coverage via gcov on PQClean verify"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "O(mutations)",
+   "memory_exponent": "O(1)",
+   "best_known": "ACVP vectors",
+   "hidden_overhead": "none",
+   "tradeoff_note": "tooling"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-1708",
+    "provenance": "kb",
+    "citation_text": "KAT-Seeded Fuzzing of Stateful Hash-Based Signature Verification in liboqs (corpus entry)",
+    "relation": "adjacent",
+    "delta": "same differential methodology for hash-based signatures; this applies boundary-targeted mutators to ML-DSA"
+   },
+   {
+    "ref": "KN-LIT-4dadec",
+    "provenance": "kb",
+    "citation_text": "NIST, FIPS 204 Module-Lattice-Based Digital Signature Standard, 2024",
+    "relation": "adjacent",
+    "delta": "the algorithms under test; body text not read by this program, so every algorithm detail used is re-derived from the PQClean reference and recorded"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260808-e5f947",
+   "IDEA-20260828-8f3496"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Differential boundary fuzzing of ML-DSA verifiers",
+   "objective": "whether open ML-DSA verifiers agree on every boundary predicate",
+   "instrument": "Python harness calling C/Go/Rust verifiers via FFI or subprocess; pinned versions",
+   "parameters": "ML-DSA-44/65/87; 10^6 mutations per class per set; 9 classes",
+   "procedure": "1) Build pinned implementations. 2) Valid signature corpus. 3) Mutate. 4) Verify everywhere. 5) Planted-bug arm.",
+   "independent_variables": [
+    {
+     "name": "verifier",
+     "levels": [
+      "pqclean",
+      "liboqs",
+      "awslc",
+      "rustcrypto",
+      "circl",
+      "planted_bug"
+     ]
+    },
+    {
+     "name": "mutation_class",
+     "levels": [
+      "z_boundary",
+      "hint_order",
+      "hint_padding",
+      "omega_slot",
+      "length"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "run_order",
+     "treatment": "randomized",
+     "value": "arm order shuffled per seed block",
+     "how": "interleave arms trial by trial with a recorded permutation"
+    },
+    {
+     "name": "parameter_set",
+     "treatment": "crossed",
+     "value": "44, 65, 87",
+     "how": "all arms on all three sets"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "pqclean",
+      "planted_bug"
+     ],
+     "differs_in": [
+      "verifier"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "disagreement table"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "all verifiers order A",
+      "all verifiers order B"
+     ],
+     "differs_in": [
+      "run_order"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "disagreement count per class"
+   ],
+   "secondary_metrics": [
+    "coverage"
+   ],
+   "preregistered_prediction": {
+    "quantity": "planted detection rate",
+    "formula": "1.0",
+    "source": "harness design"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real parameters, byte-level",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at 10^6 mutations per class"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)",
+    "a disagreement is only recorded after reproduction on a fresh build"
+   ],
+   "success_criterion": "P1 in C1 and C2 reported completely; AA1 noise floor zero verdict changes",
+   "falsification_criterion": "C1 planted bug missed or AA1 shows nondeterminism",
+   "decision_impact": {
+    "on_positive": "file disagreements with maintainers and publish the boundary corpus as a conformance asset",
+    "on_negative": "publish the corpus as evidence of agreement on these classes and close the class list"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-ffa0f5",
+  "title": "Ablate each Verify check: which FIPS 204 verifier predicates are load-bearing, by the cost of a key-less forgery per ablation",
+  "class": "control",
+  "claim": "For each Algorithm 8 check (z-norm bound, hint count <= omega, hint encoding canonicity, c_tilde full-length comparison), a verifier missing exactly that check admits a key-less forgery whose cost is: z-norm dropped, polynomial (solve A z = w + c t1 2^d by linear algebra); c_tilde compared on only b bits, 2^b hash trials; hint-count dropped, still SelfTargetMSIS-hard (no measured forgery in 2^32 trials); canonicity dropped, malleability only, no forgery. Each predicted cost is confirmed by an actual forgery or bounded by a null result at real ML-DSA-44.",
+  "mechanism": "Prior lane work ablates signer checks and counts accept fibres; the mirror question asks what each verifier predicate protects. Dropping the z bound removes shortness so SIS becomes linear algebra; truncated comparison turns the hash binding into a b-bit search; the hint count limits malleability but forgery still needs short z.",
+  "tracked_object": "key-less forgery cost against each single-check-ablated verifier",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "forgery time z-norm ablated",
+    "direction": "lower",
+    "minimum_effect": "< 1 s per forgery",
+    "falsified_by": "no forgery in 1 hour"
+   },
+   {
+    "id": "P2",
+    "metric": "trials vs b for truncated comparison",
+    "direction": "different",
+    "minimum_effect": "median within factor 2 of 2^b ln2 for b in {16, 24, 32}",
+    "falsified_by": "off by factor 4"
+   },
+   {
+    "id": "P3",
+    "metric": "hint-count ablated",
+    "direction": "different",
+    "minimum_effect": "zero forgeries in 2^32 trials",
+    "falsified_by": "any forgery"
+   }
+  ],
+  "minimal_test": {
+   "design": "Patch verifier per ablation; run the matching generic forger; honest verifier as null.",
+   "controls": [
+    "null: honest verifier with each forger",
+    "positive: z-norm ablated (must be trivial)",
+    "A/A: truncated b = 16 under two seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "ablated verifier with predicted-trivial forgery resists",
+   "honest verifier accepts"
+  ],
+  "confounders": [
+   "forger optimality"
+  ],
+  "interpretation_limits": [
+   "defensive; ablated verifiers are constructed",
+   "real parameters"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "generic forgers are near-optimal for each ablation",
+    "rigorous_support": "derived",
+    "validation_plan": "compare with second forger strategy"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "per ablation as stated",
+   "memory_exponent": "O(1)",
+   "best_known": "SelfTargetMSIS for honest",
+   "hidden_overhead": "none",
+   "tradeoff_note": "census"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4dadec",
+    "provenance": "kb",
+    "citation_text": "NIST, FIPS 204 Module-Lattice-Based Digital Signature Standard, 2024",
+    "relation": "adjacent",
+    "delta": "the algorithms under test; body text not read by this program, so every algorithm detail used is re-derived from the PQClean reference and recorded"
+   },
+   {
+    "ref": "KN-LIT-059",
+    "provenance": "kb",
+    "citation_text": "Lyubashevsky, Fiat-Shamir with Aborts, ASIACRYPT 2009",
+    "relation": "adjacent",
+    "delta": "the paradigm whose hiding argument is exactly the property measured here under a stated defect"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-031ce2",
+   "IDEA-20260829-4dc951",
+   "IDEA-20260808-e5f947"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Verifier-check ablation forgery census at ML-DSA-44",
+   "objective": "which verifier predicates are load-bearing and at what cost",
+   "instrument": "Patched PQClean ML-DSA-44 verify, Python forgers",
+   "parameters": "ML-DSA-44; ablations {none, z_norm, ctilde_b16, ctilde_b24, ctilde_b32, hint_count, canonicity}; 20 forgeries or 2^32 trials per cell",
+   "procedure": "1) KAT. 2) Patch. 3) Forge. 4) Verify forgeries with the ablated and the honest verifier.",
+   "independent_variables": [
+    {
+     "name": "ablation",
+     "levels": [
+      "none",
+      "z_norm",
+      "ctilde_b16",
+      "ctilde_b24",
+      "ctilde_b32",
+      "hint_count",
+      "canonicity"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "z_norm",
+      "none"
+     ],
+     "differs_in": [
+      "ablation"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "ctilde_b grid"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "ctilde_b16 seed-block A",
+      "ctilde_b16 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "forgery cost per ablation"
+   ],
+   "secondary_metrics": [
+    "trials distribution"
+   ],
+   "preregistered_prediction": {
+    "quantity": "trials for ctilde_b",
+    "formula": "2^b ln 2",
+    "source": "geometric"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real parameters",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop per cell at 20 forgeries or 2^32 trials"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C1, P2 in C2, P3 reported; AA1 noise floor within factor 1.3",
+   "falsification_criterion": "C1 shows no trivial forgery or C2 off by factor 4",
+   "decision_impact": {
+    "on_positive": "publish a load-bearing table of verifier predicates for conformance test priority",
+    "on_negative": "re-examine the forgers; a resisting z-norm ablation would mean hidden structure"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-ffa0f5",
+  "title": "Detection vs exploitation race for a narrowed ExpandMask: can a public auditor spot it before an attacker recovers s1?",
+  "class": "measurement",
+  "claim": "If ExpandMask samples y from [-gamma1/2, gamma1/2] (one bit short), every signature verifies and no rejection fires, yet z = y + c s1 has support shifted by c s1 so per-coordinate extremes reveal (c s1)_j. A public chi-square test on z coefficients detects the defect with about 30 signatures at 99 percent power, while exact s1 recovery from extremes needs on the order of 10^3 signatures at ML-DSA-44; the ratio N_recover / N_detect >= 20 at all three parameter sets.",
+  "mechanism": "Verifier only bounds z, so a narrower mask passes. The auditor sees z coefficient histograms that are uniform on a half-width box: a gross deviation from the honest uniform on [-(gamma1 - beta), gamma1 - beta]. The attacker needs, per key, enough samples that edge coordinates pin each u_j, which is slower. The race tells whether public monitoring can catch such defects in time.",
+  "tracked_object": "N_detect (public statistic) and N_recover (attacker) for the same defective signer",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "N_recover/N_detect",
+    "direction": "higher",
+    "minimum_effect": ">= 20 at 44/65/87",
+    "falsified_by": "< 5"
+   },
+   {
+    "id": "P2",
+    "metric": "honest signer false alarm",
+    "direction": "lower",
+    "minimum_effect": "<= 1 percent at the frozen threshold",
+    "falsified_by": "> 3 percent"
+   }
+  ],
+  "minimal_test": {
+   "design": "Defective signer; auditor runs chi-square/KS on z; attacker runs edge-min/max plus linear solve.",
+   "controls": [
+    "null: honest signer (auditor false-alarm rate)",
+    "positive: quarter-width mask",
+    "A/A: defective 44 under two seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "race ratio < 5",
+   "false alarm > 3 percent"
+  ],
+  "confounders": [
+   "auditor test choice"
+  ],
+  "interpretation_limits": [
+   "real parameters; defect constructed",
+   "auditor must see many signatures from one key"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "z coefficients are independent enough for chi-square",
+    "rigorous_support": "honest z uniform after rejection",
+    "validation_plan": "check on honest arm"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "detect O(1/TV^2)",
+   "memory_exponent": "O(1)",
+   "best_known": "none",
+   "hidden_overhead": "none",
+   "tradeoff_note": "race measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4dadec",
+    "provenance": "kb",
+    "citation_text": "NIST, FIPS 204 Module-Lattice-Based Digital Signature Standard, 2024",
+    "relation": "adjacent",
+    "delta": "the algorithms under test; body text not read by this program, so every algorithm detail used is re-derived from the PQClean reference and recorded"
+   },
+   {
+    "ref": "KN-LIT-059",
+    "provenance": "kb",
+    "citation_text": "Lyubashevsky, Fiat-Shamir with Aborts, ASIACRYPT 2009",
+    "relation": "adjacent",
+    "delta": "the paradigm whose hiding argument is exactly the property measured here under a stated defect"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-60ba98",
+   "IDEA-20260828-fa04dc"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Narrowed ExpandMask race at real parameters",
+   "objective": "whether public monitoring of z detects a narrowed mask long before key recovery",
+   "instrument": "Patched Python FIPS 204 + NumPy statistics",
+   "parameters": "ML-DSA-44/65/87; mask widths {gamma1, gamma1/2, gamma1/4}; 20 keys; cap 10^5 signatures",
+   "procedure": "1) KAT. 2) Defective signer. 3) Auditor sequential test. 4) Attacker solve. 5) Certify.",
+   "independent_variables": [
+    {
+     "name": "mask_width",
+     "levels": [
+      "full",
+      "half",
+      "quarter"
+     ]
+    },
+    {
+     "name": "parameter_set",
+     "levels": [
+      "44",
+      "65",
+      "87"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "half",
+      "full"
+     ],
+     "differs_in": [
+      "mask_width"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "ratio across sets"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "half 44 seed-block A",
+      "half 44 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "N_detect",
+    "N_recover"
+   ],
+   "secondary_metrics": [
+    "false alarm rate"
+   ],
+   "preregistered_prediction": {
+    "quantity": "N_detect",
+    "formula": "chi-square power with TV = 1/2 per coefficient",
+    "source": "standard power analysis"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real parameters",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at recovery or 10^5 signatures"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C2 and P2 in C1; AA1 noise floor within factor 1.5",
+   "falsification_criterion": "C2 ratio < 5",
+   "decision_impact": {
+    "on_positive": "recommend public z-distribution monitoring as a conformance check with stated N",
+    "on_negative": "warn that public monitoring is too slow and the defect class needs signer-side tests"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-ffa0f5",
+  "title": "What the verifier cannot check: rnd grinding embeds k bits per signature in c_tilde at cost 2^k, undetectable by public tests",
+  "class": "measurement",
+  "claim": "A non-conforming hedged signer that retries rnd until the first k bits of c_tilde equal k bits of a covert payload produces valid signatures whose c_tilde is computationally indistinguishable from honest ones (without K), with expected signing cost 2^k times honest; leaking s1 (about 2^11 bits at ML-DSA-44 compressed) takes 2^11/k signatures. Measured: cost fits 2^k within 10 percent for k in {1..12}, and public uniformity tests on c_tilde have power at most their size over 10^6 signatures.",
+  "mechanism": "rnd is the only signer input the verifier cannot check; c_tilde is a hash output that depends on rnd through y, so rejection on k bits is a standard subliminal channel. The receiver needs only the public signatures. This makes 'hedged mode' a kleptographic surface measured in bits per signature per unit of work.",
+  "tracked_object": "payload bits per signature vs signing cost multiplier, and detection power of public tests",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "cost multiplier vs 2^k",
+    "direction": "different",
+    "minimum_effect": "within 10 percent",
+    "falsified_by": "off by > 25 percent"
+   },
+   {
+    "id": "P2",
+    "metric": "detection power",
+    "direction": "lower",
+    "minimum_effect": "<= size + 0.01 at 10^6 signatures",
+    "falsified_by": "power > size + 0.05"
+   }
+  ],
+  "minimal_test": {
+   "design": "Patched signer with grinding; receiver decodes; auditor runs tests on c_tilde, z, h.",
+   "controls": [
+    "null: honest signer under same tests",
+    "positive: deterministic-mode grinding via message changes (visible as message mutation)",
+    "A/A: k = 4 under two seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "cost deviates",
+   "public test detects"
+  ],
+  "confounders": [
+   "timing side effects not modelled"
+  ],
+  "interpretation_limits": [
+   "real parameters; a malicious signer is outside FIPS 204's threat model; documents the capacity",
+   "no deployed signer claimed"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "c_tilde is pseudorandom without K",
+    "rigorous_support": "hash modelling",
+    "validation_plan": "uniformity tests on honest arm"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^k per signature",
+   "memory_exponent": "O(1)",
+   "best_known": "none",
+   "hidden_overhead": "timing visible",
+   "tradeoff_note": "capacity measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Simmons, The Prisoners' Problem and the Subliminal Channel, CRYPTO 1983 (recalled)",
+    "relation": "special_case",
+    "delta": "classic subliminal channels; this measures capacity and detectability for ML-DSA hedged mode"
+   },
+   {
+    "ref": "KN-LIT-4dadec",
+    "provenance": "kb",
+    "citation_text": "NIST, FIPS 204 Module-Lattice-Based Digital Signature Standard, 2024",
+    "relation": "adjacent",
+    "delta": "the algorithms under test; body text not read by this program, so every algorithm detail used is re-derived from the PQClean reference and recorded"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260829-4dc951"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Subliminal capacity of hedged ML-DSA",
+   "objective": "capacity-cost law and detectability of rnd grinding",
+   "instrument": "Patched PQClean ML-DSA-44 signer driven from Python",
+   "parameters": "ML-DSA-44; k in {1,2,4,8,12}; 10^6 signatures per arm for tests",
+   "procedure": "1) KAT. 2) Grinding signer. 3) Receiver decode. 4) Auditor tests. 5) Leak full s1 at k = 8 and certify.",
+   "independent_variables": [
+    {
+     "name": "payload_bits_k",
+     "levels": [
+      "0",
+      "1",
+      "2",
+      "4",
+      "8",
+      "12"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "k 8",
+      "k 0"
+     ],
+     "differs_in": [
+      "payload_bits_k"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "cost vs k"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "k 4 seed-block A",
+      "k 4 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "cost multiplier"
+   ],
+   "secondary_metrics": [
+    "test p-values"
+   ],
+   "preregistered_prediction": {
+    "quantity": "cost multiplier",
+    "formula": "2^k",
+    "source": "geometric"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real parameters",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at 10^6 signatures per arm"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C2 and P2 in C1; AA1 noise floor multipliers within 5 percent",
+   "falsification_criterion": "C2 off by > 25 percent or C1 detection power > size + 0.05",
+   "decision_impact": {
+    "on_positive": "record rnd as an unverifiable channel with a measured capacity law in the conformance list",
+    "on_negative": "record that public tests detect grinding and recommend them"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-ffa0f5",
+  "title": "Weak public keys Verify accepts: t1 = 0 and sparse-s1 keys allow third-party forgery; cheap pk checks catch only part",
+  "class": "control",
+  "claim": "Verify accepts any decodable pk. A crafted pk with t1 = 0 (or any key whose s1 is publicly recoverable) lets anyone forge: with t1 = 0, z = y drawn from the shrunken box and c = H(mu || HighBits(A y)) verify with h = 0; keys with s1 of Hamming weight w are recoverable from pk by search over C(n l, w) 5^w supports. Measured at real ML-DSA-44: universal forgery under t1 = 0 in under one second per message, sparse-s1 recovery time fitting C(nl,w)4^w within factor 4 for w <= 3, and a t1 = 0 rejection rule detects 0 percent of w >= 1 weak keys.",
+  "mechanism": "A malicious key owner can publish a key under which anyone can forge, then repudiate signatures; the verifier does not validate key provenance. Honest keys never have t1 = 0, so a check is free but narrow; the sparse class shows the boundary between cheaply detectable and search-detectable weak keys.",
+  "tracked_object": "forgery time under weak keys and the detection rate of candidate pk-validation rules",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "forgery time t1 = 0",
+    "direction": "lower",
+    "minimum_effect": "< 1 s per message",
+    "falsified_by": "no forgery"
+   },
+   {
+    "id": "P2",
+    "metric": "sparse recovery time vs w",
+    "direction": "different",
+    "minimum_effect": "within factor 4 of C(nl,w)4^w unit ops",
+    "falsified_by": "off by > 16"
+   },
+   {
+    "id": "P3",
+    "metric": "t1 = 0 rule recall on w >= 1",
+    "direction": "lower",
+    "minimum_effect": "0 percent",
+    "falsified_by": "> 0 percent"
+   }
+  ],
+  "minimal_test": {
+   "design": "Construct weak keys, forge, recover sparse s1, evaluate detection rules.",
+   "controls": [
+    "null: honest keys (no forgery, rules never fire)",
+    "positive: t1 = 0 key",
+    "A/A: w = 2 under two seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "no forgery at t1 = 0",
+   "rules fire on honest keys"
+  ],
+  "confounders": [
+   "search implementation"
+  ],
+  "interpretation_limits": [
+   "real parameters; malicious-key model outside EUF-CMA",
+   "defensive"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "honest t1 = 0 probability is negligible",
+    "rigorous_support": "counting",
+    "validation_plan": "compute exact bound"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "C(nl,w) 4^w",
+   "memory_exponent": "O(1)",
+   "best_known": "MLWE",
+   "hidden_overhead": "none",
+   "tradeoff_note": "class census"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4dadec",
+    "provenance": "kb",
+    "citation_text": "NIST, FIPS 204 Module-Lattice-Based Digital Signature Standard, 2024",
+    "relation": "adjacent",
+    "delta": "the algorithms under test; body text not read by this program, so every algorithm detail used is re-derived from the PQClean reference and recorded"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Cremers, Dux, Janssen, Kuhn, et al., BUFFing signature schemes beyond unforgeability and the case of post-quantum signatures, IEEE S&P 2021 (recalled, hedged)",
+    "relation": "adjacent",
+    "delta": "analysed key-substitution properties; this measures repudiable-key classes ML-DSA verify accepts"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260829-a2b5d7"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Weak-key census at ML-DSA-44",
+   "objective": "the cost of third-party forgery under weak public keys and the recall of cheap pk checks",
+   "instrument": "Python FIPS 204 with key construction hooks",
+   "parameters": "ML-DSA-44; classes {honest, t1_zero, sparse_w1, sparse_w2, sparse_w3}; 20 keys per class",
+   "procedure": "1) KAT. 2) Construct keys. 3) Forge / recover. 4) Evaluate rules.",
+   "independent_variables": [
+    {
+     "name": "key_class",
+     "levels": [
+      "honest",
+      "t1_zero",
+      "sparse_w1",
+      "sparse_w2",
+      "sparse_w3"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "t1_zero",
+      "honest"
+     ],
+     "differs_in": [
+      "key_class"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "sparse time vs w"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "sparse_w2 seed-block A",
+      "sparse_w2 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "forgery/recovery time"
+   ],
+   "secondary_metrics": [
+    "rule recall"
+   ],
+   "preregistered_prediction": {
+    "quantity": "sparse recovery ops",
+    "formula": "C(1024,w) 4^w",
+    "source": "exhaustive search"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real parameters",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop per cell at 20 keys or 1 CPU hour"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C1, P2 in C2, P3 reported; AA1 noise floor within factor 1.5",
+   "falsification_criterion": "C1 no forgery or C2 off by > 16",
+   "decision_impact": {
+    "on_positive": "propose a pk-validation note listing what cheap checks catch and what they miss",
+    "on_negative": "record that weak keys are not forgeable as predicted and examine verify"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-ffa0f5",
+  "title": "Repudiable keys by rho grinding: cost law q^{k-l+1}/256 for a rank-deficient NTT slot of A, and its honest frequency",
+  "class": "measurement",
+  "claim": "The probability that a uniformly expanded k x l slot matrix over F_q is rank-deficient is about q^{-(k-l+1)}; at true q = 8380417 and k = l = 4 that is 2^-23 per slot, 2^-15 per key over 256 slots. A key owner grinding rho finds a key with a rank-deficient slot in about 2^15 ExpandA calls at ML-DSA-44 shape (k = l), and whether such keys give any forgery advantage is tested rather than assumed. Measured median grind cost within factor 2 of 1/(256 q^{-(k-l+1)}), and the honest-key rate of degenerate slots matches the same law.",
+  "mechanism": "For k = l (ML-DSA-44), square slot matrices are singular with probability about 1/q, so over 256 slots and modest grinding, singular slots are common enough to appear in honest keys too (about 2^-15 per key). A verifier cannot cheaply know whether the owner chose rho to create this. Whether a singular slot gives a usable advantage is tested by the forger measuring success of slot-local SIS against such keys vs honest ones.",
+  "tracked_object": "grind cost to a singular slot, honest-key singular-slot frequency, and forgery advantage",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "grind cost / prediction",
+    "direction": "different",
+    "minimum_effect": "within factor 2",
+    "falsified_by": "factor 4"
+   },
+   {
+    "id": "P2",
+    "metric": "honest frequency",
+    "direction": "different",
+    "minimum_effect": "binomial CI covers prediction over 2^20 keys",
+    "falsified_by": "excluded at 99 percent"
+   }
+  ],
+  "minimal_test": {
+   "design": "Grind rho with ExpandA, test slot ranks; sample honest keys; test forger on singular-slot keys.",
+   "controls": [
+    "null: honest keys",
+    "positive: reduced q = 257 where singular slots are frequent",
+    "A/A: grind at q = 7681 under two seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "cost law fails"
+  ],
+  "confounders": [
+   "only rank measured; forgery advantage may be zero"
+  ],
+  "interpretation_limits": [
+   "real q for counting; forgery advantage measured at reduced q only",
+   "a singular slot alone does not imply forgery"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "ExpandA slot matrices are uniform over F_q",
+    "rigorous_support": "XOF modelling",
+    "validation_plan": "chi-square of entries"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "q^{k-l+1}/256 ExpandA calls",
+   "memory_exponent": "O(1)",
+   "best_known": "none",
+   "hidden_overhead": "none",
+   "tradeoff_note": "counting"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4dadec",
+    "provenance": "kb",
+    "citation_text": "NIST, FIPS 204 Module-Lattice-Based Digital Signature Standard, 2024",
+    "relation": "adjacent",
+    "delta": "the algorithms under test; body text not read by this program, so every algorithm detail used is re-derived from the PQClean reference and recorded"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-5535fe"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "rho grinding for singular slots",
+   "objective": "the cost law for grinding a rank-deficient slot and its honest frequency",
+   "instrument": "C ExpandA + NTT from PQClean; Python orchestration",
+   "parameters": "q in {257, 7681, 8380417}; shapes (4,4),(6,5),(8,7); 2^20 honest keys at true q (44 shape)",
+   "procedure": "1) KAT. 2) Grind. 3) Honest sampling. 4) Forger test at q = 257.",
+   "independent_variables": [
+    {
+     "name": "modulus_q",
+     "levels": [
+      "257",
+      "7681",
+      "8380417"
+     ]
+    },
+    {
+     "name": "shape_kl",
+     "levels": [
+      "4x4",
+      "6x5",
+      "8x7"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "q 7681 4x4",
+      "q 7681 6x5"
+     ],
+     "differs_in": [
+      "shape_kl"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "cost vs q"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "q 7681 seed-block A",
+      "q 7681 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "grind cost"
+   ],
+   "secondary_metrics": [
+    "honest frequency"
+   ],
+   "preregistered_prediction": {
+    "quantity": "grind cost",
+    "formula": "q^{k-l+1}/256",
+    "source": "rank-deficiency probability"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "true q counting",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at 2^30 ExpandA per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C2 and P2; C1 shows rectangular shapes cost more by factor q; AA1 noise floor within factor 1.5",
+   "falsification_criterion": "C2 off by factor 4",
+   "decision_impact": {
+    "on_positive": "list singular-slot keys as a measurable but likely harmless pk class in the conformance census",
+    "on_negative": "re-derive the counting law"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-ffa0f5",
+  "title": "Masked signers vs the exact signing-only predicates: boundary-forced differential testing of masked vs reference rejections",
+  "class": "tooling",
+  "claim": "Masked ML-DSA implementations evaluate ||z||_inf < gamma1 - beta, the LowBits bound and the hint-weight gate on shares via A2B conversions; an off-by-one or carry bug changes the rejection set without affecting verification of accepted signatures for the self-enforcing z check, but for the signing-only ct0/hint gates it is invisible to verify. Forcing y (via test hooks) to land within +-2 of each boundary, a masked implementation's decisions match the unmasked reference on 10^7 forced cases, or the first mismatch is exhibited; a planted carry bug is detected within 10^4 forced cases.",
+  "mechanism": "Random testing never reaches the signing-only boundaries (rates below 10^-9); boundary forcing by choosing y or c makes each predicate's edge reachable directly, and comparing decision bits between masked and unmasked code isolates masking-induced errors.",
+  "tracked_object": "decision-bit mismatch rate between masked and reference implementations at forced boundaries",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "planted bug detection",
+    "direction": "higher",
+    "minimum_effect": "detected within 10^4 forced cases",
+    "falsified_by": "missed at 10^6"
+   },
+   {
+    "id": "P2",
+    "metric": "mismatch count real implementation",
+    "direction": "different",
+    "minimum_effect": "reported exactly",
+    "falsified_by": "harness nondeterminism"
+   }
+  ],
+  "minimal_test": {
+   "design": "Instrument both implementations with y/c forcing hooks; run forced cases; compare decisions.",
+   "controls": [
+    "null: reference vs itself",
+    "positive: planted carry bug",
+    "A/A: two run orders"
+   ]
+  },
+  "falsification_conditions": [
+   "planted bug missed"
+  ],
+  "confounders": [
+   "hooks change code paths"
+  ],
+  "interpretation_limits": [
+   "defensive; implementation choice limited to available masked code",
+   "real parameters"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "forcing hooks do not alter the predicate code",
+    "rigorous_support": "code review",
+    "validation_plan": "diff and coverage"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "O(cases)",
+   "memory_exponent": "O(1)",
+   "best_known": "random testing",
+   "hidden_overhead": "none",
+   "tradeoff_note": "tooling"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-3658",
+    "provenance": "kb",
+    "citation_text": "Efficiently Masking Binomial Sampling at Arbitrary Orders for Lattice-Based Crypto (corpus entry)",
+    "relation": "adjacent",
+    "delta": "masking gadgets context"
+   },
+   {
+    "ref": "KN-LIT-1961",
+    "provenance": "kb",
+    "citation_text": "Lee, Lim, Yoon, When Removing Reductions Goes Wrong: Auditing Reduction Placement in Production ML-DSA Implementations, ePrint 2026/1032",
+    "relation": "adjacent",
+    "delta": "arithmetic-placement bugs in production code; this targets masked predicate evaluation"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-031ce2",
+   "IDEA-20260901-b66dbd",
+   "IDEA-20260821-6d1b97"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Boundary-forced masked-vs-reference rejection equivalence",
+   "objective": "whether masked ML-DSA signers evaluate signing-only predicates exactly",
+   "instrument": "C test harness linking an open masked ML-DSA implementation (pinned) and PQClean reference",
+   "parameters": "ML-DSA-44/65; predicates {z_bound, lowbits, hint_weight, ct0}; 10^7 forced cases each",
+   "procedure": "1) Build. 2) Forcing hooks. 3) Run. 4) Compare decisions. 5) Planted bug arm.",
+   "independent_variables": [
+    {
+     "name": "implementation",
+     "levels": [
+      "reference",
+      "masked",
+      "planted_bug"
+     ]
+    },
+    {
+     "name": "predicate",
+     "levels": [
+      "z_bound",
+      "lowbits",
+      "hint_weight",
+      "ct0"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "run_order",
+     "treatment": "randomized",
+     "value": "arm order shuffled per seed block",
+     "how": "interleave arms trial by trial with a recorded permutation"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "masked",
+      "planted_bug"
+     ],
+     "differs_in": [
+      "implementation"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "mismatch table"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "masked order A",
+      "masked order B"
+     ],
+     "differs_in": [
+      "run_order"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "mismatch count"
+   ],
+   "secondary_metrics": [
+    "cases to first mismatch"
+   ],
+   "preregistered_prediction": {
+    "quantity": "planted detection",
+    "formula": "within 10^4",
+    "source": "boundary density"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real parameters",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at 10^7 per predicate"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C1 and C2 complete; AA1 noise floor zero changes",
+   "falsification_criterion": "C1 planted bug missed",
+   "decision_impact": {
+    "on_positive": "publish the forced-boundary vectors as conformance tests for masked signers",
+    "on_negative": "record equivalence on these predicates and close the masked-predicate question"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-MLDSA-ffa0f5",
+  "title": "The integrity dual of t0 secrecy: how many low bit-planes of t0 in the secret key can be corrupted before signatures stop verifying",
+  "class": "measurement",
+  "claim": "If the low b bit-planes of the signer's stored t0 are randomised, the hint is computed from c t0' instead of c t0 and a signature fails verification only when the error c e pushes a coefficient across a HighBits boundary. Predicted per-signature failure rate is n k sqrt(2/pi) sqrt(tau/6) 2^b / (2 gamma2) for small b: about 2 percent at b = 1 and 17 percent at b = 4 at ML-DSA-44, about 11 percent at b = 4 at ML-DSA-65; the fit holds within factor 2 for b in {1..5} and saturates above. So low-plane t0 integrity faults are largely silent to verification, the dual of how little t0 a public observer needs.",
+  "mechanism": "t0 enters signing only through c t0 in the hint; a randomised low-plane error e has variance about 2^{2b}/6, so c e has standard deviation sqrt(tau/6) 2^b, and a coefficient fails only if it lies within |c e| of a HighBits boundary, probability |c e|/(2 gamma2). The rate quantifies how much of t0 the signer actually uses, the dual of how much of t0 a public observer learns.",
+  "tracked_object": "verify-failure rate vs number of corrupted t0 bit-planes",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "failure rate law",
+    "direction": "different",
+    "minimum_effect": "within factor 2 of n k sqrt(2/pi) sqrt(tau/6) 2^b/(2 gamma2) for b in {1..5}",
+    "falsified_by": "off by factor 4 at two b"
+   },
+   {
+    "id": "P2",
+    "metric": "b = 1 pass rate at ML-DSA-44",
+    "direction": "higher",
+    "minimum_effect": ">= 97 percent",
+    "falsified_by": "< 93 percent"
+   }
+  ],
+  "minimal_test": {
+   "design": "Corrupt t0 bit-planes in sk, sign, verify.",
+   "controls": [
+    "null: uncorrupted sk",
+    "positive: random t0 (all 13 planes)",
+    "A/A: b = 4 under two seeds"
+   ]
+  },
+  "falsification_conditions": [
+   "law fails"
+  ],
+  "confounders": [
+   "corruption pattern random vs structured"
+  ],
+  "interpretation_limits": [
+   "real parameters; corruption simulated",
+   "integrity, not secrecy"
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "c e coefficients are approximately independent of HighBits boundary",
+    "rigorous_support": "heuristic",
+    "validation_plan": "measured"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "O(signatures)",
+   "memory_exponent": "O(1)",
+   "best_known": "none",
+   "hidden_overhead": "none",
+   "tradeoff_note": "measurement"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4dadec",
+    "provenance": "kb",
+    "citation_text": "NIST, FIPS 204 Module-Lattice-Based Digital Signature Standard, 2024",
+    "relation": "adjacent",
+    "delta": "the algorithms under test; body text not read by this program, so every algorithm detail used is re-derived from the PQClean reference and recorded"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-65739b",
+   "IDEA-20260829-a2b5d7",
+   "IDEA-20260821-6109f8"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "t0 bit-plane corruption tolerance",
+   "objective": "how much of t0 signing actually depends on",
+   "instrument": "Patched Python FIPS 204",
+   "parameters": "ML-DSA-44/65/87; b in {0,1,2,3,4,5,8,13}; 10^5 signatures per cell; 10 keys",
+   "procedure": "1) KAT. 2) Corrupt. 3) Sign/verify. 4) Fit law.",
+   "independent_variables": [
+    {
+     "name": "corrupted_planes_b",
+     "levels": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "8",
+      "13"
+     ]
+    },
+    {
+     "name": "parameter_set",
+     "levels": [
+      "44",
+      "65",
+      "87"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "3 disjoint 64-bit seed blocks",
+     "how": "keys, messages and rnd drawn from SHAKE256(seed_block || trial index)"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "b 4",
+      "b 0"
+     ],
+     "differs_in": [
+      "corrupted_planes_b"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "law fit"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "b 4 seed-block A",
+      "b 4 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "verify failure rate"
+   ],
+   "secondary_metrics": [
+    "rejection count changes"
+   ],
+   "preregistered_prediction": {
+    "quantity": "failure rate",
+    "formula": "n k sqrt(2/pi) sqrt(tau/6) 2^b /(2 gamma2)",
+    "source": "boundary-crossing model derived in this record"
+   },
+   "scale_tier": "crypto",
+   "scale_justification": "real parameters",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop at 10^5 per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run whose toyDSA build fails the n = 256 KAT cross-check against the PQClean reference is void",
+    "any key or signature not generated by the run itself from its recorded seed invalidates the run (no external keys)"
+   ],
+   "success_criterion": "P1 in C2 and P2 in C1; AA1 noise floor rates within binomial CI",
+   "falsification_criterion": "C2 off by factor 4",
+   "decision_impact": {
+    "on_positive": "record the integrity tolerance alongside the t0 secrecy price curve",
+    "on_negative": "revise the boundary-crossing model"
+   },
+   "required_artifacts": [
+    "manifest.yaml with parameter set, seeds, tool versions (Python, NumPy, fpylll/G6K where used) and the KAT cross-check digest",
+    "raw-result.json with every per-trial outcome, never only aggregates",
+    "certificate.json: for every claimed recovery, the recovered secret compared coefficient-by-coefficient with the self-generated key",
+    "report.md plus one SVG/PDF plot of the primary metric against the independent variable with A/A band shaded"
+   ]
+  }
+ }
+]

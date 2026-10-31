@@ -45,9 +45,9 @@ Policy (`.artifacts/config.json`, `policy`): a tracked non-code file larger
 than 1 MiB goes to the store; a data-suffixed file (`.jsonl`, `.gz`, `.npy`,
 `.csv`, `.log`, `.part-NNNN`, and the rest of `DATA_EXT`) larger than 64 KiB
 does too. Source, build and config text (`CODE_EXT`) never moves, and PDFs
-(`GIT_EXT`) stay in Git at any size. `policy.keep`
-lists globs that stay in Git whatever their size: data files that code or CI
-outside the data trees name by path (`knowledge/sources.json`,
+(`GIT_EXT`) stay in Git at any size. `policy.keep` lists globs that stay in Git whatever their size: data files that code or CI
+outside the data trees name by path (inputs PDFs, `knowledge/sources.json`,
+`knowledge/leads/ecdlp/coverage.tsv` (read by `tools/lead_atlas.py --check`),
 `research_digest/manifest.jsonl`, two experiment summaries) and the generated
 `ledger/.index/*.jsonl`.
 

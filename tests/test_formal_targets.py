@@ -127,3 +127,36 @@ def test_an_absolute_spec_path_is_refused(tmp_path: Path) -> None:
 
     with pytest.raises(TargetError, match="repository-relative"):
         dispatch_stanza(spec, spec_path=str(TARGETS[0]), artifact_dir=ARTIFACT_DIR)
+
+
+def _spec_with_proof_map(tmp_path: Path, proof_map: str) -> Path:
+    spec = tmp_path / "target.yaml"
+    spec.write_text(
+        f"schema: {SCHEMA_FORMAL_TASK_V1}\n"
+        "task_id: TASK-1\nclaim_id: C-1\nkind: formalize_claim\nsource: note.md\n"
+        "claim: something\ntheorem_name: foo\ntheorem_file: Foo.lean\n" + proof_map
+    )
+    return spec
+
+
+def test_a_proof_map_names_existing_siblings_and_reaches_the_stanza(tmp_path: Path) -> None:
+    (tmp_path / "lemma.yaml").write_text("")
+    spec = load_spec(_spec_with_proof_map(
+        tmp_path,
+        "proof_map:\n  depends_on: [lemma.yaml]\n"
+        "  prerequisites: [Semaev S3 vanishes exactly on collinear triples]\n",
+    ))
+
+    stanza = dispatch_stanza(spec, spec_path="formal/targets/target.yaml", artifact_dir=ARTIFACT_DIR)
+
+    assert any("Semaev S3 vanishes" in c for c in stanza["handoff"]["constraints"])
+
+
+@pytest.mark.parametrize("proof_map, message", [
+    ("proof_map:\n  depends_on: [missing.yaml]\n", "no sibling spec"),
+    ("proof_map:\n  prerequisites: assumed\n", "list of non-empty strings"),
+    ("proof_map:\n  lemmas: [a]\n", "unknown keys"),
+])
+def test_a_malformed_proof_map_is_refused(tmp_path: Path, proof_map: str, message: str) -> None:
+    with pytest.raises(TargetError, match=message):
+        load_spec(_spec_with_proof_map(tmp_path, proof_map))

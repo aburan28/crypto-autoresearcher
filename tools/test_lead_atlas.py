@@ -7,7 +7,9 @@ branch that adds a lead.
 from __future__ import annotations
 
 import copy
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -105,6 +107,40 @@ class PriorArtLeadTests(unittest.TestCase):
                             self._errors(rid, self._block(lead="new"))))
         self.assertTrue(any("is not a lead" in e for e in self._errors(
             rid, self._block(lead="LEAD-ICB-does-not-exist"))))
+
+
+class RecordAreaTests(unittest.TestCase):
+    """ecdlp_records() must see records the id prefix or line regex miss."""
+
+    def _area(self, fn, text: str, suffix: str = ".yaml") -> str | None:
+        with tempfile.NamedTemporaryFile("w", suffix=suffix,
+                                         delete=False) as fh:
+            fh.write(text)
+        try:
+            return fn(fh.name)
+        finally:
+            os.unlink(fh.name)
+
+    def test_one_line_json_idea(self) -> None:
+        text = ('{"idea":{"id":"IDEA-20261030-a62c58",'
+                '"question_id":"RQ-PFDR-ae2fba","status":"proposed"}}')
+        self.assertEqual(self._area(la._idea_area, text), "PFDR")
+
+    def test_yaml_idea_still_uses_the_line_form(self) -> None:
+        text = "idea:\n  id: IDEA-x\n  question_id: RQ-ECDLP-002\n"
+        self.assertEqual(self._area(la._idea_area, text), "ECDLP")
+
+    def test_hypothesis_area_from_its_question(self) -> None:
+        text = ("hypothesis:\n  id: H-SEMAEV-94dab2\n"
+                "  question_id: RQ-ECDLP-002\n")
+        self.assertEqual(self._area(la._record_area, text), "ECDLP")
+
+    def test_prefix_outside_areas_is_classified_by_question(self) -> None:
+        recs = la.ecdlp_records()
+        for rid in ("H-SEMAEV-94dab2", "H-PFIVE-6510c2",
+                    "IDEA-20261030-a62c58"):
+            with self.subTest(rid):
+                self.assertIn(rid, recs)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,23 @@ A target is a **pointer plus a claim, not an approval**. Writing one here
 queues nothing and approves nothing; the Coordinator decides what runs, and a
 machine-verified result is still pending semantic-fidelity review.
 
+A target that builds on other targets, or takes a statement as given without
+proving it, records that in an optional `proof_map` block
+(`docs/formal-research-lane.md`, "Hypothesis deltas, proof maps and errata"):
+
+```yaml
+proof_map:
+  depends_on: [semaev-frobenius-collapse.yaml]   # sibling specs, checked to exist
+  prerequisites:                                  # copied into the stanza's constraints
+    - "Semaev S3 vanishes exactly on x-coordinates of collinear triples"
+```
+
+Add `proof_map` only to **new** targets. A committed spec is frozen: its
+verification receipts bind its SHA-256 (`orchestration/formal/receipts.py`,
+"spec hash"), so adding the block to an old spec would make every receipt for
+it stale. Record the dependency map of an existing chain in this README
+instead, as the Semaev S₃ chain does below.
+
 Every `claim` here is quoted or tightly paraphrased from a committed theory
 note, and `source` names the note it came from. Do not write a claim that is
 not traceable to one: a formalization of a claim nobody made proves nothing
@@ -61,6 +78,37 @@ confirmed the finite degree-three first fall and the narrower trace theorem.
 Its [dated target correction](corrections/2026-10-25-semaev-s3-degree-two.md)
 withdraws the frozen target's uniform degree-two inference while preserving
 the original target bytes.
+
+### Proof map of the Semaev S₃ first-fall chain (recorded 2026-10-29)
+
+The finite chain was split into these targets after a hidden prerequisite
+surfaced: the map from equations to row space. The arrows follow the Lean
+`import` graph. The prerequisites are what each step takes as given without
+a Lean proof.
+
+```text
+semaev-s3-degree2-fall-witness          (DegreeTwoFall; standalone trace identity)
+  prerequisite: the descended degree-two coefficients have the form t^2 + t*x_R
+                (FFD_SEMAEV_MEASUREMENT1; a model of the S_3 descent, not formalized)
+  prerequisite: a vanishing degree-two part gives a new class outside V_1
+                (refuted as a uniform statement: corrections/2026-10-25-semaev-s3-degree-two.md)
+
+semaev-s3-boolean-parity-finite-20261022        (BooleanParityFiniteCertificate)
+  prerequisite: the transcribed equations are the archived n=n'=4, x_R=1 draw
+                (bound by source-binding receipts, not by Lean)
+├── semaev-s3-finite-equation-semantics-20261022   (FiniteEquationSemantics)
+└── semaev-s3-semantic-rank-degree2-20261022       (BooleanParitySemanticRankCertificate)
+    └── semaev-s3-semantic-rank-degree3-20261022   (BooleanParityDegreeThreeRankCertificate)
+        └── semaev-s3-finite-filtration-20261022   (BooleanParityFiltrationCertificate)
+            └── semaev-s3-concrete-first-fall-20261023 (ConcreteFirstFallWitness)
+```
+
+What is still open is a generic descent from abstract `S₃` and a general
+first-fall statement (`problems/semaev-degree-two-fall-nonzero-bridge.md`).
+That statement would also need Semaev's correspondence: `S₃` vanishes exactly
+on the x-coordinates of collinear triples. No target here proves that
+correspondence. `semaev-decomposition-certificate` checks the group law
+directly instead.
 
 **Its uniqueness clause is deliberately narrow** — the annihilating functional
 is NOT unique; only the root of `μ^{1/2} + μ x_R = 0` is. Caminata–Gorla **Theorem 3.1** (`sd_σ(F) = max{d_F, max.GB.deg_σ(F)}`)
@@ -137,9 +185,17 @@ Sage refinement, execution-source custody and independent review remain open.
 `binstd-x17-factorization.yaml` checks the exact product of the three
 polynomials recorded as bitmasks 3, 313 and 471 in the n=17 Stage-1
 admissible-dimension files. It proves their product is `X^17+1` over
-`ZMod 2`. It does not prove that the degree-eight factors are irreducible,
-that the field Frobenius has the asserted normal-basis module structure,
-or that the listed dimensions exhaust all invariant subspaces.
+`ZMod 2`. `binstd-x17-degree-eight-irreducible.yaml` uses that product,
+the seventeenth cyclotomic polynomial, and the order of 2 modulo 17 to
+prove both archived degree-eight factors irreducible. These targets do
+not prove that the field Frobenius has the asserted normal-basis module
+structure or that the listed dimensions exhaust all invariant subspaces.
+
+`binstd-canonical-frobenius-minpoly.yaml` proves that the Frobenius on
+Mathlib's canonical `GaloisField 2 17` has order 17 and minimal polynomial
+equal to the source-bound three-factor product. It does not identify the
+archived runner's polynomial-basis field or subspace constructor with
+this canonical model; the exhaustive dimension classification is still open.
 
 `binstd-encoded-divisors.yaml` kernel-checks the archived integer masks
 131081, 313 and 471 against every monic bitmask divisor through half their
@@ -172,6 +228,16 @@ finds it faithful to the target's claim (`faithful_scoped`, `validated_scoped`
 for that claim only). It does **not** support the note's descent Lemma as
 titled: degree-2 maps as quotients by ι_S, and descent ⟺ commutation, are
 prose. It does not support the summation-polynomial Corollary either.
+
+## Nagao 2015/984 Lemma 4 counterexample
+
+`nagao-lemma4-inside-counterexample-20261029.yaml` (`formal_counterexample`) is the
+Lean twin of the Python certificate of `KN-FIND-936151`: for two finite `F_2`
+systems (N <= 3) the kernel-`decide` theorems give `d_F = 3 > 2 = d'_F` in the
+inside form under the equality reading of condition (1). It is a new spec and
+carries a `proof_map` naming the unformalized transcription of Nagao's
+definitions. See the [report](../../docs/reports/2026-10-29-nagao-lemma4-lean/report.md)
+(hypothesis-delta table, receipt). It says nothing about Proposition 5.
 
 ## Natural follow-ups, deliberately not specced yet
 
