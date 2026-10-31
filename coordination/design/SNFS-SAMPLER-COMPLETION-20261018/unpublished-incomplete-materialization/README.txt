@@ -1,0 +1,1 @@
+Unpublished first local materialization, not a durable approval. Focused validation subsequently found missing variable_ledger/prediction_provenance. No trials were launched. Exact prior bytes retained here; canonical published draft restored before complete re-preapproval. This is process history, not an official decision.

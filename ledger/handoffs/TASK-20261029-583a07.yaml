@@ -1,0 +1,102 @@
+# TASK-20261029-583a07: merge-hygiene guard for runbook-session directories,
+# from the RBS-ICPERF-b7e41c splice. Harness code only. No trial, no record
+# edit.
+handoff:
+  id: TASK-20261029-583a07
+  from: coordinator
+  to: executor
+  role: executor
+  recorded_at: '2026-10-29'
+  kind: tooling_repair
+  opened_by_decision: DEC-20261029-9bc3ff
+  objective: >-
+    Extend tools/check_merge_hygiene.py --base so that it fails a PR whose
+    tree alters a runbook-session file already present on the base, and a PR
+    with a touched session directory that holds a file whose sha256 differs
+    from the digest its journal records.
+  uncertainty_reduced: >-
+    Whether a merge can again splice one execution's session files into
+    another's without any check failing. Merge 0186e97db6 did that with a
+    clean auto-merge, and it reached main through PR #2416.
+  rank_rationale: >-
+    Ranked ahead of doing nothing, below TASK-20261029-1bcf80. 1bcf80 removes
+    the root cause, two executions under one id. This guard is defense in
+    depth at the only point every PR passes through. It would have caught PR
+    #2416, where the base held execution B's empty stderr and the head changed
+    it. It would not have caught PR #2452, where nothing of execution A was on
+    the base, so both are needed. It is cheap: one checker, its tests, zero
+    runs. Its value depends on merge-hygiene running on every PR, which
+    DEC-20261028-f8c018 records; making it required is a repository setting
+    reported to the owner there.
+  inputs:
+    - ledger/decisions/DEC-20261029-9bc3ff.yaml (facts_relied_on.splice; your context)
+    - experiments/EXP-ICPERF-e467a5/audits/AUD-20261029T011541Z-d57860/audit-review.yaml (digest_finding; your context)
+    - docs/runbook-execution.md ("The session directory", "The journal")
+    - tools/check_merge_hygiene.py
+    - tools/test_check_merge_hygiene.py
+    - tools/runbook.py (journal format and the verify digest check; read only, do not import private state that TASK-20261029-1bcf80 may change)
+  constraints:
+    - id: C-1
+      text: >-
+        Applies to paths under experiments/*/runbook-sessions/<id>/ and
+        examples/**/runbook-sessions/<id>/. A file present on the base that the
+        head deletes or changes fails, with one exception: journal.jsonl may
+        change only by append. The base bytes must be a byte prefix of the head
+        bytes. New files are allowed.
+    - id: C-2
+      text: >-
+        For every session directory the PR touches, recompute the sha256 of
+        every file the head journal records (step logs, outputs, unit files)
+        and fail on any mismatch or any missing file. For a file stored through
+        the artifact store, compare the pointer's declared digest. Read only,
+        and write nothing.
+    - id: C-3
+      text: >-
+        Name the session, the file, both digests and the base and head commits
+        in the failure. Do not repair. A known historical mismatch already on
+        main (RBS-ICPERF-b7e41c, annotated by CORR-20261029-892bca) fails only
+        when a PR touches that session, and the message points at the
+        correction record.
+    - id: C-4
+      text: Write only inside write_scope. Run no experiment trial. Tests build synthetic base and head trees in temporary git repositories.
+  deliverables:
+    - tools/check_merge_hygiene.py (the guard)
+    - tools/test_check_merge_hygiene.py (tests added)
+    - coordination/tasks/TASK-20261029-583a07/return.yaml (test output verbatim, hygiene result on origin/main)
+  artifact_paths:
+    - tools/check_merge_hygiene.py
+    - tools/test_check_merge_hygiene.py
+    - coordination/tasks/TASK-20261029-583a07/return.yaml
+  write_scope:
+    - tools/check_merge_hygiene.py
+    - tools/test_check_merge_hygiene.py
+    - coordination/tasks/TASK-20261029-583a07/**
+  archived_by: TASK-20261029-c0d4cd
+  depends_on: []
+  dispatch_preconditions:
+    - TASK-20261029-087ab5 committed and pushed, its receipt recorded
+    - no other open task holds tools/check_merge_hygiene.py or tools/test_check_merge_hygiene.py in its write_scope
+  review_required: false
+  review_note: Harness change. PR checks and tests are the gate.
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+    delivery: interactive
+  budget:
+    maximum_runs: 0
+  completion_gate:
+    - python3 -m pytest tools/test_check_merge_hygiene.py passes, with output saved in return.yaml.
+    - >-
+      The tests cover these cases. Changing a non-journal session file present
+      on the base fails, and so does deleting one. Rewriting the journal fails,
+      while appending to it passes. Adding a new session passes. A touched
+      session with a file off its journal digest fails, including a
+      reconstruction of the b7e41c shape: an empty-on-base stderr replaced by a
+      non-empty one.
+    - python3 tools/check_merge_hygiene.py --base origin/main passes on the task branch.
+    - No byte outside write_scope changed.
+  return_format: Changed paths and sha256, test output verbatim, the hygiene result.
+  state: queued

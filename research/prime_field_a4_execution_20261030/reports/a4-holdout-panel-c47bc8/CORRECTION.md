@@ -1,0 +1,1 @@
+The phrase22source in this report counts21sourcefiles plus one ruleinput. Exact frozen source/input maps and all scientific results are unchanged. The corrected report is in ../a4-holdout-panel-c47bc8-corrected-bindings/. This original report and PDF are preserved.

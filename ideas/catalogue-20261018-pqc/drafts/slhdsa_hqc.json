@@ -1,0 +1,4095 @@
+[
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "WOTS+ chain-position grinding: per-query domination probability under base-w-plus-checksum versus constant-sum encoding at reduced w",
+  "class": "measurement",
+  "claim": "An adversary holding one WOTS+ signature (chain positions b) forges by grinding message digests until the encoded position vector dominates b elementwise. At reduced parameters (w in {4,16}, len1 in {8,16}) the per-query domination probability under the FIPS 205 base-w-plus-checksum encoding exceeds that under a constant-sum encoding of equal signature length by at least a factor of 2 for the worst-quartile signature, and the gap is predicted exactly by the lattice-point counts of the two encodings. If the measured ratio stays within the A/A band, the encoding choice is security-neutral at equal size and only the size argument of KN-LIT-6265 remains.",
+  "mechanism": "Domination needs every coordinate of the new vector to be at least the revealed one. The checksum restores this defence only on average: signatures whose message part is near-maximal have a small checksum, and the checksum digits are then easiest to dominate. A constant-sum encoding fixes the total, so a vector dominating b must equal b, making single-signature domination impossible except by digest collision, while two-signature max-vectors behave differently. The difference is a counting fact over integer vectors, computable exactly, and the grinding experiment checks that the hash behaves like the count predicts.",
+  "tracked_object": "Per-query probability that a fresh digest's encoded chain-position vector dominates a fixed revealed vector, per encoding, as a function of the revealed vector's checksum quantile; plus the same after q = 2,4 signatures (elementwise max).",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "domination probability ratio checksum/constant-sum at q=1, worst quartile",
+    "direction": "higher",
+    "minimum_effect": ">= 2x and outside the A/A 95% band",
+    "falsified_by": "ratio within A/A band or below 1"
+   },
+   {
+    "id": "P2",
+    "metric": "measured minus exact-count domination probability",
+    "direction": "different",
+    "minimum_effect": "|log2 ratio| <= 0.1 for every cell (agreement)",
+    "falsified_by": "any cell deviates by more than 0.1 bit beyond Monte Carlo error"
+   },
+   {
+    "id": "P3",
+    "metric": "q=4 max-vector domination probability ratio",
+    "direction": "lower",
+    "minimum_effect": "ratio shrinks toward 1 by at least 30% relative to q=1",
+    "falsified_by": "ratio at q=4 not smaller than at q=1"
+   }
+  ],
+  "minimal_test": {
+   "design": "Implement both encodings over a SHAKE256-truncated digest; for each of 512 revealed vectors per cell, grind 2^22 digests and count dominating ones; compare to exact counts by dynamic programming over integer vectors.",
+   "controls": [
+    "null: random revealed vectors drawn uniformly from the code space rather than from signatures (removes signature-induced checksum skew)",
+    "positive: planted encoding with the checksum removed, where domination probability must be orders of magnitude higher",
+    "A/A: the checksum arm run under two disjoint seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "measured domination probabilities disagree with the exact DP count beyond 0.1 bit in any cell",
+   "worst-quartile ratio checksum/constant-sum lies inside the A/A band"
+  ],
+  "confounders": [
+   "truncated digest length too short making digest collisions dominate counts",
+   "constant-sum parameter choice not size-matched",
+   "quantile binning artefacts"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate.",
+   "Measures one-time-layer extension probability only; it does not by itself give a hypertree forgery cost."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Truncated SHAKE256 digests behave as uniform over the encoding domain",
+    "rigorous_support": "standard random-oracle heuristic",
+    "validation_plan": "chi-square test of digit marginals on 2^20 digests per seed block"
+   },
+   {
+    "id": "H2",
+    "statement": "Domination probability scales with w and len1 as the exact count predicts, so the ratio transfers",
+    "rigorous_support": "exact combinatorics for the encoding; transfer is about the hash only",
+    "validation_plan": "compare w=4 and w=16 ratios against the DP prediction"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "grinding cost 1/p_dom per forgery, p_dom computed exactly per encoding",
+   "memory_exponent": "O(1)",
+   "best_known": "generic WOTS+ forgery by domination search; constant-sum analysed in KN-LIT-6265 for size",
+   "hidden_overhead": "DP over len1 x w(len1) states; negligible",
+   "tradeoff_note": "constant-sum trades encoding cost (ranking) for zero single-signature domination"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-6265",
+    "provenance": "kb",
+    "citation_text": "Zhang and Cui, Revisiting the Constant-sum Winternitz One-time Signature with Applications to SPHINCS+ and XMSS",
+    "relation": "adjacent",
+    "delta": "KN-LIT-6265 argues size optimality of constant-sum WOTS+; this measures the forgery-by-grinding probability gap at equal size, which the paper does not tabulate"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Perin, Zambonin, Martins, Custodio, Martina, 'Tuning the Winternitz hash-based digital signature scheme', ISCC 2018 (recalled, details hedged)",
+    "relation": "adjacent",
+    "delta": "adds measured grinding against the encoding rather than a proof bound"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-a681fa",
+   "IDEA-20260816-f061f1"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Domination grinding under two WOTS encodings at w in {4,16}",
+   "objective": "Whether the encoding choice changes the per-query one-time forgery probability at equal signature length, and whether exact counts predict it.",
+   "instrument": "Python 3 + NumPy, hashlib SHAKE256, exact DP counter in Python; harness writes per-cell JSON",
+   "parameters": "w in {4,16}; len1 in {8,16}; constant-sum target chosen so total chain count matches len1+len2 of the checksum arm; 512 revealed vectors per cell; 2^22 grinding queries per vector; q in {1,2,4}",
+   "procedure": "1. Freeze encodings and DP counter. 2. Generate revealed vectors from signing random messages. 3. Grind and count dominations. 4. Compute exact DP probabilities. 5. Bin by checksum quantile, compute ratios and bootstrap CIs. 6. Run controls.",
+   "independent_variables": [
+    {
+     "name": "encoding",
+     "levels": [
+      "base_w_checksum",
+      "constant_sum"
+     ]
+    },
+    {
+     "name": "signature_count_q",
+     "levels": [
+      "1",
+      "2",
+      "4"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    },
+    {
+     "name": "run_order",
+     "treatment": "randomized",
+     "value": "cell order shuffled",
+     "how": "permutation from seed"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "checksum q=1",
+      "constant_sum q=1"
+     ],
+     "differs_in": [
+      "encoding"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "checksum q=1",
+      "checksum q=4"
+     ],
+     "differs_in": [
+      "signature_count_q"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "measured vs exact DP, all cells"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "checksum q=1 seed-block A",
+      "checksum q=1 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "worst-quartile domination probability ratio",
+    "log2 measured/exact per cell"
+   ],
+   "secondary_metrics": [
+    "median-quartile ratio",
+    "digit-marginal chi-square"
+   ],
+   "preregistered_prediction": {
+    "quantity": "p_dom ratio checksum/constant-sum, worst quartile, q=1",
+    "formula": "exact DP count of dominating vectors divided by code size, per encoding",
+    "source": "combinatorial count; KN-LIT-6265 encoding definition"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "w and len1 reduced; transfer assumption: ratio is a property of the encoding counts, not of n",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 4,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "stop when all cells reach relative SE below 5%"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a cell whose digit marginal fails chi-square at p<0.001 is invalid"
+   ],
+   "success_criterion": "Success if C1 shows ratio >= 2 outside the AA1 noise floor (P1) and C3 shows agreement within 0.1 bit (P2).",
+   "falsification_criterion": "Falsified if C1 ratio lies within the AA1 noise floor, or C3 shows any cell off by more than 0.1 bit (P1, P2 fail).",
+   "decision_impact": {
+    "on_positive": "File a hypothesis that the FIPS 205 checksum encoding leaves a measurable domination margin relative to constant-sum and price it in the hypertree forgery model.",
+    "on_negative": "Record the encodings as forgery-equivalent at equal size and drop encoding from the slack model."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "per-cell domination counts CSV",
+    "exact DP tables JSON",
+    "ratio-by-quantile SVG and PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Depth-limited parallel Grover cost tables per FIPS 205 hash role: multi-target preimage cost under MAXDEPTH and processor count",
+  "class": "tooling",
+  "claim": "For each FIPS 205 parameter set and each hash role (F, H, T_len, H_msg, PRF), the cost of the best generic quantum multi-target attack depends on the number of exposed targets t, the depth cap D and the processor count P as G = sqrt(2^n / t) total iterations split across P machines, giving total gates ~ 2^n / (t * D) per machine-depth product when D binds. A machine-checked table over D in {2^40, 2^64, 2^96} and t from the transcript exposure counts shows at least one parameter set whose depth-capped quantum margin falls below its category floor by >= 4 bits when t is taken as the full exposed target count; or none does, which is the comfortable-margin outcome.",
+  "mechanism": "Grover parallelises badly: splitting the search space over P machines saves only sqrt(P) in depth while multiplying width by P. Under a depth cap D the attacker must use P = 2^n/(t D^2) machines, and total cost scales as 2^n/(t D), so multi-target gain t is fully realised in the quantum setting under depth limits. Tweaks and per-key PK.seed limit t to targets sharing one tweak domain; the table must count t per tweak domain, not per transcript, which is exactly where conventions disagree.",
+  "tracked_object": "A table T[param_set][role][D][t_convention] -> (log2 total gates, log2 qubit-width, log2 depth) with interval bounds from the oracle-cost range.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "minimum over roles of category margin under D=2^64, t = per-domain exposure",
+    "direction": "lower",
+    "minimum_effect": ">= 4 bits below the category floor for at least one set",
+    "falsified_by": "every set within 4 bits of its floor"
+   },
+   {
+    "id": "P2",
+    "metric": "spread of log2 cost across t conventions (per-transcript vs per-tweak-domain)",
+    "direction": "higher",
+    "minimum_effect": ">= 10 bits for at least one role",
+    "falsified_by": "spread under 10 bits for every role"
+   },
+   {
+    "id": "P3",
+    "metric": "toy statevector success probability vs formula at n<=20",
+    "direction": "different",
+    "minimum_effect": "agreement within 2 SE (validation, not a discovery)",
+    "falsified_by": "disagreement beyond 3 SE"
+   }
+  ],
+  "minimal_test": {
+   "design": "Compute the table from closed forms with interval oracle costs; validate the multi-target parallel Grover success formula by statevector simulation at n = 12..20 bits with t in {1,4,16} and depth caps forcing P in {1,4,16}.",
+   "controls": [
+    "null: single-target (t=1) row, which must reproduce the standard 2^{n/2} quantum preimage cost",
+    "positive: a planted role with t = 2^{n/2} targets in one domain, where the table must show the collapse to depth-limited constant",
+    "A/A: statevector validation run under two seed blocks of target placement"
+   ]
+  },
+  "falsification_conditions": [
+   "statevector success curves disagree with the closed form beyond 3 SE",
+   "table entries do not reduce to known single-target costs at t=1"
+  ],
+  "confounders": [
+   "oracle cost per hash call varies by role and implementation",
+   "t counting convention",
+   "assumption that targets are uniformly placed"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate. Statevector validation is at n<=20; the table itself is a computation at FIPS 205 sizes and is a cost-model statement, not a measured attack.",
+   "Depends on the MAXDEPTH convention; reported as a range, never a point."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Grover with t marked items in 2^n needs ~ (pi/4) sqrt(2^n/t) iterations, and splitting into P parts costs sqrt(P) depth reduction",
+    "rigorous_support": "Boyer-Brassard-Hoyer-Tapp analysis; Zalka optimality",
+    "validation_plan": "statevector simulation at n<=20"
+   },
+   {
+    "id": "H2",
+    "statement": "Per-call oracle cost is within the interval quoted per role",
+    "rigorous_support": "resource estimates for SHA-2/SHA-3 circuits in the literature",
+    "validation_plan": "sensitivity rows at both interval ends"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^n/(t D) total gates under depth cap D; 2^{n/2}/sqrt(t) depth unconstrained",
+   "memory_exponent": "qubit width P*w_oracle",
+   "best_known": "generic quantum preimage search, multi-target variant",
+   "hidden_overhead": "oracle circuit size, QRAM-free target comparison cost t per iteration or table structure",
+   "tradeoff_note": "more targets lower iterations but enlarge the comparison circuit; charged explicitly"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-7077",
+    "provenance": "kb",
+    "citation_text": "Bernstein et al., The SPHINCS+ Signature Framework",
+    "relation": "adjacent",
+    "delta": "the SPHINCS+ paper quotes quantum generic costs per role; this tabulates them under depth caps and t conventions with intervals"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "NIST PQC Call for Proposals (2016), MAXDEPTH guidance (recalled)",
+    "relation": "adjacent",
+    "delta": "supplies the depth-limit convention used as an axis rather than a point"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Amy, Di Matteo, Gheorghiu, Mosca, Parent, Schanck, 'Estimating the cost of generic quantum pre-image attacks on SHA-2 and SHA-3', SAC 2016 (recalled)",
+    "relation": "adjacent",
+    "delta": "per-call oracle costs used as interval endpoints"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-88ecef",
+   "IDEA-20260801-009",
+   "IDEA-20260816-466631"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Quantum multi-target cost table with statevector validation",
+   "objective": "Which FIPS 205 role and parameter set has the thinnest depth-capped quantum margin, and how much the t convention moves it.",
+   "instrument": "Python 3 with mpmath for interval arithmetic; Qiskit Aer statevector for n<=20 validation",
+   "parameters": "Table: 12 FIPS 205 sets x 5 roles x D in {2^40,2^64,2^96} x 2 t conventions. Validation: n in {12,16,20}, t in {1,4,16}, P in {1,4,16}, 200 shots x 50 placements per cell",
+   "procedure": "1. Freeze role exposure counts per signature budget 2^64. 2. Compute interval table. 3. Statevector simulate parallel multi-target Grover and fit success curves. 4. Compare with formula. 5. Render table and margin plot.",
+   "independent_variables": [
+    {
+     "name": "t_convention",
+     "levels": [
+      "per_transcript",
+      "per_tweak_domain"
+     ]
+    },
+    {
+     "name": "depth_cap",
+     "levels": [
+      "2^40",
+      "2^64",
+      "2^96"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    },
+    {
+     "name": "oracle_cost_end",
+     "treatment": "crossed",
+     "value": "low and high interval ends",
+     "how": "both ends computed for every cell"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "per_transcript D=2^64",
+      "per_tweak_domain D=2^64"
+     ],
+     "differs_in": [
+      "t_convention"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "per_tweak_domain D=2^40",
+      "per_tweak_domain D=2^96"
+     ],
+     "differs_in": [
+      "depth_cap"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "statevector vs formula all cells"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "statevector n=16 t=4 P=4 seed-block A",
+      "statevector n=16 t=4 P=4 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "minimum category margin in bits per set",
+    "log2 cost spread across t conventions"
+   ],
+   "secondary_metrics": [
+    "statevector fit residuals"
+   ],
+   "preregistered_prediction": {
+    "quantity": "log2 total gates for multi-target preimage",
+    "formula": "n - log2 t - log2 D + log2 c_oracle (depth-capped regime)",
+    "source": "BBHT/Zalka scaling with NIST MAXDEPTH"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "table at full FIPS 205 sizes is computation; empirical validation at n<=20; transfer assumption: Grover scaling is exact up to constants",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 6,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 40
+   },
+   "stopping_rules": [
+    "stop once every validation cell reaches 50 placements"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a table row whose t=1 entry misses the standard single-target cost by >1 bit invalidates the row"
+   ],
+   "success_criterion": "Success if C1 shows spread >= 10 bits (P2) or C2/C3 reveal a set below its floor by >= 4 bits (P1), with C3 validation agreeing beyond the AA1 noise floor.",
+   "falsification_criterion": "Falsified as a margin concern if every set stays within 4 bits under C2 at D=2^64 and C1 spread is under 10 bits.",
+   "decision_impact": {
+    "on_positive": "Adopt the per-tweak-domain table as the program's quantum cost convention for SLH-DSA and open a targeted slack measurement on the thinnest role.",
+    "on_negative": "Record the quantum margin as comfortable under all tested conventions and close the quantum-convention target of RQ-SLHDSA-001 at toy-tier."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "cost table CSV and JSON with intervals",
+    "statevector validation SVG",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Grafting-tree fault forgery simulated at reduced h and d: faulty signatures needed for a verified universal forgery, by faulted layer",
+  "class": "measurement",
+  "claim": "At reduced parameters (h in {8,12}, d in {2,3,4}, w=16, n=16 bytes), a single transient fault in the computation of a non-top-layer subtree root causes the parent WOTS+ key to sign an attacker-useful wrong root; the number of faulty signatures needed until a grafted subtree yields a verified universal forgery is predicted by the WOTS domination count and is at most 8 for faults on layer d-2 at w=16. The number grows with layer height in a way set by how many signatures reuse the parent one-time key, and an implementation that recomputes and compares roots needs zero-false-negative detection to reach parity with the unfaulted scheme.",
+  "mechanism": "Upper-layer WOTS+ keys sign the same subtree root every time a signature passes through them, so they are used many times by design and expose one fixed chain-position vector. A fault that corrupts the root being signed makes that key sign a second value, granting the elementwise max of two position vectors. Once the attacker can sign an arbitrary root of their own subtree by domination, they graft a fresh subtree and forge for any message. The layer chosen sets how often a faulted signature hits the same parent key and therefore how many faults are needed.",
+  "tracked_object": "Count of faulty signatures until a verified forgery, per faulted layer, plus the per-fault probability that the max-vector dominates a grinding target within 2^24 tries.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "median faulty signatures to verified forgery at layer d-2, w=16",
+    "direction": "lower",
+    "minimum_effect": "<= 8",
+    "falsified_by": "median above 8"
+   },
+   {
+    "id": "P2",
+    "metric": "faulty signatures needed, layer 0 vs layer d-2",
+    "direction": "higher",
+    "minimum_effect": ">= 4x more at layer 0",
+    "falsified_by": "ratio below 4"
+   },
+   {
+    "id": "P3",
+    "metric": "forgery rate with recompute-and-compare countermeasure",
+    "direction": "lower",
+    "minimum_effect": "0 forgeries in 10^4 fault trials",
+    "falsified_by": "any forgery"
+   }
+  ],
+  "minimal_test": {
+   "design": "Toy SLH-DSA signer in Python with tweakable hash = truncated SHAKE256; inject a single random bit flip into the subtree-root register at a chosen layer per signature; adversary grinds to find a dominated root and grafts; every forgery verified by an independent verifier.",
+   "controls": [
+    "null: unfaulted signer, same query budget, forgery rate must be 0",
+    "positive: fault always on the same parent key with attacker-chosen flip, where the forgery must arrive in the minimal count",
+    "A/A: layer d-2 arm under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "median count at layer d-2 exceeds 8 at w=16",
+   "null arm produces any verified forgery (instrument broken)"
+  ],
+  "confounders": [
+   "grinding budget truncation",
+   "independence of fault location",
+   "toy hash truncation causing accidental collisions"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate.",
+   "Fault class only: deployment-level failure, not a statement about the hash assumption; simulated faults, no hardware."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "A transient bit flip in the root register is uniformly located",
+    "rigorous_support": "modelling choice",
+    "validation_plan": "sweep fault location as nuisance and report per-location"
+   },
+   {
+    "id": "H2",
+    "statement": "Grinding success follows the domination count",
+    "rigorous_support": "exact combinatorics",
+    "validation_plan": "compare measured vs DP prediction"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "faults ~ domination-limited; grinding 2^{O(len)} small at w=16 after 2-3 signatures",
+   "memory_exponent": "O(q*len) stored vectors",
+   "best_known": "grafting-tree fault attack on SPHINCS",
+   "hidden_overhead": "verification and grafting cost per attempt",
+   "tradeoff_note": "countermeasure cost: one extra subtree recomputation per layer"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Castelnovi, Martinelli, Prest, 'Grafting trees: a fault attack against the SPHINCS framework', PQCrypto 2018 (recalled)",
+    "relation": "same",
+    "delta": "reproduces the published mechanism end-to-end at reduced h,d and adds the per-layer count curve and a verified-forgery rate under a countermeasure"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Genet, Kannwischer, Pelletier, McLauchlan, 'Practical fault injection attacks on SPHINCS', 2018 (recalled, hedged)",
+    "relation": "adjacent",
+    "delta": "practical injection demonstration; this adds the counting law"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-698819",
+   "IDEA-20260816-f061f1",
+   "IDEA-20260813-7f8d6e"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Grafting forgery count by faulted layer at reduced h,d",
+   "objective": "How many faulty signatures a grafting forgery needs per layer, and whether recompute-and-compare removes it.",
+   "instrument": "Python 3 toy SLH-DSA (shared with lane tooling), SHAKE256 truncated to 16 bytes, independent verifier module",
+   "parameters": "h in {8,12}; d in {2,3,4}; w=16; n=16 bytes; 200 attack trials per cell; grinding budget 2^24 per attempt; countermeasure arm 10^4 faults",
+   "procedure": "1. Freeze signer and verifier. 2. For each cell run attack trials collecting faulty signatures until forgery or budget. 3. Verify forgeries independently. 4. Repeat with countermeasure. 5. Summarise counts with bootstrap CIs.",
+   "independent_variables": [
+    {
+     "name": "faulted_layer",
+     "levels": [
+      "0",
+      "d-2"
+     ]
+    },
+    {
+     "name": "countermeasure",
+     "levels": [
+      "none",
+      "recompute_compare"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    },
+    {
+     "name": "fault_bit_location",
+     "treatment": "randomized",
+     "value": "uniform over root bits",
+     "how": "drawn per fault from seed"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "layer d-2 none",
+      "layer 0 none"
+     ],
+     "differs_in": [
+      "faulted_layer"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "layer d-2 none",
+      "layer d-2 recompute_compare"
+     ],
+     "differs_in": [
+      "countermeasure"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "unfaulted null"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "layer d-2 none seed-block A",
+      "layer d-2 none seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "median faulty signatures to verified forgery"
+   ],
+   "secondary_metrics": [
+    "grinding attempts per forgery",
+    "countermeasure detection rate"
+   ],
+   "preregistered_prediction": {
+    "quantity": "expected faulty signatures to forgery",
+    "formula": "min q with P(max of q+1 vectors dominates a random root encoding within 2^24 tries) >= 1/2",
+    "source": "WOTS+ domination count"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "h,d,n reduced; transfer assumption: count depends on w and reuse rate, not n",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop each cell after 200 trials or 2 CPU-hours"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a forgery that fails the independent verifier is discarded and the trial marked invalid"
+   ],
+   "success_criterion": "Success if C1 shows layer-d-2 median <= 8 and >= 4x ratio to layer 0 beyond the AA1 noise floor (P1, P2), and C2 shows zero forgeries (P3).",
+   "falsification_criterion": "Falsified if C1 layer-d-2 median exceeds 8 or the C1 ratio sits within the AA1 noise floor, or C2 shows forgeries.",
+   "decision_impact": {
+    "on_positive": "Record a measured per-layer fault-count law and use it as the deployment-class baseline for countermeasure studies.",
+    "on_negative": "Record that grafting at reduced parameters needs more faults than the mechanism suggests and re-examine the domination model."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "per-trial fault count CSV",
+    "forgery certificates (message, signature, verifier transcript)",
+    "count-by-layer SVG and PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Compressed ADRS and shared SHA-256 midstate: exhaustive tweak-injectivity census of SHA2 versus SHAKE over every reachable address",
+  "class": "control",
+  "claim": "In the SHA2 instantiation the 32-byte ADRS is compressed to 22 bytes and PK.seed is padded to one block so every call shares a precomputed midstate; in SHAKE the full ADRS is absorbed. Over every address a reduced-parameter signer can reach (h in {8,12}, d in {2,4}, k up to 14, a up to 6, len up to 35), the compressed encoding is injective on reachable addresses with zero collisions, but there exist (type, field) combinations whose compressed images coincide with images from other types when unreachable fields are populated; the reachable/unreachable boundary is the whole safety argument and can be checked exhaustively.",
+  "mechanism": "Domain separation in tweakable hashing is only as good as the injectivity of the tweak encoding over the addresses the signer actually uses. Compression drops high bytes of layer and tree address and keeps type; if a field exceeds its compressed width in some parameter set, two distinct logical calls share a tweak. The shared midstate means the PK.seed block contributes nothing per call, so domain separation rests entirely on the compressed ADRS bytes. An exhaustive census at reduced sizes and an analytic width check at FIPS 205 sizes decide whether any set is near the boundary.",
+  "tracked_object": "Set of (encoding, reachable address) pairs mapped to encoded tweak bytes; number of collisions and minimum headroom (bits) between field values used and field width, per parameter set.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "collisions among reachable compressed tweaks",
+    "direction": "lower",
+    "minimum_effect": "0 at every reduced set",
+    "falsified_by": "any collision"
+   },
+   {
+    "id": "P2",
+    "metric": "minimum headroom bits over FIPS 205 sets (analytic)",
+    "direction": "higher",
+    "minimum_effect": ">= 8 bits for every field",
+    "falsified_by": "a field with headroom under 8 bits"
+   },
+   {
+    "id": "P3",
+    "metric": "collisions when unreachable fields are populated",
+    "direction": "higher",
+    "minimum_effect": ">= 1 cross-type collision found",
+    "falsified_by": "none found in exhaustive sweep"
+   }
+  ],
+  "minimal_test": {
+   "design": "Enumerate every hash call of a full keygen plus 2^12 signatures at reduced parameters for both encodings; hash the encoded tweak bytes into a set and count duplicates; compute headroom analytically for all 12 FIPS 205 sets.",
+   "controls": [
+    "null: full uncompressed ADRS with SHAKE, where collisions must be zero by construction",
+    "positive: planted bug truncating tree address to 4 bytes, where collisions must appear",
+    "A/A: SHA2 census under two seed blocks of signed messages"
+   ]
+  },
+  "falsification_conditions": [
+   "any reachable collision under the standard encoding",
+   "positive control fails to produce collisions"
+  ],
+  "confounders": [
+   "incomplete enumeration of reachable addresses",
+   "implementation of compression from secondary sources"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate. Headroom check at FIPS 205 sizes is analytic, not exhaustive.",
+   "Addresses domain separation only; says nothing about the compression-function security of SHA-256."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Enumeration of keygen plus 2^12 signatures covers all address types and field ranges up to the reduced tree sizes",
+    "rigorous_support": "full keygen enumerates every tree node",
+    "validation_plan": "coverage table by type and field"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "enumeration O(2^h * len * d)",
+   "memory_exponent": "O(set size)",
+   "best_known": "no known attack; domain separation assumed in proofs",
+   "hidden_overhead": "none",
+   "tradeoff_note": "none"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-7077",
+    "provenance": "kb",
+    "citation_text": "Bernstein et al., The SPHINCS+ Signature Framework",
+    "relation": "adjacent",
+    "delta": "framework defines tweakable hashes and ADRS; this checks encoding injectivity over reachable addresses for both instantiations"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "NIST FIPS 205 (2024), Stateless Hash-Based Digital Signature Standard (recalled, not read by this program)",
+    "relation": "adjacent",
+    "delta": "FIPS 205 specification of ADRSc compression for SHA2 (secondary sources only here)"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-466631",
+   "IDEA-20260813-945a67"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Reachable-address tweak injectivity census, SHA2 vs SHAKE",
+   "objective": "Whether any reachable address collides under compression, and how much headroom FIPS 205 sets leave.",
+   "instrument": "Python 3 toy signer instrumented to log every (type, layer, tree, keypair, chain, hash, height, index) tuple",
+   "parameters": "h in {8,12}; d in {2,4}; k in {8,14}; a in {4,6}; w=16; 2^12 signatures per cell",
+   "procedure": "1. Instrument signer. 2. Enumerate keygen and signatures. 3. Encode tweaks both ways and count duplicates. 4. Sweep unreachable field values. 5. Analytic headroom table for 12 FIPS 205 sets.",
+   "independent_variables": [
+    {
+     "name": "encoding",
+     "levels": [
+      "sha2_compressed",
+      "shake_full"
+     ]
+    },
+    {
+     "name": "field_population",
+     "levels": [
+      "reachable_only",
+      "unreachable_swept"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "sha2_compressed reachable_only",
+      "shake_full reachable_only"
+     ],
+     "differs_in": [
+      "encoding"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "sha2_compressed reachable_only",
+      "sha2_compressed unreachable_swept"
+     ],
+     "differs_in": [
+      "field_population"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "analytic headroom FIPS 205"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "sha2_compressed reachable_only seed-block A",
+      "sha2_compressed reachable_only seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "reachable collision count",
+    "minimum headroom bits"
+   ],
+   "secondary_metrics": [
+    "coverage of address types"
+   ],
+   "preregistered_prediction": {
+    "quantity": "reachable collisions",
+    "formula": "0 if every used field value < 2^(compressed width)",
+    "source": "FIPS 205 ADRSc layout (secondary)"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "exhaustive at reduced sizes; analytic at FIPS 205; transfer assumption: field ranges grow as the analytic formula states",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1200,
+    "total_cpu_hours": 2,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 16
+   },
+   "stopping_rules": [
+    "stop when every cell enumerated"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "census with incomplete type coverage is invalid"
+   ],
+   "success_criterion": "Success (encoding confirmed safe) if C1 and C3 show zero reachable collisions and headroom >= 8 bits (P1, P2), with C2 locating the unreachable boundary (P3), beyond the AA1 noise floor.",
+   "falsification_criterion": "Falsified if C1 shows any reachable collision or C3 finds a field with headroom under 8 bits.",
+   "decision_impact": {
+    "on_positive": "Record the reachable/unreachable boundary as a certified control used by fault and alias ideas.",
+    "on_negative": "Escalate an encoding defect at the named set to a separate claim with a verified duplicate-tweak pair."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "collision census JSON",
+    "headroom table CSV",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Verification malleability census at reduced n: accepted mutations per signature field, against a planted lax verifier",
+  "class": "measurement",
+  "claim": "At reduced n (8 and 12 bytes) with toy h, d, k, a, single-bit and single-field mutations of honest signatures are accepted by a reference-faithful verifier only through hash collisions, with the accepted-mutation rate per field matching 2^{-8n} times the field's collision surface; a strong-unforgeability gap appears only where the verifier ignores bytes (for example trailing bytes or unused auth-path nodes). A census of accepted mutations per field, compared with a planted lax verifier, decides whether any field of an SLH-DSA signature is non-binding.",
+  "mechanism": "Every signature byte should enter a hash whose output is compared to the public root. Fields that are recomputed rather than compared (FORS secret values, WOTS chain values, auth-path nodes) can be altered only if a hash collision maps the altered input to the same output; at n of 8 bytes that rate is measurable. A field that is parsed but never hashed would be accepted at rate 1, which is a SUF-CMA break independent of the hash. The census therefore separates hash-limited malleability from parsing-limited malleability.",
+  "tracked_object": "Accepted fraction of mutated signatures per field (R, FORS sk values, FORS auth paths, WOTS sigs per layer, auth paths per layer, length/trailing bytes).",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "accepted fraction per hashed field at n=8 bytes",
+    "direction": "different",
+    "minimum_effect": "within 2x of collision prediction",
+    "falsified_by": "any hashed field above 10x prediction"
+   },
+   {
+    "id": "P2",
+    "metric": "accepted fraction for length-extended or trailing bytes in reference-faithful verifier",
+    "direction": "lower",
+    "minimum_effect": "0 of 10^6",
+    "falsified_by": "any acceptance"
+   },
+   {
+    "id": "P3",
+    "metric": "accepted fraction under planted lax verifier ignoring last auth node",
+    "direction": "higher",
+    "minimum_effect": "~1 for that field",
+    "falsified_by": "below 0.5 (instrument cannot see the defect)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Generate 10^4 honest signatures at reduced sizes; apply exhaustive single-bit flips and random single-field replacements; verify each with the reference verifier and a planted lax verifier.",
+   "controls": [
+    "null: random byte strings of signature length, acceptance must be ~0",
+    "positive: planted lax verifier skipping one auth-path node",
+    "A/A: reference verifier census under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "any hashed field acceptance > 10x prediction",
+   "positive control fails to show acceptance near 1"
+  ],
+  "confounders": [
+   "n reduced so collisions dominate",
+   "mutation enumeration bias"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate. Real implementations need their own census; this measures the reference construction.",
+   "Malleability is a SUF property, not a forgery of a new message."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Accepted mutations at n bytes arise only from collisions of a truncated SHAKE256",
+    "rigorous_support": "random-oracle model",
+    "validation_plan": "compare per-field rate against collision surface"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "O(signatures x mutations) verifications",
+   "memory_exponent": "O(1)",
+   "best_known": "no known malleability of the reference construction (recalled)",
+   "hidden_overhead": "verification cost ~ signing/30",
+   "tradeoff_note": "none"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-1708",
+    "provenance": "kb",
+    "citation_text": "Ajith, Haroon, Ibrahim, KAT-Seeded Fuzzing of Stateful Hash-Based Signature Verification in liboqs, ePrint 2026/1107",
+    "relation": "adjacent",
+    "delta": "fuzzes stateful HBS verification in liboqs; this is a field-resolved census for the stateless construction with a planted defect control"
+   },
+   {
+    "ref": "KN-LIT-7077",
+    "provenance": "kb",
+    "citation_text": "Bernstein et al., The SPHINCS+ Signature Framework",
+    "relation": "adjacent",
+    "delta": "framework claims; census tests which fields bind"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-96af8d",
+   "IDEA-20260813-6d331f"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Per-field acceptance census at n in {8,12} bytes",
+   "objective": "Whether any signature field is accepted after mutation beyond collision rates.",
+   "instrument": "Python 3 toy signer and two verifiers (reference-faithful, planted lax); multiprocessing",
+   "parameters": "n in {8,12} bytes; h=8, d=2, k=8, a=4, w=16; 10^4 signatures; all single-bit flips (~ sig_len*8 each) subsampled to 10^6 per field; 10^6 trailing-byte variants",
+   "procedure": "1. Sign. 2. Mutate per field. 3. Verify with both verifiers. 4. Tabulate acceptance with Clopper-Pearson CIs. 5. Compare to collision surface.",
+   "independent_variables": [
+    {
+     "name": "verifier",
+     "levels": [
+      "reference",
+      "planted_lax"
+     ]
+    },
+    {
+     "name": "n_bytes",
+     "levels": [
+      "8",
+      "12"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "reference n=8",
+      "planted_lax n=8"
+     ],
+     "differs_in": [
+      "verifier"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "reference n=8",
+      "reference n=12"
+     ],
+     "differs_in": [
+      "n_bytes"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "reference vs collision prediction per field"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "reference n=8 seed-block A",
+      "reference n=8 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "accepted fraction per field"
+   ],
+   "secondary_metrics": [
+    "acceptance vs n slope"
+   ],
+   "preregistered_prediction": {
+    "quantity": "accepted fraction per hashed field",
+    "formula": "approximately (number of hash inputs the field feeds) x 2^{-8n}",
+    "source": "collision probability of truncated output"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n reduced to make collisions visible; transfer assumption: rate scales as 2^{-8n}",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 10,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 12
+   },
+   "stopping_rules": [
+    "stop at 10^6 mutations per field"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a verifier disagreement with an independent verifier on honest signatures invalidates the run"
+   ],
+   "success_criterion": "Success (no non-binding field) if C3 shows every field within 2x of prediction and C2 shows the 2^{-8n} slope (P1, P2), with C1 confirming the instrument sees a planted defect (P3), beyond the AA1 noise floor.",
+   "falsification_criterion": "Falsified if C3 shows any field accepted above 10x prediction or C1 fails to separate the planted lax verifier.",
+   "decision_impact": {
+    "on_positive": "Record SLH-DSA reference as field-binding and supply the census harness for implementation audits.",
+    "on_negative": "Isolate the non-binding field and file a SUF-CMA defect claim with a certificate pair."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "acceptance table CSV",
+    "example accepted mutations with verifier transcripts",
+    "PDF report"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Cross-user batching under per-key PK.seed: measured multi-target preimage gain across U keys, distinct versus shared seeds",
+  "class": "composition",
+  "claim": "A classical multi-target preimage search against F-chain values exposed by U users gains a factor equal to the number of targets in one tweak domain. With distinct PK.seed per user the gain is capped at the per-user exposure t, and with a shared (planted) PK.seed it rises to U*t; measured at n in {24,28,32} bits, U in {1,16,256}, the distinct-seed arm shows no cross-user gain (slope of log cost vs log U within 0.1 of 0) while the shared-seed arm shows slope -1 within 0.1.",
+  "mechanism": "Tweakable hashes keyed by PK.seed put each user in a separate function family, so a single evaluation tests membership against one user's targets only. Multi-user security of SLH-DSA thus rests on PK.seed uniqueness. The experiment measures this directly so that cost tables can use per-user t rather than global t, with an explicit check of the failure mode (seed reuse).",
+  "tracked_object": "Number of hash evaluations until first preimage hit against any target, as a function of U and seed regime.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "slope of log2 cost vs log2 U, distinct seeds",
+    "direction": "different",
+    "minimum_effect": "|slope| <= 0.1",
+    "falsified_by": "|slope| > 0.2"
+   },
+   {
+    "id": "P2",
+    "metric": "slope, shared seed",
+    "direction": "lower",
+    "minimum_effect": "slope within 0.1 of -1",
+    "falsified_by": "slope above -0.8"
+   }
+  ],
+  "minimal_test": {
+   "design": "Simulate U toy users each exposing t=64 chain values under truncated SHAKE256 tweakable F; attacker enumerates inputs with a hash-table lookup over all U*t targets; record evaluations to first hit, 200 trials per cell.",
+   "controls": [
+    "null: U=1, which must match 2^n/t",
+    "positive: shared PK.seed, where slope -1 must appear",
+    "A/A: distinct-seed arm under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "distinct-seed slope significantly negative",
+   "positive arm slope not near -1"
+  ],
+  "confounders": [
+   "target table memory limits",
+   "tweak inclusion in F input",
+   "birthday collisions among targets"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate.",
+   "Generic attack only; quantum analogue handled by the cost table idea."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Truncated SHAKE256 keyed by PK.seed behaves as independent random functions across seeds",
+    "rigorous_support": "random-oracle model",
+    "validation_plan": "slope test is itself the validation"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^n/t distinct seeds vs 2^n/(U t) shared",
+   "memory_exponent": "O(U t)",
+   "best_known": "generic multi-target preimage",
+   "hidden_overhead": "table lookup cost",
+   "tradeoff_note": "memory U*t for lookup; charged"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-4938",
+    "provenance": "kb",
+    "citation_text": "Hulsing, Rijneveld, Song, Mitigating Multi-Target Attacks in Hash-based Signatures",
+    "relation": "adjacent",
+    "delta": "XMSS-T introduces keyed/tweaked hashing to mitigate multi-target attacks; this measures the multi-user gain empirically for the SLH-DSA tweak layout"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Bernstein, Hulsing, Kolbl, Niederhagen, Rijneveld, Schwabe, CCS 2019 SPHINCS+ paper multi-user discussion (recalled)",
+    "relation": "adjacent",
+    "delta": "multi-user security of hash-based signatures under tweakable hashes"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-466631",
+   "IDEA-20260808-ae34ad"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Multi-user preimage gain with distinct vs shared PK.seed",
+   "objective": "Whether PK.seed fully removes cross-user multi-target gain in practice.",
+   "instrument": "C or Python+NumPy with hashlib SHAKE256 truncated; hash set of targets",
+   "parameters": "n in {24,28,32} bits; U in {1,16,256}; t=64 per user; 200 trials per cell",
+   "procedure": "1. Generate users and targets. 2. Run search to first hit. 3. Regress log cost on log U per regime. 4. Bootstrap slopes.",
+   "independent_variables": [
+    {
+     "name": "seed_regime",
+     "levels": [
+      "distinct",
+      "shared"
+     ]
+    },
+    {
+     "name": "users_U",
+     "levels": [
+      "1",
+      "16",
+      "256"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    },
+    {
+     "name": "n_bits",
+     "treatment": "crossed",
+     "value": "24,28,32",
+     "how": "every cell at each n"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "distinct U=256",
+      "shared U=256"
+     ],
+     "differs_in": [
+      "seed_regime"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "distinct U=1",
+      "distinct U=256"
+     ],
+     "differs_in": [
+      "users_U"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "U=1 vs 2^n/t"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "distinct U=16 seed-block A",
+      "distinct U=16 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "slope of log cost vs log U per regime"
+   ],
+   "secondary_metrics": [
+    "per-n consistency"
+   ],
+   "preregistered_prediction": {
+    "quantity": "slope",
+    "formula": "0 for distinct seeds, -1 for shared",
+    "source": "random-function model"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n reduced to 24-32; transfer assumption: slope independent of n",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 12,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 18
+   },
+   "stopping_rules": [
+    "stop when slope CI half-width < 0.05"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "trial with hash-table overflow invalid"
+   ],
+   "success_criterion": "Success if C2 shows slope within 0.1 of 0 for distinct seeds and C1 separates regimes with shared slope near -1 (P1, P2), beyond the AA1 noise floor.",
+   "falsification_criterion": "Falsified if C2 shows a distinct-seed slope below -0.2 or C1 shows no separation.",
+   "decision_impact": {
+    "on_positive": "Adopt per-user t in all SLH-DSA cost tables and record PK.seed uniqueness as the load-bearing multi-user assumption.",
+    "on_negative": "Investigate the unexpected cross-user gain as a tweak-separation defect."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "cost-vs-U CSV",
+    "slope SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Iteration-skip faults on the WOTS+ chain loop release lower chain values: forgery capability per fault versus bit-flip faults",
+  "class": "mechanism",
+  "claim": "A fault that skips delta iterations in the chain function when computing a WOTS+ signature releases chain value at position b_i - delta instead of b_i, permanently granting positions >= b_i - delta for that chain. At w=16 with len=35 (n reduced), a single 1-iteration skip in one chain raises the single-signature domination probability by a factor predicted by the domination count, and three skip faults on the same top-layer key suffice for a verified forgery in at least half of trials; bit-flip faults of equal count (the graded model of IDEA-20260816-698819) need at least 4x more.",
+  "mechanism": "Bit-flip faults corrupt a value, which mostly yields garbage the attacker cannot use; an iteration-skip yields a valid chain value lower in the chain, which is exactly what WOTS+ forgery needs. Because top-layer keys are reused across all signatures, a skip on them accumulates. The fault model is therefore qualitatively stronger per fault, and countermeasures that check output consistency (recompute the WOTS public key) detect it while those that only duplicate data do not.",
+  "tracked_object": "Domination probability and faults-to-forgery count per fault model (iteration skip vs bit flip) on top-layer WOTS+ keys.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "faults to verified forgery, skip model, median",
+    "direction": "lower",
+    "minimum_effect": "<= 3",
+    "falsified_by": "median above 3"
+   },
+   {
+    "id": "P2",
+    "metric": "ratio bit-flip/skip faults to forgery",
+    "direction": "higher",
+    "minimum_effect": ">= 4",
+    "falsified_by": "below 4"
+   },
+   {
+    "id": "P3",
+    "metric": "detection by WOTS pk recompute",
+    "direction": "higher",
+    "minimum_effect": "100% of skip faults detected in 10^4",
+    "falsified_by": "any undetected"
+   }
+  ],
+  "minimal_test": {
+   "design": "Toy signer with an injectable chain loop; per signature inject one fault of the given model in the top-layer WOTS; adversary combines released values and grinds for dominated roots; verify forgeries independently.",
+   "controls": [
+    "null: no fault, zero forgeries",
+    "positive: attacker-chosen chain and maximal skip, minimal count must be reached",
+    "A/A: skip model under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "median skip faults to forgery above 3",
+   "bit-flip ratio under 4"
+  ],
+  "confounders": [
+   "fault location distribution",
+   "grinding budget"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate.",
+   "Deployment-class result: simulated fault model, not a hash-assumption statement."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Skip faults are uniformly located among chains and iterations",
+    "rigorous_support": "modelling choice",
+    "validation_plan": "report per-location breakdown"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "faults O(1); grinding small",
+   "memory_exponent": "O(len)",
+   "best_known": "grafting/fault attacks on SPHINCS",
+   "hidden_overhead": "verification",
+   "tradeoff_note": "recompute-and-compare doubles WOTS cost"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Castelnovi, Martinelli, Prest, 'Grafting trees', PQCrypto 2018 (recalled)",
+    "relation": "adjacent",
+    "delta": "bit-flip on root model; this adds an iteration-skip model with per-fault capability counts"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Generic instruction-skip fault models in embedded cryptography, e.g. Moro et al. (recalled, hedged)",
+    "relation": "adjacent",
+    "delta": "instruction-skip fault literature in general"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-698819",
+   "IDEA-20260816-a681fa"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Iteration-skip vs bit-flip faults on top-layer WOTS+",
+   "objective": "Whether control-flow faults are much more useful per fault than data faults.",
+   "instrument": "Python 3 toy signer with fault hooks; independent verifier",
+   "parameters": "w=16; len1=32 (n=16 bytes reduced output); h=8,d=2; 200 trials per cell; grinding 2^24",
+   "procedure": "1. Freeze hooks. 2. Run attacks per model until forgery or 64 faults. 3. Verify. 4. Countermeasure arm.",
+   "independent_variables": [
+    {
+     "name": "fault_model",
+     "levels": [
+      "iteration_skip",
+      "bit_flip"
+     ]
+    },
+    {
+     "name": "countermeasure",
+     "levels": [
+      "none",
+      "wots_pk_recompute"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    },
+    {
+     "name": "skip_length",
+     "treatment": "fixed",
+     "value": "1 iteration",
+     "how": "constant across trials"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "iteration_skip none",
+      "bit_flip none"
+     ],
+     "differs_in": [
+      "fault_model"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "iteration_skip none",
+      "iteration_skip wots_pk_recompute"
+     ],
+     "differs_in": [
+      "countermeasure"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "null unfaulted"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "iteration_skip none seed-block A",
+      "iteration_skip none seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "median faults to verified forgery"
+   ],
+   "secondary_metrics": [
+    "detection rate"
+   ],
+   "preregistered_prediction": {
+    "quantity": "faults to forgery",
+    "formula": "min f with domination probability of combined vector >= 2^{-24} grind threshold",
+    "source": "domination count"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "reduced h,d; transfer: per-chain mechanism independent of h",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 6,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "200 trials per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "unverified forgery discarded"
+   ],
+   "success_criterion": "Success if C1 shows skip median <= 3 and ratio >= 4 beyond the AA1 noise floor (P1, P2) and C2 shows full detection (P3).",
+   "falsification_criterion": "Falsified if C1 ratio < 4 or skip median > 3.",
+   "decision_impact": {
+    "on_positive": "Add iteration-skip as a named grade in the fault lattice and require recompute countermeasures in deployment notes.",
+    "on_negative": "Fold skip faults into the existing bit-flip grading without a separate class."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "fault-count CSV",
+    "forgery certificates",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Role-dependent quantum oracle cost: reversible SHA-256 and Keccak circuits sized per FIPS 205 role input length",
+  "class": "measurement",
+  "claim": "Quantum generic attacks against SLH-DSA roles have very different per-call oracle costs because inputs differ in length: F is one compression call while T_len on a WOTS public key absorbs len*n bytes (35-67 chains). Counting T-gates, T-depth and qubits of reversible SHA-256 compression and Keccak-f[1600] circuits built at reduced rounds and extrapolated per round, the oracle cost for T_len exceeds that of F by at least 5 bits at every FIPS 205 set, which raises the quantum cost of attacks on WOTS public-key compression by the same amount relative to a uniform-oracle convention.",
+  "mechanism": "Grover cost is iterations times oracle cost, and published SLH-DSA quantum numbers often use one oracle cost for all roles. The number of compression or permutation calls per role is fixed by FIPS 205 input lengths; reversible circuit cost per call is measurable by building the circuit and counting gates. This turns a convention into a measured per-role constant.",
+  "tracked_object": "Per-role T-count, T-depth and qubit width of the reversible oracle, measured at 1..4 rounds and extrapolated linearly to full rounds, times calls per role.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log2 oracle cost T_len minus F, SHA2 instantiation, cat 1",
+    "direction": "higher",
+    "minimum_effect": ">= 5 bits",
+    "falsified_by": "under 5 bits"
+   },
+   {
+    "id": "P2",
+    "metric": "linearity of per-round T-count",
+    "direction": "different",
+    "minimum_effect": "R^2 >= 0.999",
+    "falsified_by": "R^2 below 0.99 (extrapolation unjustified)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Build reversible circuits for SHA-256 compression and Keccak-f rounds in Qiskit or Q# resource estimator for 1-4 rounds; count gates; multiply by role call counts.",
+   "controls": [
+    "null: identical circuits for two roles with equal input length, cost must be equal",
+    "positive: an input length doubling, cost must double",
+    "A/A: two independent circuit syntheses (different synthesis seed) of SHA-256 round"
+   ]
+  },
+  "falsification_conditions": [
+   "T_len minus F under 5 bits",
+   "non-linear per-round scaling"
+  ],
+  "confounders": [
+   "adder choice in SHA-256 circuits",
+   "uncomputation strategy"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate. Full-round costs are extrapolated, not built.",
+   "Gate counts are a cost model, not an attack."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Per-round cost is linear in rounds",
+    "rigorous_support": "rounds are structurally identical",
+    "validation_plan": "fit check P2"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "oracle cost c_role multiplies Grover iterations",
+   "memory_exponent": "qubits for state plus ancilla",
+   "best_known": "Amy et al. 2016 per-call estimates",
+   "hidden_overhead": "uncompute overhead ~2x",
+   "tradeoff_note": "depth vs width trade in adders"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Amy, Di Matteo, Gheorghiu, Mosca, Parent, Schanck, SAC 2016 (recalled)",
+    "relation": "same",
+    "delta": "provides full SHA-2/SHA-3 Grover oracle estimates; this applies them per FIPS 205 role with role call counts and reproduces per-round counts"
+   },
+   {
+    "ref": "KN-LIT-7077",
+    "provenance": "kb",
+    "citation_text": "Bernstein et al., The SPHINCS+ Signature Framework",
+    "relation": "adjacent",
+    "delta": "defines roles and input lengths"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-88ecef"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Per-role reversible oracle cost",
+   "objective": "How much per-role oracle cost differs and whether a uniform convention misprices roles.",
+   "instrument": "Qiskit (or Azure Quantum resource estimator offline equivalent) with hand-built reversible SHA-256 and Keccak rounds; Python",
+   "parameters": "rounds 1..4 per primitive; roles F, H, T_len, H_msg, PRF for 12 FIPS 205 sets",
+   "procedure": "1. Build round circuits. 2. Count gates. 3. Fit linear model. 4. Multiply by calls per role. 5. Table.",
+   "independent_variables": [
+    {
+     "name": "role",
+     "levels": [
+      "F",
+      "T_len"
+     ]
+    },
+    {
+     "name": "primitive",
+     "levels": [
+      "sha256",
+      "keccak"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "two synthesis seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    },
+    {
+     "name": "adder_design",
+     "treatment": "fixed",
+     "value": "ripple-carry with Toffoli",
+     "how": "constant"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "F sha256",
+      "T_len sha256"
+     ],
+     "differs_in": [
+      "role"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "F sha256",
+      "F keccak"
+     ],
+     "differs_in": [
+      "primitive"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "per-round linearity"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "F sha256 seed-block A",
+      "F sha256 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 cost difference per role"
+   ],
+   "secondary_metrics": [
+    "T-depth, qubits"
+   ],
+   "preregistered_prediction": {
+    "quantity": "T_len/F cost ratio",
+    "formula": "ceil(len*n + overhead)/64 compression calls vs 1",
+    "source": "FIPS 205 input lengths"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "rounds reduced; transfer: linear in rounds",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 2,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 16
+   },
+   "stopping_rules": [
+    "one synthesis per seed per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a circuit failing classical simulation on 1000 random inputs is invalid"
+   ],
+   "success_criterion": "Success if C1 shows >= 5 bits difference beyond the AA1 noise floor (P1) and C3 linearity holds (P2).",
+   "falsification_criterion": "Falsified if C1 difference under 5 bits or C3 linearity fails.",
+   "decision_impact": {
+    "on_positive": "Replace the uniform oracle convention with per-role costs in the quantum cost table.",
+    "on_negative": "Keep the uniform convention, noting the measured role spread."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "gate-count CSV",
+    "circuit files",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Merkle-Damgard chaining bottleneck at toy scale: multi-target second preimages via the internal state when n exceeds c/2",
+  "class": "mechanism",
+  "claim": "With a toy MD hash of chaining width c and output n, multi-target attacks on multi-block roles (T_len, H_msg) can target the internal chaining value rather than the output, so their cost scales with c rather than n once n > c/2; at c=32, n in {16,20,24} bits the measured cost of a second-preimage on T_len with t targets follows 2^{c}/(t * blocks) and flattens in n, while a sponge with capacity 2n follows 2^n/t. This reproduces at toy scale why FIPS 205 uses SHA-512 for some roles in categories 3 and 5.",
+  "mechanism": "In MD, every intermediate chaining value of a long input is a target for an expandable-message-style second preimage; the number of targets grows with blocks, and the search space is the chaining width. When n is large relative to c, the chaining value is the cheaper target. A sponge instantiated with sufficient capacity does not have this shortcut. Measuring the crossover validates the parameter choice and exposes where the margin is thinnest.",
+  "tracked_object": "Hash evaluations to a second preimage of a multi-block role input under MD(c) vs sponge, as a function of n and blocks.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "slope of log2 cost vs n for MD at n > c/2",
+    "direction": "different",
+    "minimum_effect": "within 0.15 of 0",
+    "falsified_by": "slope above 0.5"
+   },
+   {
+    "id": "P2",
+    "metric": "MD cost / sponge cost at n=24, c=32",
+    "direction": "lower",
+    "minimum_effect": "<= 2^-4",
+    "falsified_by": "ratio above 2^-2"
+   }
+  ],
+  "minimal_test": {
+   "design": "Build toy MD (Davies-Meyer over a 32-bit block cipher from truncated SHAKE) and toy sponge; run multi-target second-preimage search on inputs of 8-64 blocks; 100 trials per cell.",
+   "controls": [
+    "null: single-block input where both constructions must match",
+    "positive: c=n/2 artificially narrow chain, effect must be maximal",
+    "A/A: MD arm under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "MD slope in n not flat",
+   "ratio not below 2^-2"
+  ],
+  "confounders": [
+   "toy compression function quality",
+   "expandable message overhead"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate.",
+   "Reproduces a known structural point; FIPS 205 already mitigates it, so this measures margin, not a break."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Toy compression from truncated SHAKE behaves as a random function",
+    "rigorous_support": "model",
+    "validation_plan": "chi-square on outputs"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^c/(t*blocks) MD vs 2^n/t sponge",
+   "memory_exponent": "O(t*blocks)",
+   "best_known": "Antonov-style SHA-256 multi-target attack (recalled)",
+   "hidden_overhead": "expandable message construction",
+   "tradeoff_note": "memory for chain-value table charged"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Sydney Antonov, multi-target attack on SPHINCS+ SHA-256 instantiation, NIST pqc-forum / ePrint 2022 (recalled, hedged)",
+    "relation": "same",
+    "delta": "describes the attack on SPHINCS+-SHA-256 at higher categories; this measures its scaling at toy widths"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Kelsey, Schneier, 'Second preimages on n-bit hash functions for much less than 2^n work', EUROCRYPT 2005 (recalled)",
+    "relation": "adjacent",
+    "delta": "expandable messages"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260807-c4f1fc"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Chaining-width vs output-width multi-target second preimage",
+   "objective": "Where MD chaining becomes the binding cost and by how much.",
+   "instrument": "C with OpenSSL-free toy primitives built from SHAKE; Python driver",
+   "parameters": "c=32; n in {16,20,24}; blocks in {8,64}; t from exposure of toy signer (up to 2^10); 100 trials per cell",
+   "procedure": "1. Build primitives. 2. Generate targets. 3. Search. 4. Fit slopes.",
+   "independent_variables": [
+    {
+     "name": "construction",
+     "levels": [
+      "md",
+      "sponge"
+     ]
+    },
+    {
+     "name": "n_bits",
+     "levels": [
+      "16",
+      "20",
+      "24"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "md n=24",
+      "sponge n=24"
+     ],
+     "differs_in": [
+      "construction"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "md n=16",
+      "md n=24"
+     ],
+     "differs_in": [
+      "n_bits"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "single-block null"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "md n=20 seed-block A",
+      "md n=20 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 evaluations to second preimage"
+   ],
+   "secondary_metrics": [
+    "slope in n"
+   ],
+   "preregistered_prediction": {
+    "quantity": "MD cost",
+    "formula": "2^c/(t*blocks)",
+    "source": "chaining-value targeting"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "widths 16-32; transfer: scaling law in c and n",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 16,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "100 trials per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "trial exceeding 2^34 evaluations is censored, not negative"
+   ],
+   "success_criterion": "Success if C2 shows flat slope (P1) and C1 ratio <= 2^-4 (P2), beyond the AA1 noise floor.",
+   "falsification_criterion": "Falsified if C2 slope > 0.5 or C1 ratio above 2^-2.",
+   "decision_impact": {
+    "on_positive": "Record the measured chaining-bottleneck law and audit each FIPS 205 role's chaining width against it.",
+    "on_negative": "Record that toy MD does not show the bottleneck and re-examine the attack description."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "cost CSV",
+    "slope SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Fault countermeasure frontier: detection by caching upper-layer one-time signatures versus memory, against grafting faults",
+  "class": "composition",
+  "claim": "Upper hypertree layers sign deterministic roots, so caching the WOTS+ signatures of the top L layers and comparing on reuse detects any fault that changes a cached root. At reduced d in {3,4}, h in {9,12}, caching the top L layers detects 100% of grafting faults on those layers and 0% below, so the detection-versus-memory curve is a step function whose memory cost per layer is 2^{h' (L-1)} WOTS signatures; full protection at d=4 costs at least 2^6 times more memory than protecting the top layer alone.",
+  "mechanism": "Determinism makes upper-layer signatures cacheable; any deviation is evidence of a fault. Lower layers vary per signature, so caching does not help there, but lower-layer keys are rarely reused, so faults there need many more signatures (see grafting idea). The frontier measures the residual forgery rate under realistic budgets.",
+  "tracked_object": "Detection rate and residual forgery rate per cached-layer count L, with memory in bytes.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "detection rate on cached layers",
+    "direction": "higher",
+    "minimum_effect": "100% of 10^4 faults",
+    "falsified_by": "any miss"
+   },
+   {
+    "id": "P2",
+    "metric": "residual forgery rate with L=1 at d=4 within 10^4 faulty signatures",
+    "direction": "lower",
+    "minimum_effect": "<= 0.1 of unprotected",
+    "falsified_by": "above 0.5 of unprotected"
+   }
+  ],
+  "minimal_test": {
+   "design": "Toy signer with cache of top L layers; inject grafting faults at random layers; measure detection and forgeries.",
+   "controls": [
+    "null: L=0 (no cache)",
+    "positive: L=d (all layers cached)",
+    "A/A: L=1 under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "any undetected fault on a cached layer",
+   "L=1 residual above 0.5 of unprotected"
+  ],
+  "confounders": [
+   "fault-layer distribution",
+   "cache integrity itself faultable"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate.",
+   "Assumes cache memory not faulted; a Rowhammer-style memory fault on the cache is out of model."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Faults are uniform over layers",
+    "rigorous_support": "modelling",
+    "validation_plan": "per-layer breakdown"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "detection O(1) compare",
+   "memory_exponent": "2^{h'(L-1)} * sig_wots",
+   "best_known": "2026 fault countermeasure work (RQ motivation, unverified)",
+   "hidden_overhead": "compare cost",
+   "tradeoff_note": "memory vs fault resilience"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Genet et al. 2018 SPHINCS fault countermeasure discussion (recalled, hedged)",
+    "relation": "adjacent",
+    "delta": "caching/redundancy countermeasures"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "2026 scalable fault countermeasure work for SLH-DSA (secondary reporting, unverified)",
+    "relation": "adjacent",
+    "delta": "proposed scalable countermeasures trading memory for resilience, cited in RQ motivation"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260813-7f8d6e",
+   "IDEA-20260816-698819"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Cache-depth detection frontier",
+   "objective": "Shape of the detection-vs-memory frontier.",
+   "instrument": "Python toy signer with cache layer",
+   "parameters": "d in {3,4}; h in {9,12}; L in {0..d}; 10^4 faults per cell",
+   "procedure": "1. Sign with cache. 2. Inject faults. 3. Measure detection and run grafting adversary. 4. Plot frontier.",
+   "independent_variables": [
+    {
+     "name": "cached_layers",
+     "levels": [
+      "0",
+      "1",
+      "d"
+     ]
+    },
+    {
+     "name": "d_layers",
+     "levels": [
+      "3",
+      "4"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "L=0 d=4",
+      "L=1 d=4"
+     ],
+     "differs_in": [
+      "cached_layers"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "L=1 d=3",
+      "L=1 d=4"
+     ],
+     "differs_in": [
+      "d_layers"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "L=d full cache"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "L=1 d=4 seed-block A",
+      "L=1 d=4 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "detection rate",
+    "residual forgery rate"
+   ],
+   "secondary_metrics": [
+    "memory bytes"
+   ],
+   "preregistered_prediction": {
+    "quantity": "detection rate on cached layers",
+    "formula": "1 for cached, 0 otherwise",
+    "source": "determinism of upper layers"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "reduced d,h; transfer: step shape independent of n",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 4,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "10^4 faults per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "forgery not verified independently discarded"
+   ],
+   "success_criterion": "Success if C1 shows L=1 residual <= 0.1 of L=0 beyond the AA1 noise floor (P2) and C3 detection 100% (P1).",
+   "falsification_criterion": "Falsified if C1 residual above 0.5 or C3 misses faults.",
+   "decision_impact": {
+    "on_positive": "Record the frontier as the deployment countermeasure baseline.",
+    "on_negative": "Record caching as insufficient and pursue recompute-based countermeasures."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "frontier CSV",
+    "SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-SLHDSA-001",
+  "title": "Where the old tight WOTS+ proof broke: frequency of chain-merge forgeries without a second preimage at reduced n, versus proof terms",
+  "class": "measurement",
+  "claim": "The Kudinov-Kiktenko-Fedorov flaw concerns forgeries in which the forged chain value meets the honest chain at a later step without a second preimage at the step the old reduction extracted. At n in {10,12,14} bits, w=16, the fraction of extracted WOTS+ forgeries that are chain-merge events without an SM-TCR break at the reduction's step exceeds 5% and matches the recovered proof's (KN-LIT-6178) additional term within a factor 2; at larger n the fraction falls as predicted.",
+  "mechanism": "In short hash chains, two distinct inputs can merge after a few steps; the reduction that expects a collision at a specific step misses those cases. The recovered tight proof adds a term (preimage/undetectability) to cover them. Measuring the event frequency at toy n directly quantifies how much of the proof's slack each term carries.",
+  "tracked_object": "Fraction of successful WOTS+ forgeries classified as (a) second preimage at extraction step, (b) chain merge later, (c) other.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "fraction of class (b) at n=10",
+    "direction": "higher",
+    "minimum_effect": ">= 5%",
+    "falsified_by": "under 1%"
+   },
+   {
+    "id": "P2",
+    "metric": "ratio measured (b) fraction / proof term",
+    "direction": "different",
+    "minimum_effect": "within factor 2",
+    "falsified_by": "off by more than 4x"
+   }
+  ],
+  "minimal_test": {
+   "design": "Exhaustive-grinding WOTS+ forgeries at toy n; classify each forgery by tracing chains; compare with bound terms computed at the same n.",
+   "controls": [
+    "null: ideal random-permutation chains (no merges possible), class (b) must be 0",
+    "positive: chain function with planted short cycle, class (b) must dominate",
+    "A/A: n=12 arm under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "(b) under 1% at n=10",
+   "measured vs term off by > 4x"
+  ],
+  "confounders": [
+   "grinding biased toward particular chains",
+   "classification bugs"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no statement transfers to a FIPS 205 parameter set without the stated transfer assumption and a separate crypto-tier certificate.",
+   "Measures term weight at toy n; scaling of the term to n=128 is analytic."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Truncated SHAKE chains behave as random functions",
+    "rigorous_support": "model",
+    "validation_plan": "cycle structure check"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "grinding 2^{O(n)}",
+   "memory_exponent": "O(1)",
+   "best_known": "tight proof restored in KN-LIT-6178",
+   "hidden_overhead": "classification tracing",
+   "tradeoff_note": "none"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-6178",
+    "provenance": "kb",
+    "citation_text": "Recovering the tight security proof of SPHINCS+",
+    "relation": "same",
+    "delta": "recovers the tight proof; this measures the frequency of the event that broke the old proof and the weight of the new term"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Kudinov, Kiktenko, Fedorov, 'Security analysis of the W-OTS+ signature scheme: updating security bounds', 2020 (recalled)",
+    "relation": "same",
+    "delta": "identified the flaw"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260813-84d1bc",
+   "IDEA-20260808-02a046"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Chain-merge forgery frequency at toy n",
+   "objective": "How much of the WOTS+ proof's slack is carried by the merge term.",
+   "instrument": "Python+NumPy; truncated SHAKE256 chain function",
+   "parameters": "n in {10,12,14} bits; w=16; len=8 chains; 10^4 forgeries per cell",
+   "procedure": "1. Grind forgeries. 2. Trace and classify. 3. Compute bound terms. 4. Compare.",
+   "independent_variables": [
+    {
+     "name": "chain_function",
+     "levels": [
+      "random_function",
+      "random_permutation"
+     ]
+    },
+    {
+     "name": "n_bits",
+     "levels": [
+      "10",
+      "12",
+      "14"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "random_function n=10",
+      "random_permutation n=10"
+     ],
+     "differs_in": [
+      "chain_function"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "random_function n=10",
+      "random_function n=14"
+     ],
+     "differs_in": [
+      "n_bits"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "measured vs proof term"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "random_function n=12 seed-block A",
+      "random_function n=12 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "class (b) fraction"
+   ],
+   "secondary_metrics": [
+    "measured/term ratio"
+   ],
+   "preregistered_prediction": {
+    "quantity": "merge fraction",
+    "formula": "proof term ratio from KN-LIT-6178 at given n",
+    "source": "KN-LIT-6178"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n 10-14 bits; transfer: term formula",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 8,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 18
+   },
+   "stopping_rules": [
+    "10^4 forgeries per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "misclassified forgeries detected by double tracing invalidate cell"
+   ],
+   "success_criterion": "Success if C1 separates functions and class (b) >= 5% (P1) with C3 within factor 2 (P2), beyond the AA1 noise floor.",
+   "falsification_criterion": "Falsified if class (b) under 1% at n=10 or C3 off by > 4x.",
+   "decision_impact": {
+    "on_positive": "Use measured term weights in the slack model.",
+    "on_negative": "Treat the merge term as negligible in slack accounting."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "classification CSV",
+    "SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-HQC-001",
+  "title": "Certified importance-sampling estimator of HQC's decoding failure rate at reduced n: weight tilting with a provable upper bound",
+  "class": "tooling",
+  "claim": "At reduced n where direct Monte Carlo sees failures only at DFR >= 2^-24, an importance-sampling estimator that tilts the weights of r1, r2, e upward and reweights by the exact likelihood ratio of fixed-weight distributions estimates DFRs down to 2^-40 with relative error under 20%, and its empirical-Bernstein upper confidence bound covers the true value in at least 95% of replicate runs where the truth is known by direct MC. Where direct MC and IS overlap they agree within the A/A band; if they do not, the IS estimator is biased and must not be used for extrapolation.",
+  "mechanism": "Failures come from heavy-tailed weight of e' = x r2 - r1 y + e; tilting r1, r2, e weights to larger values makes failures common, and the exact ratio of the two fixed-weight hypergeometric-type distributions restores unbiasedness. Because weight is the dominant failure driver, the tilt captures most variance. A certified bound needs bounded likelihood ratios, which holds since weights range over a finite set; empirical Bernstein gives a finite-sample upper bound.",
+  "tracked_object": "IS estimate of DFR and its 95% upper confidence bound, versus direct MC estimate, per reduced parameter set.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "log2 IS/MC ratio in overlap region",
+    "direction": "different",
+    "minimum_effect": "|log2 ratio| <= 0.25",
+    "falsified_by": "|log2 ratio| > 0.5"
+   },
+   {
+    "id": "P2",
+    "metric": "coverage of 95% UCB over 40 replicates",
+    "direction": "higher",
+    "minimum_effect": ">= 0.92",
+    "falsified_by": "< 0.85"
+   },
+   {
+    "id": "P3",
+    "metric": "relative SE at DFR 2^-40 per 10^8 samples",
+    "direction": "lower",
+    "minimum_effect": "<= 20%",
+    "falsified_by": "> 50%"
+   }
+  ],
+  "minimal_test": {
+   "design": "Implement reduced HQC (n ~ 2000-4000, scaled RM(1,m) inner and shortened RS outer) in C; direct MC at parameter sets with DFR 2^-12..2^-24; IS with tilt chosen by cross-entropy on a pilot run; compare overlaps and extend to 2^-40.",
+   "controls": [
+    "null: tilt = identity, IS must reduce to MC exactly",
+    "positive: planted weaker decoder (one RS correction fewer) with known higher DFR, IS must track the change",
+    "A/A: IS under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "overlap disagreement beyond 0.5 bit",
+   "UCB coverage below 0.85"
+  ],
+  "confounders": [
+   "dependence of failure on more than weight (structure of supports)",
+   "pilot-tuned tilt overfitting"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5 without the stated transfer assumption and a crypto-tier certificate.",
+   "IS validated only where MC overlaps; extrapolated region relies on H1."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Conditional on (w(r1),w(r2),w(e)), failure probability is the same under tilted and nominal distributions",
+    "rigorous_support": "likelihood ratio is exact for weight-level tilting of uniform fixed-weight sampling",
+    "validation_plan": "overlap test P1"
+   },
+   {
+    "id": "H2",
+    "statement": "Likelihood ratios are bounded for empirical Bernstein",
+    "rigorous_support": "finite weight range",
+    "validation_plan": "compute max ratio"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "samples ~ 1/(DFR * efficiency gain)",
+   "memory_exponent": "O(n)",
+   "best_known": "direct MC; analytic model in KN-LIT-b9e1a8",
+   "hidden_overhead": "decoder per sample",
+   "tradeoff_note": "tilt gain vs variance blow-up"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-b9e1a8",
+    "provenance": "kb",
+    "citation_text": "Hamming Quasi-Cyclic (HQC) specification",
+    "relation": "adjacent",
+    "delta": "spec's analytic DFR model; this provides a measured, certified estimator to test it below MC reach"
+   },
+   {
+    "ref": "KN-LIT-1c9474",
+    "provenance": "kb",
+    "citation_text": "Aragon et al., HQC-RMRS",
+    "relation": "adjacent",
+    "delta": "RMRS DFR analysis source"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Rubinstein and Kroese, The Cross-Entropy Method, Springer 2004 (recalled)",
+    "relation": "adjacent",
+    "delta": "importance sampling for rare events"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260801-011",
+   "IDEA-20260808-9f9ed8",
+   "IDEA-20260816-6536d7"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "IS vs MC DFR at reduced HQC",
+   "objective": "Whether an IS estimator is unbiased and certified where checkable.",
+   "instrument": "C decoder (independent of lane's existing decoder where possible) with Python driver; NumPy for statistics",
+   "parameters": "Reduced sets: n in {2003, 3011, 4001} (primes with 2 primitive), RM(1,6) duplicated x2 inner, RS shortened length 16-24; weights scaled to hit DFR 2^-12..2^-40; 10^8 samples per IS cell, 10^9 for MC cells; 40 replicate runs for coverage",
+   "procedure": "1. Freeze reduced sets. 2. MC. 3. Pilot CE tilt. 4. IS runs. 5. Overlap comparison and coverage. 6. Extrapolate.",
+   "independent_variables": [
+    {
+     "name": "estimator",
+     "levels": [
+      "direct_mc",
+      "importance_sampling"
+     ]
+    },
+    {
+     "name": "decoder",
+     "levels": [
+      "standard",
+      "weakened_rs"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    },
+    {
+     "name": "key_sample",
+     "treatment": "randomized",
+     "value": "fresh keys per 10^6 samples",
+     "how": "key resampled per block"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "direct_mc standard",
+      "importance_sampling standard"
+     ],
+     "differs_in": [
+      "estimator"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "importance_sampling standard",
+      "importance_sampling weakened_rs"
+     ],
+     "differs_in": [
+      "decoder"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "UCB coverage"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "importance_sampling standard seed-block A",
+      "importance_sampling standard seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 IS/MC ratio",
+    "UCB coverage"
+   ],
+   "secondary_metrics": [
+    "relative SE"
+   ],
+   "preregistered_prediction": {
+    "quantity": "DFR",
+    "formula": "spec analytic model evaluated at reduced parameters",
+    "source": "KN-LIT-b9e1a8 section 6.1"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "reduced n; transfer: weight-driven failure law",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 60
+   },
+   "stopping_rules": [
+    "stop when overlap cells reach 100 failures under MC"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "a run where IS weights exceed theoretical max is invalid"
+   ],
+   "success_criterion": "Success if C1 shows agreement within 0.25 bit beyond the AA1 noise floor (P1), C3 coverage >= 0.92 (P2), C2 tracks the planted change.",
+   "falsification_criterion": "Falsified if C1 disagrees by more than 0.5 bit or C3 coverage under 0.85.",
+   "decision_impact": {
+    "on_positive": "Use the certified IS estimator for all below-MC DFR claims in GOAL-HQC-001.",
+    "on_negative": "Restrict DFR claims to direct MC range and record IS as biased for this decoder."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "per-cell estimates JSON",
+    "coverage plot SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-HQC-001",
+  "title": "Failure boosting for HQC at reduced n: precomputation per ciphertext versus failure-probability gain from grinding the FO message",
+  "class": "measurement",
+  "claim": "Under the FO transform the attacker cannot choose r1, r2, e but can grind messages m, keeping those whose derived (r1, r2, e) have high failure likelihood (e.g., high weight overlap structure). At reduced n, the boosting curve log2(failure probability gain) versus log2(precomputation per kept ciphertext) has slope at least 0.5 over the first 16 bits, so total work to first failure drops by >= 2^6 versus random ciphertexts; the curve's shape decides whether a DFR error of k orders of magnitude translates into a CCA attack.",
+  "mechanism": "Lattice failure boosting (KN-LIT-5045, D'Anvers et al.) selects ciphertexts with large error norm; in HQC the analogue is ciphertexts whose r1, r2, e supports maximise a key-independent proxy for w(e'), e.g. w(r2) structure is fixed but distribution of e' depends on weight of e plus cancellation in x r2 - r1 y. A key-independent proxy only helps if failure correlates with ciphertext-only features; measuring the correlation decides.",
+  "tracked_object": "Failure probability of kept ciphertexts as a function of the grinding threshold on the proxy, and total work to first failure.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "slope of log2 gain vs log2 precomputation over 0..16 bits",
+    "direction": "higher",
+    "minimum_effect": ">= 0.5",
+    "falsified_by": "<= 0.2"
+   },
+   {
+    "id": "P2",
+    "metric": "work-to-first-failure reduction",
+    "direction": "higher",
+    "minimum_effect": ">= 2^6",
+    "falsified_by": "< 2^2"
+   }
+  ],
+  "minimal_test": {
+   "design": "Reduced HQC with DFR ~2^-20; compute proxy per ciphertext; bin by proxy; measure failure rate per bin with fresh keys.",
+   "controls": [
+    "null: random proxy uncorrelated with ciphertext, gain must be 0",
+    "positive: key-aware oracle proxy (uses x,y) giving upper bound on achievable gain",
+    "A/A: proxy arm under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "slope <= 0.2",
+   "work reduction < 2^2"
+  ],
+  "confounders": [
+   "proxy design choice",
+   "key variation"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5 without the stated transfer assumption and a crypto-tier certificate.",
+   "Precomputation measured at reduced n; transfer to deployed DFR uses the slope only."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Failure correlates with ciphertext-only features through e' weight",
+    "rigorous_support": "structure of e'",
+    "validation_plan": "measured correlation"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "precomputation 2^{s} per kept ciphertext for gain 2^{g(s)}",
+   "memory_exponent": "O(1)",
+   "best_known": "KN-LIT-2141 precomputation attack on earlier HQC",
+   "hidden_overhead": "decoder evaluations",
+   "tradeoff_note": "precomputation vs queries trade"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-2141",
+    "provenance": "kb",
+    "citation_text": "Guo and Johansson, A New Decryption Failure Attack against HQC",
+    "relation": "adjacent",
+    "delta": "Guo-Johansson key recovery by special ciphertexts with one precomputation; this measures the general boosting curve for the RMRS instance"
+   },
+   {
+    "ref": "KN-LIT-5045",
+    "provenance": "kb",
+    "citation_text": "Multitarget Decryption Failure Attacks",
+    "relation": "adjacent",
+    "delta": "multitarget failure boosting for lattices; this transfers the measurement to HQC"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-819183",
+   "IDEA-20260816-b336a3"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "Boosting curve at reduced HQC",
+   "objective": "Whether ciphertext-only grinding raises failure probability enough to matter.",
+   "instrument": "C reduced HQC; Python analysis",
+   "parameters": "n=2003 reduced set with DFR ~2^-20; 2^30 candidate ciphertexts; proxy thresholds at quantiles 2^-1..2^-16; 50 keys",
+   "procedure": "1. Generate ciphertexts with proxy. 2. Decrypt under keys. 3. Failure rate per bin. 4. Fit curve.",
+   "independent_variables": [
+    {
+     "name": "proxy",
+     "levels": [
+      "weight_proxy",
+      "random_proxy"
+     ]
+    },
+    {
+     "name": "threshold_quantile",
+     "levels": [
+      "2^-4",
+      "2^-16"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    },
+    {
+     "name": "key_id",
+     "treatment": "randomized",
+     "value": "50 keys",
+     "how": "crossed with bins"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "weight_proxy 2^-16",
+      "random_proxy 2^-16"
+     ],
+     "differs_in": [
+      "proxy"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "weight_proxy 2^-4",
+      "weight_proxy 2^-16"
+     ],
+     "differs_in": [
+      "threshold_quantile"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "key-aware oracle upper bound"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "weight_proxy 2^-4 seed-block A",
+      "weight_proxy 2^-4 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "failure gain per bin"
+   ],
+   "secondary_metrics": [
+    "work to first failure"
+   ],
+   "preregistered_prediction": {
+    "quantity": "gain slope",
+    "formula": "from tail of w(e') distribution conditional on proxy",
+    "source": "KN-LIT-1c9474 error model"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "reduced n; transfer: slope of boosting",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 48,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 40
+   },
+   "stopping_rules": [
+    "stop at 2^30 candidates"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "decoder mismatch vs reference invalidates"
+   ],
+   "success_criterion": "Success if C1 and C2 show slope >= 0.5 beyond the AA1 noise floor (P1) and work reduction >= 2^6 (P2).",
+   "falsification_criterion": "Falsified if C1 slope <= 0.2 or reduction < 2^2.",
+   "decision_impact": {
+    "on_positive": "Feed the boosting curve into the DFR-to-CCA sensitivity analysis.",
+    "on_negative": "Record that ciphertext-only boosting is ineffective for HQC-RMRS at reduced n."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "bin table CSV",
+    "curve SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-HQC-001",
+  "title": "Weak-key classes under boosted ciphertexts: per-key DFR upper tail at reduced n and the queries needed to recognise a weak key",
+  "class": "measurement",
+  "claim": "Among 10^4 reduced-n keys, the top 1% by measured DFR have DFR at least 4x the median when ciphertexts are boosted, and the weak-key property is detectable after observing at most 2^10 boosted decapsulations per key (sequential test), giving a multi-key attack whose per-key query cost is below single-key cost by the factor of the tail. If the per-key DFR distribution is concentrated within the A/A band, weak keys do not exist at this scale.",
+  "mechanism": "Failure depends on x and y through cancellation in x r2 - r1 y; keys whose supports align with RM block boundaries or have high autocorrelation yield heavier e' in particular blocks. Boosting magnifies per-key differences. A multi-key adversary spends queries on many keys and stops on those that fail early.",
+  "tracked_object": "Per-key DFR distribution under boosted ciphertexts and sequential-test detection cost.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "p99/median per-key DFR",
+    "direction": "higher",
+    "minimum_effect": ">= 4",
+    "falsified_by": "<= 1.5"
+   },
+   {
+    "id": "P2",
+    "metric": "queries to classify a weak key at 95%",
+    "direction": "lower",
+    "minimum_effect": "<= 2^10",
+    "falsified_by": "> 2^14"
+   }
+  ],
+  "minimal_test": {
+   "design": "Measure per-key DFR for 10^4 keys at reduced n with boosted ciphertexts via IS; sequential probability ratio test on decapsulation outcomes.",
+   "controls": [
+    "null: same measurement with shuffled key labels (permutation null)",
+    "positive: planted weak keys with clustered support",
+    "A/A: two seed blocks of ciphertexts per key"
+   ]
+  },
+  "falsification_conditions": [
+   "p99/median <= 1.5",
+   "detection > 2^14 queries"
+  ],
+  "confounders": [
+   "estimation noise inflating tail",
+   "boosting proxy"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5 without the stated transfer assumption and a crypto-tier certificate."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Per-key DFR differences persist under boosting",
+    "rigorous_support": "structure",
+    "validation_plan": "A/A between ciphertext seed blocks"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "multi-key queries ~ tail fraction^-1 x detection",
+   "memory_exponent": "O(keys)",
+   "best_known": "Guo-Johansson weak-key line (KN-LIT-2141)",
+   "hidden_overhead": "IS per key",
+   "tradeoff_note": "more keys vs fewer queries"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-2141",
+    "provenance": "kb",
+    "citation_text": "Guo and Johansson, A New Decryption Failure Attack against HQC",
+    "relation": "adjacent",
+    "delta": "failure attack on HQC; this asks whether weak keys exist in the RMRS instance"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-15258a",
+   "IDEA-20260816-6f9d8f"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "high"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Per-key DFR tail with boosting",
+   "objective": "Whether weak keys exist and are detectable.",
+   "instrument": "C reduced HQC with IS estimator",
+   "parameters": "n=2003; 10^4 keys; 10^6 boosted ciphertexts per key; SPRT thresholds alpha=beta=0.05",
+   "procedure": "1. Keys. 2. Per-key IS DFR. 3. Tail statistics. 4. SPRT simulation.",
+   "independent_variables": [
+    {
+     "name": "ciphertexts",
+     "levels": [
+      "boosted",
+      "random"
+     ]
+    },
+    {
+     "name": "key_population",
+     "levels": [
+      "random",
+      "planted_weak"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "boosted random",
+      "random random"
+     ],
+     "differs_in": [
+      "ciphertexts"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "boosted random",
+      "boosted planted_weak"
+     ],
+     "differs_in": [
+      "key_population"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "permutation null"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "boosted random seed-block A",
+      "boosted random seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "p99/median"
+   ],
+   "secondary_metrics": [
+    "SPRT queries"
+   ],
+   "preregistered_prediction": {
+    "quantity": "p99/median",
+    "formula": "dispersion from additive energy model (IDEA-20260805-15258a)",
+    "source": "internal"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "reduced n; transfer: dispersion shape",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 7200,
+    "total_cpu_hours": 120,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 30
+   },
+   "stopping_rules": [
+    "stop at 10^4 keys"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "key with IS weight overflow excluded and reported"
+   ],
+   "success_criterion": "Success if C1 shows p99/median >= 4 beyond the AA1 noise floor (P1) and SPRT <= 2^10 (P2).",
+   "falsification_criterion": "Falsified if C1 shows p99/median <= 1.5.",
+   "decision_impact": {
+    "on_positive": "File a weak-key multi-key attack cost model.",
+    "on_negative": "Record per-key DFR as concentrated under boosting at reduced n."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "per-key DFR CSV",
+    "tail plot SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-HQC-001",
+  "title": "Quasi-cyclic DOOM gain measured: Stern and Dumer on reduced QC syndromes with n shifts versus one instance, against the sqrt(N) prediction",
+  "class": "measurement",
+  "claim": "On reduced 2-QCSD instances (n in {67, 101, 131}, weights scaled), Stern's algorithm run as Decoding-One-Out-of-Many over all n cyclic shifts reduces measured work by a factor within 2x of sqrt(n) (the Sendrier prediction for list-based ISD) relative to single-instance decoding, while Prange gains a factor of n only up to the point where list cost dominates; the measured exponent of the gain lies in [0.4, 0.6] for Stern.",
+  "mechanism": "Shifts give n syndromes of the same code; the birthday step can match against all of them, so list sizes grow and iterations shrink. The prediction sqrt(N) comes from optimal list balancing. Measured gains confirm or correct the discount HQC security estimates apply.",
+  "tracked_object": "Bit-operations (counted) to solve, single vs DOOM, per algorithm and n.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "exponent of DOOM gain in n for Stern",
+    "direction": "different",
+    "minimum_effect": "in [0.4, 0.6]",
+    "falsified_by": "outside [0.3, 0.7]"
+   },
+   {
+    "id": "P2",
+    "metric": "Prange gain",
+    "direction": "higher",
+    "minimum_effect": ">= n/4",
+    "falsified_by": "< sqrt(n)"
+   }
+  ],
+  "minimal_test": {
+   "design": "Implement Prange and Stern in C with op counters; generate random QC instances with planted solutions; run both modes; 200 instances per cell.",
+   "controls": [
+    "null: non-QC random code of same size with n independent syndromes of different codes (no gain expected for one code)",
+    "positive: n syndromes of the same random code with planted solutions",
+    "A/A: single-instance Stern under two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "Stern exponent outside [0.3, 0.7]"
+  ],
+  "confounders": [
+   "list memory limits",
+   "early abort heuristics"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5 without the stated transfer assumption and a crypto-tier certificate."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Reduced instances follow asymptotic list balancing",
+    "rigorous_support": "heuristic",
+    "validation_plan": "exponent fit"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "gain ~ N^{1/2} Stern",
+   "memory_exponent": "list size grows by sqrt(N)",
+   "best_known": "Sendrier DOOM",
+   "hidden_overhead": "QC shift computation",
+   "tradeoff_note": "memory increases with gain"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Sendrier, 'Decoding One Out of Many', PQCrypto 2011 (recalled)",
+    "relation": "same",
+    "delta": "defines DOOM; this measures the realised gain on QC instances"
+   },
+   {
+    "ref": "KN-LIT-b9e1a8",
+    "provenance": "kb",
+    "citation_text": "HQC specification",
+    "relation": "adjacent",
+    "delta": "spec's security estimates use a QC discount"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-726cc7",
+   "IDEA-20260821-9ad4a2"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "medium"
+  },
+  "recommended_priority": "high",
+  "experiment": {
+   "title": "DOOM gain on reduced QC instances",
+   "objective": "Whether realised DOOM gain matches the sqrt prediction.",
+   "instrument": "C ISD with operation counters; Python fits",
+   "parameters": "n in {67,101,131}; code length 2n; weights w ~ sqrt(n)/1.5; 200 instances per cell",
+   "procedure": "1. Instances. 2. Solve single and DOOM. 3. Count ops. 4. Fit exponent.",
+   "independent_variables": [
+    {
+     "name": "mode",
+     "levels": [
+      "single",
+      "doom"
+     ]
+    },
+    {
+     "name": "algorithm",
+     "levels": [
+      "prange",
+      "stern"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    },
+    {
+     "name": "n_size",
+     "treatment": "crossed",
+     "value": "67,101,131",
+     "how": "all cells"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "stern single",
+      "stern doom"
+     ],
+     "differs_in": [
+      "mode"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "prange doom",
+      "stern doom"
+     ],
+     "differs_in": [
+      "algorithm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "non-QC null"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "stern single seed-block A",
+      "stern single seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "DOOM gain exponent"
+   ],
+   "secondary_metrics": [
+    "memory peak"
+   ],
+   "preregistered_prediction": {
+    "quantity": "gain",
+    "formula": "sqrt(n) for Stern",
+    "source": "Sendrier 2011"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n up to 131; transfer: exponent of gain",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 24,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 36
+   },
+   "stopping_rules": [
+    "200 instances per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "instance without planted solution invalid"
+   ],
+   "success_criterion": "Success if C1 exponent in [0.4,0.6] beyond the AA1 noise floor (P1) and C2 consistent with P2.",
+   "falsification_criterion": "Falsified if C1 exponent outside [0.3,0.7].",
+   "decision_impact": {
+    "on_positive": "Use the measured DOOM exponent in the matched ISD baseline.",
+    "on_negative": "Revise the QC discount used in HQC concrete cost."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "op counts CSV",
+    "fit SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-HQC-001",
+  "title": "Low-memory ISD re-measured: Stern, Dumer and MMT under hard memory caps at reduced HQC-like parameters, against Li-Wang curves",
+  "class": "measurement",
+  "claim": "Under memory caps M in {2^10, 2^14, 2^18} list entries on reduced QC instances (n in {101..257}), the measured operations-versus-memory curve for each algorithm matches the KN-LIT-5677ae predictions within 1.5 bits, and the optimal algorithm switches from MMT to Dumer/Stern at a cap within one doubling of the predicted crossover; if measurement shows a crossover more than two doublings away, the low-memory security estimates for HQC carry a systematic error.",
+  "mechanism": "Memory-limited ISD replaces large lists with repeated smaller ones, raising iteration counts. The predicted curves rest on asymptotic list sizes; at reduced n constants and rounding dominate. Measuring with real caps validates the curve shape used to charge memory.",
+  "tracked_object": "Counted ops to solve vs memory cap per algorithm.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "|measured - predicted| log2 ops",
+    "direction": "lower",
+    "minimum_effect": "<= 1.5 bits",
+    "falsified_by": "> 3 bits"
+   },
+   {
+    "id": "P2",
+    "metric": "crossover cap offset",
+    "direction": "lower",
+    "minimum_effect": "<= 1 doubling",
+    "falsified_by": "> 2 doublings"
+   }
+  ],
+  "minimal_test": {
+   "design": "C implementations with caps; reduced instances; 100 per cell.",
+   "controls": [
+    "null: uncapped run equals standard cost",
+    "positive: cap at 2^4 where cost must blow up as predicted",
+    "A/A: same cap two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "deviation > 3 bits",
+   "crossover > 2 doublings off"
+  ],
+  "confounders": [
+   "implementation constants",
+   "cache effects (we count ops, not time)"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5 without the stated transfer assumption and a crypto-tier certificate."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Op counts transfer up to constants",
+    "rigorous_support": "model",
+    "validation_plan": "fit constants"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "ops(M) per algorithm",
+   "memory_exponent": "M",
+   "best_known": "KN-LIT-5677ae curves",
+   "hidden_overhead": "list maintenance",
+   "tradeoff_note": "time-memory"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-5677ae",
+    "provenance": "kb",
+    "citation_text": "Li and Wang, Security analysis of the Classic McEliece, HQC and BIKE schemes in low memory, JISA 2023",
+    "relation": "same",
+    "delta": "re-measures their low-memory curves empirically"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-baa4da"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Capped ISD curves",
+   "objective": "Do low-memory curves hold at reduced n?",
+   "instrument": "C ISD suite with caps",
+   "parameters": "n in {101,163,257}; caps 2^10,2^14,2^18; 100 instances per cell",
+   "procedure": "1. Run each algorithm at each cap. 2. Compare to predictions. 3. Find crossover.",
+   "independent_variables": [
+    {
+     "name": "algorithm",
+     "levels": [
+      "stern",
+      "mmt"
+     ]
+    },
+    {
+     "name": "memory_cap",
+     "levels": [
+      "2^10",
+      "2^18"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "mmt 2^10",
+      "mmt 2^18"
+     ],
+     "differs_in": [
+      "memory_cap"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "stern 2^10",
+      "mmt 2^10"
+     ],
+     "differs_in": [
+      "algorithm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "measured vs predicted all"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "stern 2^14 seed-block A",
+      "stern 2^14 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 ops deviation"
+   ],
+   "secondary_metrics": [
+    "crossover cap"
+   ],
+   "preregistered_prediction": {
+    "quantity": "ops at cap",
+    "formula": "KN-LIT-5677ae formulas at reduced parameters",
+    "source": "KN-LIT-5677ae"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n reduced; transfer: curve shape",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 40,
+    "maximum_memory_gb": 16,
+    "maximum_runs": 36
+   },
+   "stopping_rules": [
+    "100 instances per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "unsolved within 2^40 ops censored"
+   ],
+   "success_criterion": "Success if C3 deviation <= 1.5 bits beyond the AA1 noise floor (P1) and C1/C2 crossover within 1 doubling (P2).",
+   "falsification_criterion": "Falsified if C3 deviation > 3 bits or crossover > 2 doublings off.",
+   "decision_impact": {
+    "on_positive": "Adopt the validated curves in the memory-charged baseline.",
+    "on_negative": "Correct the low-memory curves with measured constants."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "ops CSV",
+    "curve SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-HQC-001",
+  "title": "Multilevel amortised Gaussian elimination re-measured: Prange and Stern with and without pivot reuse at reduced sublinear weight",
+  "class": "measurement",
+  "claim": "On reduced instances in the sublinear-weight regime (n in {251, 509}, w ~ sqrt(n)), reusing partial pivots across iterations reduces counted bit-operations per iteration by at least 2^3 for Prange and by at least 2^1.5 for Stern relative to fresh elimination, and the overall speedup lies within 1 bit of KN-LIT-7565's branching-process prediction.",
+  "mechanism": "In sublinear weight, ISD iterations are cheap except for Gaussian elimination; reusing pivots across overlapping information sets amortises elimination. The branching-process analysis predicts how many pivots survive; measuring at reduced n tests the constants that matter for HQC estimates.",
+  "tracked_object": "Counted bit operations per iteration and total, with/without MAGE.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "Prange per-iteration op reduction",
+    "direction": "higher",
+    "minimum_effect": ">= 2^3",
+    "falsified_by": "< 2^1"
+   },
+   {
+    "id": "P2",
+    "metric": "|measured - predicted| total speedup",
+    "direction": "lower",
+    "minimum_effect": "<= 1 bit",
+    "falsified_by": "> 2 bits"
+   }
+  ],
+  "minimal_test": {
+   "design": "Implement Gaussian elimination with pivot-reuse tree; count ops; 200 instances per cell.",
+   "controls": [
+    "null: reuse disabled",
+    "positive: maximal reuse on a code with planted repeated structure",
+    "A/A: MAGE arm two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "reduction < 2^1",
+   "deviation > 2 bits"
+  ],
+  "confounders": [
+   "bookkeeping overhead not counted",
+   "choice of reuse depth"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5 without the stated transfer assumption and a crypto-tier certificate."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Branching-process survival matches at reduced n",
+    "rigorous_support": "KN-LIT-7565 analysis",
+    "validation_plan": "measure survival"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "per-iteration GE amortised",
+   "memory_exponent": "pivot tree memory",
+   "best_known": "KN-LIT-7565",
+   "hidden_overhead": "bookkeeping",
+   "tradeoff_note": "memory for pivot cache"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-7565",
+    "provenance": "kb",
+    "citation_text": "Carrier, Hatey, Luzzi, Tillich, Multilevel Amortized Gaussian Elimination in ISD, ePrint 2026/1498",
+    "relation": "same",
+    "delta": "re-measures MAGE speedups empirically at reduced n"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-baa4da"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "MAGE vs fresh elimination",
+   "objective": "Is the MAGE speedup realised at reduced n?",
+   "instrument": "C ISD with bit-op counters",
+   "parameters": "n in {251,509}; w ~ sqrt(n); 200 instances per cell; reuse depth 1..3",
+   "procedure": "1. Run with/without reuse. 2. Count ops. 3. Compare to prediction.",
+   "independent_variables": [
+    {
+     "name": "elimination",
+     "levels": [
+      "fresh",
+      "mage"
+     ]
+    },
+    {
+     "name": "algorithm",
+     "levels": [
+      "prange",
+      "stern"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "prange fresh",
+      "prange mage"
+     ],
+     "differs_in": [
+      "elimination"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "prange mage",
+      "stern mage"
+     ],
+     "differs_in": [
+      "algorithm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "measured vs predicted"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "prange mage seed-block A",
+      "prange mage seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "per-iteration ops reduction"
+   ],
+   "secondary_metrics": [
+    "total speedup"
+   ],
+   "preregistered_prediction": {
+    "quantity": "speedup",
+    "formula": "KN-LIT-7565 branching-process estimate",
+    "source": "KN-LIT-7565"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n reduced; transfer: survival law",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 30,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "200 instances per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "solution mismatch invalidates"
+   ],
+   "success_criterion": "Success if C1 shows >= 2^3 reduction beyond the AA1 noise floor (P1) and C3 within 1 bit (P2).",
+   "falsification_criterion": "Falsified if C1 reduction < 2^1 or C3 off by > 2 bits.",
+   "decision_impact": {
+    "on_positive": "Include MAGE in the matched ISD baseline.",
+    "on_negative": "Record MAGE gains as not realised at reduced n."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "ops CSV",
+    "SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-HQC-001",
+  "title": "Quantum ISD cost tables for HQC under depth caps: Grover-Prange and quantum-walk variants with MAXDEPTH and QRAM as axes",
+  "class": "tooling",
+  "claim": "Recomputing Grover-Prange and quantum-walk ISD costs for HQC-1/3/5 under depth caps D in {2^40, 2^64, 2^96} and with or without QRAM shows that the published quantum estimates (KN-LIT-de5373) move by at least 10 bits across conventions, and that under D = 2^64 without QRAM at least one parameter set's quantum cost is within 5 bits of its category floor; a reduced statevector check of Grover-Prange on n <= 20 qubit search spaces validates the iteration law.",
+  "mechanism": "Quantum ISD gains come from Grover over information sets plus quantum walks for list steps; depth caps force parallelism that erodes Grover gains, and walk variants need QRAM. Published numbers fix one convention; the table makes the convention an axis.",
+  "tracked_object": "Table of log2 quantum cost per set, algorithm, D, QRAM flag.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "spread of log2 cost across conventions",
+    "direction": "higher",
+    "minimum_effect": ">= 10 bits",
+    "falsified_by": "< 5 bits"
+   },
+   {
+    "id": "P2",
+    "metric": "min margin to category floor under D=2^64, no QRAM",
+    "direction": "lower",
+    "minimum_effect": "<= 5 bits for some set",
+    "falsified_by": "> 10 bits for all"
+   }
+  ],
+  "minimal_test": {
+   "design": "Closed-form costs with interval constants; statevector validation of Grover-Prange iteration count on toy codes.",
+   "controls": [
+    "null: D unlimited reproduces published numbers",
+    "positive: D very small, cost must approach classical",
+    "A/A: statevector two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "spread < 5 bits"
+  ],
+  "confounders": [
+   "oracle cost for Gaussian elimination in quantum",
+   "QRAM cost model"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5 without the stated transfer assumption and a crypto-tier certificate.",
+   "Table is a cost model, not a measured attack."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Grover iteration law holds for ISD success probability",
+    "rigorous_support": "BBHT",
+    "validation_plan": "statevector"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "2^{n/2 * c_Prange} etc",
+   "memory_exponent": "qubits",
+   "best_known": "KN-LIT-de5373",
+   "hidden_overhead": "quantum GE oracle",
+   "tradeoff_note": "depth vs width"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-de5373",
+    "provenance": "kb",
+    "citation_text": "Wakasugi and Tada, Security analysis for BIKE, Classic McEliece and HQC against the quantum ISD algorithms, ePrint 2022/1771",
+    "relation": "same",
+    "delta": "re-derives with depth and QRAM as axes"
+   },
+   {
+    "ref": "KN-LIT-80202e",
+    "provenance": "kb",
+    "citation_text": "Kachigar and Tillich, Quantum information set decoding algorithms",
+    "relation": "adjacent",
+    "delta": "quantum walk ISD source"
+   },
+   {
+    "ref": "KN-LIT-f7d7dd",
+    "provenance": "kb",
+    "citation_text": "Improved quantum information set decoding",
+    "relation": "adjacent",
+    "delta": "improved quantum ISD"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260821-9ad4a2"
+  ],
+  "estimated_cost": {
+   "implementation": "medium",
+   "compute": "low"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Quantum ISD convention table",
+   "objective": "How much conventions move HQC's quantum ISD cost.",
+   "instrument": "Python mpmath; Qiskit Aer for toy validation",
+   "parameters": "HQC-1/3/5 published parameters; D 2^40,2^64,2^96; QRAM yes/no; toy validation n<=20",
+   "procedure": "1. Closed forms. 2. Table. 3. Validation.",
+   "independent_variables": [
+    {
+     "name": "depth_cap",
+     "levels": [
+      "2^40",
+      "2^96"
+     ]
+    },
+    {
+     "name": "qram",
+     "levels": [
+      "yes",
+      "no"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "2^40 no",
+      "2^96 no"
+     ],
+     "differs_in": [
+      "depth_cap"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "2^64 yes",
+      "2^64 no"
+     ],
+     "differs_in": [
+      "qram"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "unlimited depth vs published"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "statevector toy seed-block A",
+      "statevector toy seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "log2 cost spread"
+   ],
+   "secondary_metrics": [
+    "validation residuals"
+   ],
+   "preregistered_prediction": {
+    "quantity": "cost",
+    "formula": "Grover-Prange: sqrt(1/p_IS) * c_GE * depth-cap penalty",
+    "source": "KN-LIT-de5373"
+   },
+   "scale_tier": "medium",
+   "scale_justification": "table at full size; validation toy",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 2,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 12
+   },
+   "stopping_rules": [
+    "one table pass"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "row not reproducing published at unlimited depth invalid"
+   ],
+   "success_criterion": "Success if C1/C2 spread >= 10 bits (P1) and some set within 5 bits (P2), with validation within the AA1 noise floor.",
+   "falsification_criterion": "Falsified if C1 and C2 spread < 5 bits.",
+   "decision_impact": {
+    "on_positive": "Adopt convention-axis tables in the HQC baseline.",
+    "on_negative": "Record quantum ISD margins as convention-robust."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "table CSV",
+    "SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-HQC-001",
+  "title": "Fixed-weight sampler bias as an ISD prior: does a measured position bias in the error sampler shorten information-set search at reduced n",
+  "class": "mechanism",
+  "claim": "If HQC's fixed-weight sampler has a measurable position bias (IDEA-20260816-967721 measures it), an ISD that selects information sets weighted by the bias needs fewer iterations; at reduced n with the bias magnified 2^4..2^8 times its measured value, prior-weighted Prange reduces iterations by a factor predicted by the KL divergence of the biased distribution from uniform, and at the measured bias the reduction is below 1.05x, i.e., the bias is security-irrelevant to ISD.",
+  "mechanism": "Prange succeeds when the error avoids the information set; if error positions are biased, placing the information set on low-probability positions raises success. Gain scales with how concentrated the bias is; a quantitative law turns any measured bias into an ISD cost delta.",
+  "tracked_object": "Iterations to solve for uniform vs prior-weighted Prange under controlled bias magnitude.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "iteration reduction at magnified bias 2^8",
+    "direction": "higher",
+    "minimum_effect": "within 25% of KL prediction",
+    "falsified_by": "> 2x off prediction"
+   },
+   {
+    "id": "P2",
+    "metric": "reduction at measured bias",
+    "direction": "lower",
+    "minimum_effect": "<= 1.05x",
+    "falsified_by": "> 1.2x"
+   }
+  ],
+  "minimal_test": {
+   "design": "Generate errors from a biased sampler model with scale s; run Prange with uniform and prior-weighted IS choice; 500 instances per cell.",
+   "controls": [
+    "null: unbiased sampler, both Prange variants equal",
+    "positive: strongly biased sampler (only half positions possible)",
+    "A/A: uniform Prange two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "prediction off > 2x",
+   "measured-bias reduction > 1.2x (would be a finding)"
+  ],
+  "confounders": [
+   "bias model fidelity",
+   "rejection sampling details"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5 without the stated transfer assumption and a crypto-tier certificate."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Sampler bias is position-marginal (no higher-order structure)",
+    "rigorous_support": "model",
+    "validation_plan": "test from 967721 output"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "iterations ~ 1/P(e avoids IS) under prior",
+   "memory_exponent": "O(n)",
+   "best_known": "uniform Prange",
+   "hidden_overhead": "prior computation",
+   "tradeoff_note": "none"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": "KN-LIT-b9e1a8",
+    "provenance": "kb",
+    "citation_text": "HQC specification",
+    "relation": "adjacent",
+    "delta": "spec defines the sampler"
+   },
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Guo, Hlauschek, Johansson, Lahr, Nilsson, Schroder, 'Don't reject this: key-recovery timing attacks due to rejection-sampling in HQC and BIKE', TCHES 2022 (recalled)",
+    "relation": "adjacent",
+    "delta": "bias in fixed-weight sampling and timing attacks"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260816-967721"
+  ],
+  "estimated_cost": {
+   "implementation": "low",
+   "compute": "low"
+  },
+  "recommended_priority": "low",
+  "experiment": {
+   "title": "Prior-weighted Prange under sampler bias",
+   "objective": "Translate sampler bias into ISD cost.",
+   "instrument": "C or NumPy Prange",
+   "parameters": "n=131 QC; bias scale s in {1,2^4,2^8} times measured; 500 instances",
+   "procedure": "1. Bias model. 2. Instances. 3. Solve both ways. 4. Compare to KL law.",
+   "independent_variables": [
+    {
+     "name": "isd_variant",
+     "levels": [
+      "uniform",
+      "prior_weighted"
+     ]
+    },
+    {
+     "name": "bias_scale",
+     "levels": [
+      "1",
+      "2^8"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "uniform 2^8",
+      "prior_weighted 2^8"
+     ],
+     "differs_in": [
+      "isd_variant"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "prior_weighted 1",
+      "prior_weighted 2^8"
+     ],
+     "differs_in": [
+      "bias_scale"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "unbiased null"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "uniform 1 seed-block A",
+      "uniform 1 seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "iteration reduction"
+   ],
+   "secondary_metrics": [
+    "KL prediction residual"
+   ],
+   "preregistered_prediction": {
+    "quantity": "reduction",
+    "formula": "E_prior[P(avoid)] / E_uniform[P(avoid)]",
+    "source": "Prange success probability"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n=131; transfer: law in KL",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 1800,
+    "total_cpu_hours": 4,
+    "maximum_memory_gb": 4,
+    "maximum_runs": 18
+   },
+   "stopping_rules": [
+    "500 instances per cell"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "unsolved censored"
+   ],
+   "success_criterion": "Success if C1 at scale 2^8 within 25% of prediction (P1) and C2 shows <= 1.05x at measured bias (P2), beyond the AA1 noise floor.",
+   "falsification_criterion": "Falsified if C1 off by > 2x or C2 > 1.2x at measured bias.",
+   "decision_impact": {
+    "on_positive": "Close sampler bias as an ISD concern with a quantitative bound.",
+    "on_negative": "Escalate sampler bias to an ISD cost reduction claim."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "iterations CSV",
+    "SVG",
+    "PDF"
+   ]
+  }
+ },
+ {
+  "question_id": "RQ-HQC-001",
+  "title": "Calibrating the syndrome-decoding estimator against counted ISD at reduced n: measured constant offsets per algorithm on QC instances",
+  "class": "control",
+  "claim": "For Prange, Stern, Dumer and BJMM on reduced QC instances (n in {101..257}), the CryptographicEstimators predictions differ from counted bit-operations by an algorithm-specific constant offset within 3 bits and with slope in n within 5% of 1; an offset larger than 5 bits for any algorithm would mean HQC's estimated ISD costs carry a systematic shift.",
+  "mechanism": "Estimators compute asymptotic or optimised concrete costs with specific cost models for list operations and GE; real counted implementations reveal hidden constants. A calibration line per algorithm is the control every matched ISD baseline needs.",
+  "tracked_object": "Per algorithm: measured log2 ops minus estimator log2 ops vs n.",
+  "predictions": [
+   {
+    "id": "P1",
+    "metric": "|offset|",
+    "direction": "lower",
+    "minimum_effect": "<= 3 bits",
+    "falsified_by": "> 5 bits"
+   },
+   {
+    "id": "P2",
+    "metric": "slope ratio",
+    "direction": "different",
+    "minimum_effect": "within 5% of 1",
+    "falsified_by": "beyond 15%"
+   }
+  ],
+  "minimal_test": {
+   "design": "Run counted implementations and estimator with matching cost models; 100 instances per n.",
+   "controls": [
+    "null: estimator vs itself under different optimisation seeds",
+    "positive: deliberately mis-specified estimator cost model (GE cost x8)",
+    "A/A: implementation two seed blocks"
+   ]
+  },
+  "falsification_conditions": [
+   "offset > 5 bits",
+   "slope off beyond 15%"
+  ],
+  "confounders": [
+   "cost model mismatch",
+   "parameter optimisation in estimator"
+  ],
+  "interpretation_limits": [
+   "Toy tier: reduced n, w, w_r, w_e and reduced RM/RS code lengths; no statement about HQC-1/3/5 without the stated transfer assumption and a crypto-tier certificate."
+  ],
+  "heuristic_assumptions": [
+   {
+    "id": "H1",
+    "statement": "Offset constant in n",
+    "rigorous_support": "model",
+    "validation_plan": "slope test"
+   }
+  ],
+  "target_complexity": {
+   "time_exponent": "as per algorithm",
+   "memory_exponent": "as per algorithm",
+   "best_known": "Esser-Bellini estimator",
+   "hidden_overhead": "implementation constants",
+   "tradeoff_note": "none"
+  },
+  "nearest_prior_art": [
+   {
+    "ref": null,
+    "provenance": "recalled",
+    "citation_text": "Esser and Bellini, 'Syndrome Decoding Estimator', PKC 2022; CryptographicEstimators library (recalled)",
+    "relation": "same",
+    "delta": "the estimator being calibrated"
+   },
+   {
+    "ref": "KN-LIT-3367",
+    "provenance": "kb",
+    "citation_text": "Becker, Joux, May, Meurer, Decoding Random Binary Linear Codes in 2^(n/20)",
+    "relation": "adjacent",
+    "delta": "BJMM algorithm"
+   }
+  ],
+  "related_internal": [
+   "IDEA-20260805-baa4da",
+   "IDEA-20260821-726cc7"
+  ],
+  "estimated_cost": {
+   "implementation": "high",
+   "compute": "medium"
+  },
+  "recommended_priority": "medium",
+  "experiment": {
+   "title": "Estimator calibration",
+   "objective": "Hidden constants between estimator and counted ISD.",
+   "instrument": "C ISD suite; CryptographicEstimators (Python)",
+   "parameters": "n in {101,163,257}; four algorithms; 100 instances",
+   "procedure": "1. Run counted. 2. Run estimator. 3. Fit offsets.",
+   "independent_variables": [
+    {
+     "name": "algorithm",
+     "levels": [
+      "stern",
+      "bjmm"
+     ]
+    },
+    {
+     "name": "cost_model",
+     "levels": [
+      "matched",
+      "misspecified"
+     ]
+    }
+   ],
+   "nuisance_factors": [
+    {
+     "name": "seed_block",
+     "treatment": "randomized",
+     "value": "seed blocks A and B, disjoint master seeds",
+     "how": "two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under both"
+    }
+   ],
+   "comparisons": [
+    {
+     "id": "C1",
+     "arms": [
+      "stern matched",
+      "bjmm matched"
+     ],
+     "differs_in": [
+      "algorithm"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C2",
+     "arms": [
+      "stern matched",
+      "stern misspecified"
+     ],
+     "differs_in": [
+      "cost_model"
+     ],
+     "design": "one_factor"
+    },
+    {
+     "id": "C3",
+     "arms": [
+      "offset fits all"
+     ],
+     "differs_in": [],
+     "design": "absolute"
+    },
+    {
+     "id": "AA1",
+     "arms": [
+      "stern matched seed-block A",
+      "stern matched seed-block B"
+     ],
+     "differs_in": [
+      "seed_block"
+     ],
+     "design": "aa"
+    }
+   ],
+   "primary_metrics": [
+    "offset bits"
+   ],
+   "secondary_metrics": [
+    "slope"
+   ],
+   "preregistered_prediction": {
+    "quantity": "offset",
+    "formula": "0 if estimator model exact",
+    "source": "estimator"
+   },
+   "scale_tier": "toy",
+   "scale_justification": "n reduced; transfer: constant offset",
+   "seeds_count": 3,
+   "budget": {
+    "wall_clock_seconds_per_run": 3600,
+    "total_cpu_hours": 30,
+    "maximum_memory_gb": 8,
+    "maximum_runs": 24
+   },
+   "stopping_rules": [
+    "100 instances per n"
+   ],
+   "invalidation_rules": [
+    "timeout/crash is failed_infrastructure, never negative evidence",
+    "estimator failure to converge invalid"
+   ],
+   "success_criterion": "Success if C3 offsets <= 3 bits and slopes within 5% (P1, P2), with C2 detecting misspecification beyond the AA1 noise floor.",
+   "falsification_criterion": "Falsified if C3 shows any offset > 5 bits or slope beyond 15%.",
+   "decision_impact": {
+    "on_positive": "Apply measured offsets in the HQC matched baseline.",
+    "on_negative": "Record estimator as calibrated within 3 bits and use it unadjusted."
+   },
+   "required_artifacts": [
+    "manifest.yaml with frozen parameters, seeds, code commit and tool versions",
+    "raw-result.json with per-trial records and verification flags",
+    "offsets CSV",
+    "SVG",
+    "PDF"
+   ]
+  }
+ }
+]

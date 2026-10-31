@@ -1,0 +1,345 @@
+# EXP-ICPERF-284bc4 — version-2 successor of EXP-ICPERF-e467a5, stage-0
+# instrument for H-ICPERF-2f52d1. Designed under TASK-20261029-038368
+# (DEC-20261029-9bc3ff). Frozen under DEC-20261029-ca33b3. No run, outcome, or conclusion is in this file.
+experiment:
+  id: EXP-ICPERF-284bc4
+  hypothesis_id: H-ICPERF-2f52d1
+  source_idea: IDEA-20261015-7a3c9e
+  question_id: RQ-ICPERF-94c86e
+  goal_id: GOAL-ICPERF-e6b6a4
+  version: 2
+  predecessor_experiment_id: EXP-ICPERF-e467a5
+  predecessor_decision_id: DEC-20261029-9bc3ff
+  supersedes: EXP-ICPERF-e467a5
+  supersession_note: >-
+    Version 2 of the EXP-ICPERF-e467a5 contract, written under protocol
+    amendment experiments/EXP-ICPERF-e467a5/amendments/AMD-20261029-v2/protocol-amendment.yaml.
+    Version 1 stays frozen and approved as written and is never rerun. Its
+    only run, RUN-ICPERF-943efa, is invalid_output and is not citable as an
+    observation, and its session directory RBS-ICPERF-b7e41c on main is a
+    merge splice (DEC-20261029-9bc3ff). The success and falsification
+    criteria below are version 1's, verbatim.
+  title: >-
+    Stage-0 instrument v2: integer price-ratio identity at three toy (r, A)
+    cells, with arithmetic-consistency checks and two planted negative controls
+  status: approved
+  frozen: true
+  approved_by: DEC-20261029-ca33b3
+  execution_authorized: true
+  designed_at: '2026-10-29'
+  designed_by_task: TASK-20261029-038368
+  objective: >-
+    Run one preregistered deterministic cell. With c_probe = 370 ns,
+    c_state = 2100 ns, c_step = 40 ns, and BL constant 21/10, record the
+    reduced price ratio and the online ratios at (r, A) = (1000, 2),
+    (4000, 2), and (1000, 4), each with a 10-state table, under the online
+    time model in /experiment/online_time_model. Run three
+    arithmetic-consistency checks and two planted negative controls that must
+    give a reduced ratio other than 925/4. Do not read a host receipt and do
+    not estimate an n=83 speedup.
+  inputs:
+    c_probe_ns: 370
+    c_state_ns: 2100
+    c_step_ns: 40
+    bl_num: 21
+    bl_den: 10
+    states: 10
+    precomputation_steps: 525
+    cells:
+      - {name: r1000_a2, r: 1000, A: 2}
+      - {name: r4000_a2, r: 4000, A: 2}
+      - {name: r1000_a4, r: 1000, A: 4}
+    negative_controls:
+      perturbed_price: {c_probe_ns: 371}
+      wrong_precomputation_model: {precomputation_steps: 10}
+    runner: experiments/EXP-ICPERF-284bc4/implementation/run.py
+    checker: experiments/EXP-ICPERF-284bc4/implementation/check.py
+  input_bindings:
+    predecessor_specification:
+      path: experiments/EXP-ICPERF-e467a5/specification.yaml
+      sha256: dc1824e89db2fc43f6d0ed5472472033bdc07f72fd4e2eccfa9b45742383433c
+      role: >-
+        Source of the verbatim success and falsification criteria, the three
+        prices, the BL constant, the table size, the cells and the
+        preregistered integers.
+  online_time_model:
+    statement: >-
+      All quantities are exact rationals. precomputation_steps = states *
+      c_state / c_step = 10 * 2100 / 40 = 525. The Bernstein-Lange online
+      step count is bl_steps = bl_num * r / (bl_den * A *
+      precomputation_steps), and bl_online_ns = bl_steps * c_step. The
+      index-calculus probe count is probes = r / (A * states), and
+      ic_online_ns = probes * c_probe. The online ratio of a cell is
+      ic_online_ns / bl_online_ns, reduced. The price ratio is c_probe *
+      c_state * bl_den / (bl_num * c_step^2), reduced.
+    bl_constant: >-
+      The BL constant is 21/10. bl_num = 21 and bl_den = 10: the factor 10 in
+      version 1's price formula is bl_den.
+    derived_values: >-
+      (1000, 2): probes 50, bl_steps 2, online times 18500 ns and 80 ns.
+      (4000, 2): probes 200, bl_steps 8, online times 74000 ns and 320 ns.
+      (1000, 4): probes 25, bl_steps 1, online times 9250 ns and 40 ns.
+      Each reduced online ratio is 925/4, and so is the price ratio.
+    cancellation: >-
+      ic_online / bl_online reduces to c_probe * c_state * bl_den / (bl_num *
+      c_step^2), so r and A cancel. The r-change and A-change comparisons are
+      therefore arithmetic-consistency checks. They can fail only through an
+      inexact division or a defect in the code (DEC-20261029-9bc3ff, SF-1).
+    exactness: >-
+      In the primary trial every probe count, BL step count and online time
+      must be an integer. An inexact division invalidates the run (version 1's
+      rule).
+  bsgs_probe_count:
+    definition: >-
+      The baby-step giant-step comparison count is found by enumeration, not
+      by the formula it is compared with. In Z/m with m = r / A, the baby
+      steps are {0, ..., states - 1} and each giant step subtracts states. For
+      every target t in Z/m, count the table lookups up to and including the
+      first hit. bsgs_probes is the maximum over all targets. It is compared
+      with probes = r / (A * states) from the online time model.
+  controls:
+    - id: CON-1
+      kind: arithmetic_consistency
+      trial_id: ctl-consistency-a-change
+      text: >-
+        Version 1 control 1, relabelled. The (1000, 4) cell changes A from
+        the (1000, 2) cell. Because A cancels, this is an arithmetic-consistency
+        check, not a discriminating control.
+      pass_condition: same_reduced_ratio true and matches_preregistered true (both reduced ratios are 925/4).
+      fail_condition: Either flag is false, or an inexact division stops the trial.
+      runbook_assertion: runbook.yaml S02-trials by_trial.ctl-consistency-a-change
+    - id: CON-2
+      kind: arithmetic_consistency
+      trial_id: ctl-consistency-r-change
+      text: >-
+        Version 1 control 2, relabelled. The (4000, 2) cell changes r from the
+        (1000, 2) cell. Because r cancels, this is an arithmetic-consistency
+        check, not a discriminating control.
+      pass_condition: same_reduced_ratio true and matches_preregistered true (both reduced ratios are 925/4).
+      fail_condition: Either flag is false, or an inexact division stops the trial.
+      runbook_assertion: runbook.yaml S02-trials by_trial.ctl-consistency-r-change
+    - id: CON-3
+      kind: arithmetic_consistency
+      trial_id: ctl-bsgs-enumeration
+      text: >-
+        Version 1 control 3, replaced. In version 1 the probe count and the
+        BSGS count were the same quantity computed twice. Here the BSGS count
+        comes from the enumeration in /experiment/bsgs_probe_count, and the
+        probe count from the formula.
+      pass_condition: all_match true, with enumerated_probes 50, 200 and 25.
+      fail_condition: all_match false, or an enumerated count other than 50, 200 or 25.
+      runbook_assertion: runbook.yaml S02-trials by_trial.ctl-bsgs-enumeration
+    - id: NEG-1
+      kind: negative
+      trial_id: ctl-neg-perturbed-price
+      text: >-
+        A planted wrong price: c_probe = 371 ns in place of 370 ns, every other
+        input unchanged. The reduced price ratio and every online ratio become
+        1855/8.
+      pass_condition: >-
+        matches_preregistered false, price_ratio_num 1855, price_ratio_den 8,
+        online_ratio_num 1855 and online_ratio_den 8.
+      fail_condition: matches_preregistered true, or any of those integers differs.
+      runbook_assertion: runbook.yaml S02-trials by_trial.ctl-neg-perturbed-price
+    - id: NEG-2
+      kind: negative
+      trial_id: ctl-neg-precomputation-model
+      text: >-
+        A planted wrong online model: precomputation_steps = states = 10 in
+        place of states * c_state / c_step = 525, every input unchanged. Every
+        reduced online ratio becomes 185/42.
+      pass_condition: >-
+        matches_preregistered false, online_ratio_num 185 and online_ratio_den 42.
+      fail_condition: matches_preregistered true, or either integer differs.
+      runbook_assertion: runbook.yaml S02-trials by_trial.ctl-neg-precomputation-model
+  independent_variables:
+    - r in {1000, 4000}
+    - A in {2, 4}
+    - "control arm: c_probe 371 (NEG-1); precomputation_steps 10 (NEG-2)"
+  variable_ledger:
+    crosses_map: false
+    independent:
+      - name: r
+        values: [1000, 4000]
+        how: frozen CELLS in run.py; spec_bindings /experiment/inputs/cells; asserted per cell
+      - name: A
+        values: [2, 4]
+        how: frozen CELLS in run.py; spec_bindings /experiment/inputs/cells; asserted per cell
+      - name: c_probe_ns
+        values: ["370 primary", "371 NEG-1"]
+        how: constants C_PROBE_NS and PERTURBED_C_PROBE_NS in run.py; spec_bindings; asserted /c_probe_ns
+      - name: precomputation_model
+        values: ["states * c_state / c_step = 525 primary", "states = 10 NEG-2"]
+        how: precomputation_steps() and WRONG_PRECOMPUTATION_STEPS in run.py; spec_bindings; asserted /precomputation_steps
+    factors:
+      - {name: c_state_ns and c_step_ns, treatment: fixed, how: "constants 2100 and 40 in run.py; spec_bindings; asserted /c_state_ns, /c_step_ns"}
+      - {name: BL constant, treatment: fixed, how: "constants BL_NUM 21 and BL_DEN 10 in run.py; spec_bindings; asserted /bl_num, /bl_den"}
+      - {name: states, treatment: fixed, how: "constant STATES = 10 in run.py; spec_bindings; asserted /states"}
+      - {name: process, treatment: measured, how: "each unit is a fresh python3 process launched by the supervisor; an audit replay is another fresh process"}
+      - {name: interpreter, treatment: measured, how: "recorded per unit in raw-result.json /interpreter and per session in step S01; exact rational arithmetic, so no effect is expected and none is credited"}
+      - {name: host, treatment: measured, how: "elapsed_seconds only; no clock is a primary metric"}
+    comparisons:
+      - {id: CMP-PRIMARY, design: absolute, arms: [price-ratio-identity], differs_in: [], note: "the primary unit against the preregistered 925/4 and cell integers"}
+      - {id: CMP-CON-1, design: one_factor, arms: ["ctl-consistency-a-change r1000_a2", "ctl-consistency-a-change r1000_a4"], differs_in: [A], note: "arithmetic-consistency check; A cancels"}
+      - {id: CMP-CON-2, design: one_factor, arms: ["ctl-consistency-r-change r1000_a2", "ctl-consistency-r-change r4000_a2"], differs_in: [r], note: "arithmetic-consistency check; r cancels"}
+      - {id: CMP-CON-3, design: absolute, arms: [ctl-bsgs-enumeration], differs_in: [], note: "enumerated worst-case lookups against the probe formula"}
+      - {id: CMP-NEG-1, design: one_factor, arms: [price-ratio-identity, ctl-neg-perturbed-price], differs_in: [c_probe_ns]}
+      - {id: CMP-NEG-2, design: one_factor, arms: [price-ratio-identity, ctl-neg-precomputation-model], differs_in: [precomputation_model]}
+      - {id: CMP-AA, design: aa, arms: [recorded unit, audit replay of the same unit], differs_in: [process], note: "tools/runbook.py audit compares the replay pointers exactly; the noise floor is zero by construction"}
+  metrics:
+    primary:
+      - price_ratio_num
+      - price_ratio_den
+      - ratios_agree
+      - all_match_bsgs
+    secondary:
+      - elapsed_seconds
+  heuristic_under_test: null
+  preregistered_prediction:
+    quantity: >-
+      The reduced price ratio is 925/4. Each of the three cells has that
+      same reduced online ratio, and each probe count equals (r/A)/states.
+    formula: >-
+      price = (370 * 2100 * 10) / (21 * 40 * 40) = 925/4.
+      At (1000, 2) the online times are 18500 ns and 80 ns.
+      At (4000, 2) they are 74000 ns and 320 ns.
+      At (1000, 4) they are 9250 ns and 40 ns.
+      Each reduced ratio is 925/4. Probe counts are 50, 200, and 25.
+    source: >-
+      Version 1's preregistered prediction, verbatim. The integers were
+      evaluated by experiments/EXP-ICPERF-e467a5/implementation/run.py in a
+      design-time directory before version 1 was frozen. They are not a host
+      measurement and not the n=83 figure in IDEA-20261015-7a3c9e.
+  prediction_provenance:
+    - prediction: PRED-PRIMARY
+      text: the version-1 preregistered prediction, verbatim (925/4, ratios_agree true, all_match_bsgs true)
+      first_recorded_in: experiments/EXP-ICPERF-e467a5/specification.yaml
+      written_at: '2026-10-17'
+      data_seen:
+        - >-
+          RUN-ICPERF-943efa raw-result.json (925/4, ratios_agree true, all_match_bsgs true), the output of an
+          invalid_output unit, seen after 2026-10-21 by the audit readers of
+          AUD-20261029T011541Z-d57860, by the Coordinator writing DEC-20261029-9bc3ff, and by this
+          design session. It is not an observation.
+      sample_status: out_of_sample
+      note: >-
+        The integers were fixed from version 1's run.py at its design time
+        (2026-10-17), before that unit existed, and are not changed here.
+    - prediction: PRED-CONTROLS
+      text: the control values 1855/8 (NEG-1), 185/42 (NEG-2) and the enumerated BSGS counts 50, 200 and 25 (CON-3)
+      first_recorded_in: experiments/EXP-ICPERF-284bc4/specification.yaml
+      written_at: '2026-10-29'
+      data_seen: []
+      sample_status: in_sample
+      note: >-
+        Computed by this design session from the stated model, in a scratch
+        directory outside the repository (arithmetic, not a trial). They
+        calibrate the controls' assertions; no success or falsification
+        criterion cites them.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Three exact integer cells. No transfer to section-23 sizes, to n=83,
+      or to a memory-latency model.
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds: []
+    independent_instances: 1
+    seed_policy: >-
+      Deterministic arithmetic. No seed is drawn. The audit replay is the A/A
+      repetition of the same unit.
+  replay:
+    mode: fields
+    interpreter: >-
+      tools/runbook.py audit replays a unit with the python3 on PATH of the
+      auditing checkout, running the bound run.py under the runbook's
+      environment (PYTHONHASHSEED 0). No minor version is pinned, because the
+      arithmetic is exact rational arithmetic. Every unit records its own
+      interpreter in raw-result.json /interpreter (implementation, version,
+      executable), and the session records the launching interpreter in step
+      S01-probe-python. A replay records its own /interpreter the same way.
+      Replay compares only integers and booleans, exactly; never /interpreter
+      and never /elapsed_seconds.
+    compared_pointers: [/matches_preregistered, /cells]
+    compared_pointers_primary: [/price_ratio_num, /price_ratio_den, /ratios_agree, /all_match_bsgs, /precomputation_steps]
+  decisive_test: >-
+    The runbook decides the frozen success criterion by itself. Unit
+    price-ratio-identity is valid only if raw-result.json carries
+    price_ratio_num 925, price_ratio_den 4, ratios_agree true, all_match_bsgs
+    true, matches_preregistered true and precomputation_steps 525, and each
+    cell carries its preregistered probe count, BSGS count and online times.
+    Success is observed when the session's execution validity is valid and its
+    control validity is passed. Falsification is observed when the primary
+    unit writes a complete raw-result.json whose values differ; the runbook
+    then marks the unit invalid on those assertions and the session stops. A
+    crash, a timeout, an inexact division, a missing file or a refused
+    manifest is an instrument failure, not falsification. A failed control
+    invalidates the session's control validity, and the instrument cell has no
+    valid observation.
+  budget:
+    enforcement: advisory
+    maximum_memory_gb: 1
+    maximum_runs: 6
+    wall_clock_seconds_per_run: 60
+  stopping_rules:
+    - Stop after the six preregistered trials, one run each. Do not open a host receipt in this version.
+  invalidation_rules:
+    - >-
+      A crash, timeout, or an inexact division invalidates the instrument
+      run. It is not evidence about the n=83 arm.
+    - >-
+      A manifest.yaml that fails tools/validate_ledger.py check_run, or that
+      the supervisor refuses, invalidates the unit. It is not evidence.
+    - >-
+      Changing a price, a cell, the BL numerator, the online time model or a
+      control after this freeze requires an amendment. It is not a rerun of
+      version 2.
+  success_criterion: >-
+    The run records price_ratio_num 925, price_ratio_den 4, ratios_agree
+    true, and all_match_bsgs true, at the three preregistered cells.
+  falsification_criterion: >-
+    The run records a complete cell in which price_ratio_num is not 925, or
+    price_ratio_den is not 4, or ratios_agree is false, or all_match_bsgs
+    is false. That result invalidates the instrument cell and does not
+    decide the measured-price claim of IDEA-20261015-7a3c9e.
+  decision_impact:
+    on_positive: >-
+      The integer identity holds on these three cells, the BSGS count agrees
+      with an independent enumeration, and both planted negatives moved the
+      ratio. A later amendment may bind host receipts for c_probe, c_state,
+      and c_step. This pass does not reproduce the 2.0-8.0x table or the n=83
+      arm, and it does not close IDEA-20261015-7a3c9e.
+    on_negative: >-
+      The integer identity failed. Do not schedule a host comparison from
+      this runner. Repair the instrument by amendment. Do not read the
+      failure as evidence that the measured deficit grows with r.
+  required_artifacts:
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-8e3acd/manifest.yaml
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-8e3acd/raw-result.json
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-8e3acd/RESULTS.md
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-2d715d/manifest.yaml
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-2d715d/raw-result.json
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-2d715d/RESULTS.md
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-2c627f/manifest.yaml
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-2c627f/raw-result.json
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-2c627f/RESULTS.md
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-779d41/manifest.yaml
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-779d41/raw-result.json
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-779d41/RESULTS.md
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-30596e/manifest.yaml
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-30596e/raw-result.json
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-30596e/RESULTS.md
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-850008/manifest.yaml
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-850008/raw-result.json
+    - experiments/EXP-ICPERF-284bc4/runs/RUN-ICPERF-850008/RESULTS.md
+  runbook:
+    path: experiments/EXP-ICPERF-284bc4/runbook.yaml
+    session_id: RBS-ICPERF-8cdc92
+    predecessor_session_id: RBS-ICPERF-b7e41c
+  assigned_to: executor
+  scope_note: >-
+    Version 2 is the integer identity only, with honest labels on its
+    consistency checks and two planted negatives. Section-23 receipts, the
+    n=83 arm, and the ordinary-curve control remain proposed. No external
+    computer-algebra system is on the path. No speedup or latency statement.

@@ -1,0 +1,172 @@
+# EXPERIMENT CONTRACT -- EXP-SLHDSA-699191 (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-SLHDSA-699191
+  hypothesis_id: H-SLHDSA-4521c3
+  derived_from_idea: IDEA-20261018-be7ba5
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Per-role reversible oracle cost
+  objective: How much per-role oracle cost differs and whether a uniform convention misprices
+    roles.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: >-
+      Qiskit (or Azure Quantum resource estimator offline equivalent) with hand-built reversible
+      SHA-256 and Keccak rounds; Python
+    parameters: rounds 1..4 per primitive; roles F, H, T_len, H_msg, PRF for 12 FIPS 205 sets
+    procedure: >-
+      1. Build round circuits. 2. Count gates. 3. Fit linear model. 4. Multiply by calls per
+      role. 5. Table.
+  controls:
+  - 'null: identical circuits for two roles with equal input length, cost must be equal'
+  - 'positive: an input length doubling, cost must double'
+  - 'A/A: two independent circuit syntheses (different synthesis seed) of SHA-256 round'
+  independent_variables:
+  - role
+  - primitive
+  metrics:
+    primary:
+    - log2 cost difference per role
+    secondary:
+    - T-depth, qubits
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: T_len/F cost ratio
+    formula: ceil(len*n + overhead)/64 compression calls vs 1
+    source: FIPS 205 input lengths
+  scale_relevance:
+    tier: medium
+    justification: 'rounds reduced; transfer: linear in rounds'
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    independent_instances: 3
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 1800
+    total_cpu_hours: 2
+    maximum_memory_gb: 8
+    maximum_runs: 16
+  stopping_rules:
+  - one synthesis per seed per cell
+  invalidation_rules:
+  - timeout/crash is failed_infrastructure, never negative evidence
+  - a circuit failing classical simulation on 1000 random inputs is invalid
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    Success if C1 shows >= 5 bits difference beyond the AA1 noise floor (P1) and C3 linearity
+    holds (P2).
+  falsification_criterion: Falsified if C1 difference under 5 bits or C3 linearity fails.
+  decision_impact:
+    on_positive: Replace the uniform oracle convention with per-role costs in the quantum
+      cost table.
+    on_negative: Keep the uniform convention, noting the measured role spread.
+  variable_ledger:
+    independent:
+    - name: role
+      levels:
+      - F
+      - T_len
+    - name: primitive
+      levels:
+      - sha256
+      - keccak
+    factors:
+    - name: seed_block
+      treatment: randomized
+      value: two synthesis seeds
+      how: >-
+        two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under
+        both
+    - name: adder_design
+      treatment: fixed
+      value: ripple-carry with Toffoli
+      how: constant
+    comparisons:
+    - id: C1
+      arms:
+      - F sha256
+      - T_len sha256
+      differs_in:
+      - role
+      design: one_factor
+    - id: C2
+      arms:
+      - F sha256
+      - F keccak
+      differs_in:
+      - primitive
+      design: one_factor
+    - id: C3
+      arms:
+      - per-round linearity
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - F sha256 seed-block A
+      - F sha256 seed-block B
+      differs_in:
+      - seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-be7ba5.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-be7ba5.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - manifest.yaml with frozen parameters, seeds, code commit and tool versions
+  - raw-result.json with per-trial records and verification flags
+  - gate-count CSV
+  - circuit files
+  - PDF
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-SLHDSA-699191/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-be7ba5.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

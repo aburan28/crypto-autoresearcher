@@ -62,6 +62,67 @@ class RootlessSolvePlanTests(unittest.TestCase):
             self.assertEqual(trial["parameters"]["prepared_input_sha256"], plan.sha(source))
             self.assertNotIn("/runs/", " ".join(argv))
 
+    def test_path_transfer_uses_catalogued_public_manifest_without_roots(self) -> None:
+        rows = [
+            {"arm_key": f"P29-v{index:04d}-low_x", "stratum": "P29",
+             "path_index": index, "model": {"j": f"0x{index:x}"}}
+            for index in (1, 2)
+        ]
+        with tempfile.TemporaryDirectory(prefix="transfer-plan-") as temporary:
+            prepared_arms = {}
+            for index in (1, 2):
+                manifest = Path(temporary) / f"{index}-manifest.json"
+                manifest.write_text(json.dumps({
+                    "source_points_sha256": "a" * 64,
+                    "source_generator": [1, 2], "source_Q": [3, 4],
+                    "generator": [5, index], "Q": [7, index],
+                    "target_vector_sha256": "b" * 64,
+                }))
+                prepared_arms.update({
+                    f"P29-v{index:04d}-{arm}": {"manifest": manifest}
+                    for arm in plan.ARMS})
+            with patch.object(plan, "rel", side_effect=lambda path: str(path)):
+                trials = plan.make_transfer_trials(
+                    rows, ["RUN-ECTD-aaaaaa", "RUN-ECTD-bbbbbb"],
+                    experiment_id="EXP-ECTD-abcdef",
+                    relation_run_ids={},
+                    prepared_arms=prepared_arms, sage_path=sys.executable)
+        self.assertEqual(len(trials), 2)
+        trial = trials[0]
+        argv = trial["argv"] + trial["check_argv"]
+        self.assertIn("--source-manifest", argv)
+        self.assertIn("--endpoint-manifest", argv)
+        self.assertNotIn("--verifier-root-file", argv)
+        self.assertNotIn("--scalar", argv)
+        self.assertEqual(trial["depends_on"], [])
+        self.assertFalse(trial["parameters"]["scalar_or_seed_in_worker_argv"])
+
+    def test_path_transfer_rejects_target_vector_drift_between_finalists(self) -> None:
+        rows = [
+            {"arm_key": f"P29-v{index:04d}-low_x", "stratum": "P29",
+             "path_index": index, "model": {"j": f"0x{index:x}"}}
+            for index in (1, 2)
+        ]
+        with tempfile.TemporaryDirectory(prefix="transfer-target-stream-") as temporary:
+            root = Path(temporary)
+            prepared_arms = {}
+            for index, target_digest in ((1, "b" * 64), (2, "c" * 64)):
+                for arm in plan.ARMS:
+                    manifest = root / f"{index}-{arm}.json"
+                    manifest.write_text(json.dumps({
+                        "source_points_sha256": "a" * 64,
+                        "source_generator": [1, 2], "source_Q": [3, 4],
+                        "generator": [5, index], "Q": [7, index],
+                        "target_vector_sha256": target_digest,
+                    }))
+                    prepared_arms[f"P29-v{index:04d}-{arm}"] = {"manifest": manifest}
+            with patch.object(plan, "rel", side_effect=lambda path: str(path)):
+                with self.assertRaisesRegex(ValueError, "do not share the stratum target vector"):
+                    plan.make_transfer_trials(
+                        rows, ["RUN-ECTD-aaaaaa", "RUN-ECTD-bbbbbb"],
+                        experiment_id="EXP-ECTD-abcdef", relation_run_ids={},
+                        prepared_arms=prepared_arms, sage_path=sys.executable)
+
     def test_approved_solve_plan_removes_private_root_and_commitment_bindings(self) -> None:
         with tempfile.TemporaryDirectory(prefix="rootless-solve-") as tmp:
             root = Path(tmp)
@@ -169,7 +230,9 @@ class RootlessSolvePlanTests(unittest.TestCase):
             admission_path = put("admission.json", json.dumps(admission))
             worker_admission = put("worker-admission.json", "rootless admission\n")
             catalog = put("catalog.json", "catalog\n")
-            rows = [{"arm_key": f"P29-v0001-{arm}"} for arm in plan.ARMS]
+            rows = [{"arm_key": f"P29-v0001-{arm}", "stratum": "P29",
+                     "path_index": 1, "model": {"j": "0x123"}}
+                    for arm in plan.ARMS]
             relation = [{"id": row["arm_key"], "run_id": f"RUN-ECTD-{index:06x}",
                          "memory_mb": 4096, "watchdog_seconds": 1830,
                          "parameters": {"stage": "solve", "stratum": "P29"},
@@ -180,6 +243,11 @@ class RootlessSolvePlanTests(unittest.TestCase):
                     "watchdog_seconds": 1830,
                     "parameters": {"repetition": i, "seed": i}}
                    for i in range(10)]
+            transfer = [{"id": "P29-v0001-path-transfer",
+                         "run_id": "RUN-ECTD-000014", "memory_mb": 8192,
+                         "watchdog_seconds": 1830,
+                         "parameters": {"phase": "path_transfer"},
+                         "argv": ["rootless"]}]
             candidate = {
                 "schema": "crypto.autoresearch.trial_plan.v1", "candidate_only": True,
                 "approval_required": True, "experiment_id": "EXP-ECTD-abcdef",
@@ -196,8 +264,9 @@ class RootlessSolvePlanTests(unittest.TestCase):
                                for name, path in roots.items()},
                 "commitments": commitments, "binaries": binary_candidate,
                 "rho_seed_file": {"path": rel_tmp(seed_file), "sha256": plan.sha(seed_file)},
-                "relation_trial_count": len(relation), "rho_trial_count": len(rho),
-                "trials": relation + rho,
+                "relation_trial_count": len(relation), "transfer_trial_count": len(transfer),
+                "rho_trial_count": len(rho),
+                "trials": relation + transfer + rho,
             }
             candidate_path = put("candidate.json", json.dumps(candidate))
             output_path = root / "experiments/EXP-ECTD-abcdef/approved-plan.json"
@@ -218,6 +287,7 @@ class RootlessSolvePlanTests(unittest.TestCase):
                         return_value=(worker_admission, empty_arms)),
                   patch.object(plan, "finalist_rows", return_value=rows),
                   patch.object(plan, "make_trials", return_value=relation),
+                  patch.object(plan, "make_transfer_trials", return_value=transfer),
                   patch.object(plan, "make_rho_trials", return_value=rho)):
                 result = plan.build_approved(candidate_path, admission_path, decision_path,
                                              spec_path, output_path, catalog)

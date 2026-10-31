@@ -1,0 +1,72 @@
+# HYPOTHESIS -- H-SLHDSA-1b8576, specified from IDEA-20261018-e71929. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-SLHDSA-1b8576
+  question_id: RQ-SLHDSA-001
+  goal_id: GOAL-SLHDSA-001
+  derived_from_idea: IDEA-20261018-e71929
+  added: '2026-10-18'
+  statement: >-
+    With a toy MD hash of chaining width c and output n, multi-target attacks on multi-block
+    roles (T_len, H_msg) can target the internal chaining value rather than the output, so
+    their cost scales with c rather than n once n > c/2; at c=32, n in {16,20,24} bits the
+    measured cost of a second-preimage on T_len with t targets follows 2^{c}/(t * blocks)
+    and flattens in n, while a sponge with capacity 2n follows 2^n/t. This reproduces at toy
+    scale why FIPS 205 uses SHA-512 for some roles in categories 3 and 5.
+  mechanism: >-
+    In MD, every intermediate chaining value of a long input is a target for an expandable-message-style
+    second preimage; the number of targets grows with blocks, and the search space is the
+    chaining width. When n is large relative to c, the chaining value is the cheaper target.
+    A sponge instantiated with sufficient capacity does not have this shortcut. Measuring
+    the crossover validates the parameter choice and exposes where the margin is thinnest.
+  assumptions:
+  - Toy compression from truncated SHAKE behaves as a random function
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Toy compression from truncated SHAKE behaves as a random function
+    random_model_justification: model
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-SLHDSA-5c7662
+    falsification_condition: chi-square on outputs
+  predictions:
+  - metric: slope of log2 cost vs n for MD at n > c/2
+    direction: different
+    minimum_effect: within 0.15 of 0
+  - metric: MD cost / sponge cost at n=24, c=32
+    direction: lower
+    minimum_effect: <= 2^-4
+  test_boundary:
+    instances:
+    - >-
+      c=32; n in {16,20,24}; blocks in {8,64}; t from exposure of toy signer (up to 2^10);
+      100 trials per cell
+    parameters:
+      scale_tier: toy
+      scale_justification: 'widths 16-32; transfer: scaling law in c and n'
+    implementation: C with OpenSSL-free toy primitives built from SHAKE; Python driver
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 16
+      maximum_memory_gb: 8
+      maximum_runs: 24
+  distinguishable_outcomes:
+  - slope above 0.5
+  - ratio above 2^-2
+  falsification_conditions:
+  - MD slope in n not flat
+  - ratio not below 2^-2
+  interpretation_limits:
+  - >-
+    Toy tier: reduced n (hash output truncated to 12-32 bits) and reduced w, h, d, k, a; no
+    statement transfers to a FIPS 205 parameter set without the stated transfer assumption
+    and a separate crypto-tier certificate.
+  - >-
+    Reproduces a known structural point; FIPS 205 already mitigates it, so this measures margin,
+    not a break.
+  status: specified
+  proposed_by: idea-generator
