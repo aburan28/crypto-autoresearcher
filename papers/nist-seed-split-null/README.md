@@ -74,7 +74,8 @@ with `make`. The earlier Markdown draft, `paper.md`, was replaced by
       `research/nist_seed_lvalue_20261030/` (L̂ = 0.246, 0.25th percentile,
       lowest of 61; §6). Independently replicated by
       `research/nist_seed_l1chi_20261030/` (`CROSSCHECK.md`: log L̂ agrees to 3 × 10⁻¹⁴).
-- [ ] Novelty audit: prior analyses of NIST seed curves and of Elkies-prime
-      distributions (Shparlinski–Sutherland; Castryck–Hubrechts).
+- [x] Novelty audit: prior analyses of NIST seed curves and of Elkies-prime
+      distributions (`NOVELTY.md`, 2026-10-31: no earlier split-count or
+      L(1, χ) test on these curves found; related work added to §1).
 - [ ] Independent review (`review-run`) of `runs/heldout.json` and
       `runs/rows.jsonl`.
