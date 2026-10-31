@@ -1,0 +1,202 @@
+wiring_report:
+  task_id: TASK-20261031-7ccf3c
+  batch_id: BATCH-3505b3
+  goal_id: GOAL-PFDR-fd09e0
+  experiment_id: EXP-PFDR-2d36f9
+  hypothesis_id: H-PFDR-ed7ccf
+  question_id: RQ-PFDR-ae2fba
+  authorization_decision: DEC-20261031-e8e84b
+  authorization_next_action: NA-1
+  recorded_at: '2026-10-31'
+  executor_role: executor-implementation
+  base_implementation: experiments/EXP-PFDR-ca5e01/implementation/
+
+  files_changed:
+  - path: experiments/EXP-PFDR-2d36f9/implementation/run.py
+    sha256: d824aced48b5a625ee391a8d62c1bf673d00c9816255fd297547ae6e97acce77
+    bytes: 52671
+    provenance: >-
+      Adapted from EXP-PFDR-ca5e01 run.py. window_base, gap_base, null_base and the counting
+      convention are unchanged in semantics; added gamma_plant_base, zn_interval_base,
+      plant_bracket/plant_L_for_curve, order certification, the five-rung slope/bootstrap analysis,
+      the five line classes, the calibration and control gates, reanalysis and the trial dispatcher.
+  - path: experiments/EXP-PFDR-2d36f9/implementation/check.py
+    sha256: b19e0a74598617e57440edd62cff648b9125374abf4d7872744cc06aad1c582c
+    bytes: 21661
+    provenance: >-
+      New producer-written checker derived from EXP-PFDR-ca5e01 check.py; re-derives the pilot design,
+      the census plans and replays, the per-cell moments, the line slopes, the classes, the controls,
+      the reading and the descriptive reanalysis.
+  - path: experiments/EXP-PFDR-2d36f9/implementation/paircount.c
+    sha256: 0d8e943fabbbeefa3e7796f833957c17f12a09ca056dc11974002f2745fac696
+    bytes: 5351
+    provenance: >-
+      Derived from EXP-PFDR-ca5e01 paircount.c with two reviewed changes: p bound raised from 2^31 to
+      2^32 for the 32-bit rung and the radix key-width scan capped at 64 bits (no shift by 64). The
+      counting convention is unchanged.
+  - path: experiments/EXP-PFDR-2d36f9/implementation/vendor/curve.py
+    sha256: fcca2beb699b4785c25820df1d949b757be7a273efd2f4f015625d7aa13c67fa
+    bytes: 11762
+    provenance: >-
+      Byte-identical copy of src/crypto_autoresearcher/index_calculus/curve.py (and of the
+      EXP-PFDR-ca5e01 vendored copy): diff against both is empty. generate_prime_order_curve
+      certifies the order by BSGS in the Hasse interval; run.py adds the 4-point check N*P = O.
+  - path: experiments/EXP-PFDR-2d36f9/trial-plan.json
+    sha256: 5b5204496814c0640fd67f4979fb636b65ec4515d109e5b0d43a2de4d93b4381
+    bytes: 8777
+    provenance: >-
+      schema crypto.autoresearch.trial_plan.v1, seven trials in the specified order with the seven
+      RUN ids, live specification hash, source_sha256 of the four implementation files and
+      input_sha256 of vendor/curve.py.
+
+  specification_untouched: true
+  specification_status_after: review_required
+  specification_frozen_after: false
+  specification_approved_by_after: null
+  specification_sha256: 9a244a7122d1c548cb5e6b0b32ee99230d8739eff968e6e1a89b27af43173d70
+  specification_sha256_note: >-
+    The live specification hash equals specification_sha256 in trial-plan.json; the file was read and
+    never edited.
+
+  selftest:
+    command: >-
+      python3 experiments/EXP-PFDR-2d36f9/implementation/run.py build --out <tmp> &&
+      python3 experiments/EXP-PFDR-2d36f9/implementation/run.py selftest --build <tmp> --out <tmp>
+    working_directory: /Volumes/SSD990-2/crypto-autoresearcher-coord-20261031
+    python_version: 3.12.8
+    exit_code: 0
+    result: PASS
+    tail: >-
+      built <tmp>/paircount
+      selftest PASS (126 kernel-vs-brute + 9 near-2^32 key checks + 6 plant_internal +
+      12 order certifications (8 at 32 bits, 4 at 28 bits))
+    coverage: >-
+      126 kernel-vs-brute checks: nine builders (null, window, gap2, gap3, Z/N interval and the four
+      gamma plants) at bits 10, 12 and 14 with three seeds each (81), and the same nine builders at
+      bits 16, 20, 24, 28 and 32 with one seed each (45). Six plant_internal values for L in
+      {1, 2, 3, 5, 9, 14} equal a group brute force. Nine near-2^32 64-point bases (one per builder
+      type) are recounted by brute force for key overflow.
+    checker: >-
+      python3 experiments/EXP-PFDR-2d36f9/implementation/check.py <tmp-run> trial-plan.json selftest
+      -> exit 0, "CHECK OK selftest".
+    artifacts_note: >-
+      The build and selftest outputs were written under /Volumes/SSD990/llm/tmp/opencode/pfdr2d36f9,
+      outside the worktree, because this task mints no RUN directory. No selftest.json is committed.
+
+  order_certification:
+    result: PASS
+    requirement: N prime, N in the Hasse interval, N*P = O for 4 seeded random points per curve
+    bits_32: 8 curves (seeds 6900000..6900007), all pass
+    bits_28: 4 curves (seeds 6900100..6900103), all pass
+    observed_margins: >-
+      |N - (p + 1)| stayed inside 2*sqrt(p) on every curve (largest 32-bit margin 121619 against
+      radius 125864; largest 28-bit margin not binding). Each curve recorded points_ok = 4.
+    generator: vendor/curve.py generate_prime_order_curve via ec.generate_prime_order_curve(bits, seed)
+    note: >-
+      generate_prime_order_curve already certifies a unique BSGS multiple in Hasse that is prime and
+      > 4*sqrt(p); run.py.certify_curve re-checks N prime, the Hasse bound and N*P = O on four seeded
+      points and records the certificate in every census record and in selftest.json.
+
+  paircount_key_bound:
+    result: PASS
+    formula: x*p + y <= (p-1)*p + (p-1) = p^2 - 1 < 2^64
+    max_p_checked: 3700232981
+    bound_at_max_p: 13691724113680146360
+    two_to_64: 18446744073709551616
+    bound_lt_2_64: true
+    p_lt_2_32: true
+    reviewed_fix: >-
+      The ca5e01 kernel rejected p >= 2^31 and could shift a 64-bit value by 64 in the key-width scan.
+      The copy accepts p < 2^32 and computes the key width with a loop capped at 63, defaulting to 64
+      only when the bound needs it. Both changes are recorded in the file header; the counting
+      convention (exclude Q = -P and P = Q, count binom(m_s, 2) per s != O) is unchanged. The kernel
+      selftest passes at p near 2^32 (9 base types, brute recounted).
+
+  trial_plan:
+    schema: crypto.autoresearch.trial_plan.v1
+    maximum_runs: 7
+    experiment_id: EXP-PFDR-2d36f9
+    queue: coordination/goals/GOAL-PFDR-fd09e0/batches/BATCH-3505b3/dispatch_queue.json
+    specification_sha256: 9a244a7122d1c548cb5e6b0b32ee99230d8739eff968e6e1a89b27af43173d70
+    source_and_input_hashes_match_live_files: true
+    trials:
+    - id: selftest
+      run_id: RUN-PFDR-f86a2a
+      stage: selftest
+      depends_on: []
+    - id: reanalysis-ca5e01
+      run_id: RUN-PFDR-b507a1
+      stage: analyze
+      mode: reanalysis
+      depends_on: []
+      note: descriptive only; reads committed EXP-PFDR-ca5e01 outputs (R5)
+    - id: pilot
+      run_id: RUN-PFDR-601709
+      stage: pilot
+      depends_on: [selftest]
+      note: writes design.json (n_curves, gamma_design, L per plant)
+    - id: census-main
+      run_id: RUN-PFDR-b126f3
+      stage: census
+      depends_on: [pilot]
+    - id: analyze-main
+      run_id: RUN-PFDR-97fa6c
+      stage: analyze
+      depends_on: [census-main]
+      note: O-PENDING-REPLICATION legitimate here
+    - id: census-rep
+      run_id: RUN-PFDR-8cb633
+      stage: census
+      depends_on: [analyze-main]
+      note: ALIVE lines only; empty result recorded when none
+    - id: analyze-final
+      run_id: RUN-PFDR-73276d
+      stage: analyze
+      depends_on: [census-rep, analyze-main]
+      note: writes analysis.json (decisive)
+    run_ids_free_check: >-
+      python3 tools/allocate_id.py --check-file <list> -> "well-formed, unique and free: 7 RUN IDs".
+    validation: >-
+      JSON parses; schema, experiment id, seven unique trials in the specified order, unique
+      random-suffix RUN ids, dependency ordering, argv/check_argv binding a committed source, declared
+      artifacts including manifest.yaml and raw-result.json, positive memory_mb and watchdog limits all
+      checked by a local read-only script. tools/experiment_preapproval.py was not run: it requires
+      committed bytes and git, which this task is forbidden to use.
+
+  runs_launched: 0
+  run_directories_created: 0
+  run_directories_present: []
+  scientific_trials_executed: []
+
+  blockers:
+  - >-
+    The specification remains status review_required, frozen false, approved_by null. Approval and
+    freeze are the Coordinator's act after the preapproval probe reports approvable: true on the
+    committed packet; this task neither approves nor freezes.
+  - >-
+    tools/experiment_preapproval.py was not run because it verifies committed git bytes and this task
+    may not run git. The pre-producer snapshot/archive task must commit these exact bytes first.
+  - >-
+    paircount.c differs from the ca5e01 kernel by the reviewed p < 2^32 and key-width fixes; the
+    reviewer should confirm they preserve the counting convention before freeze.
+
+  completion_gate:
+    selftest_kernel_and_builders_16_20_24_28_32: pass
+    order_certification_28_and_32: pass
+    paircount_key_bound_at_p_near_2_32: pass
+    trial_plan_parses_binds_seven_trials_and_hashes: pass
+    specification_sha_unchanged_and_no_run_directory: pass
+    zero_runs_launched: pass
+    overall: pass
+
+  executor_assessment: >-
+    The frozen contract is implemented at the six declared paths and is runnable once approved: the
+    selftest passes at bits 10 through 32 for the kernel and all nine builders, 32-bit prime-order
+    generation is certified on eight curves and 28-bit on four, and the kernel key bound is certified
+    at p near 2^32. No pilot, census, analysis, reanalysis or trial was executed; no RUN directory was
+    created and no scientific reading exists. Implementation smoke tests of the design/analysis paths
+    used fabricated count records only (outside the worktree), never curve or kernel data. The only
+    post-freeze-sensitive change to review is the paircount key-bound fix. Point bases, gamma plants,
+    Z/N interval, A/A line, calibration gate and replication are wired exactly to the specification's
+    constants; the experiment still measures a coincidence growth rate and claims no speedup, attack
+    cost or cryptographic-scale result.
