@@ -1,31 +1,32 @@
 /-
-The last fall degree IS the largest degree at which a degree fall occurs.
+Under the stated hypotheses, the last fall degree is the greatest degree at
+which a degree fall occurs.
 
 Source: research/THM_FALLDEG_INVARIANTS1.md section 2
 Target: formal/targets/lastfall-is-max-degree-fall.yaml
 Claim:  THM-FALLDEG-INVARIANTS1-THM-2-8
 
-Caminata-Gorla Theorem 2.8. This is the statement that licenses reading a
-per-degree Macaulay rank profile as the last fall degree ITSELF rather than as
-a proxy for it.
+Caminata-Gorla Theorem 2.8 identifies the global greatest fall degree. A
+finite Macaulay rank profile gives the exact invariant only after its rows
+are proved to compute the iterated closure spaces and a bound excludes later
+falls. Neither measurement bridge is supplied by this theorem.
 
 Scope, and it is narrow. This is a theorem about the INVARIANT `d_F`, proved
 from Definition 1.5 and nothing else. It says nothing about Semaev systems,
 bounds nothing about any particular family, and is not evidence toward the
-growth question in RQ-DREG-bd6c86. It is also unrelated to the solving degree
-(CORR-20260916-0c9c0a).
+growth question in RQ-DREG-bd6c86. It does not by itself prove a bound on the
+solving degree (CORR-20260916-0c9c0a).
 
 Finiteness of `d_F` is an explicit HYPOTHESIS here, not a theorem. Caminata and
 Gorla get it from the existence of a Groebner basis; reproving that would drag
 in exactly the machinery this target was chosen to avoid, so it is assumed and
 said out loud.
 
-NON-VACUITY IS NOT ESTABLISHED. The theorem is conditional on `hfin` and
-`hfall`, and nothing in this file exhibits an `F` satisfying them. A witness
-would have to show `f ∉ V F d` for every `d` below the fall, which is a lower
-bound on the closure and is real work, not bookkeeping. Until someone supplies
-one, this is a true implication whose hypotheses are known to be satisfiable
-only from the literature, not from anything machine-checked here.
+NON-VACUITY IS NOT MACHINE-CHECKED HERE. The theorem is conditional on `hfin`
+and `hfall`; this file does not construct an `F` satisfying them. The independent
+source review works out the example `F = {x², x²+x}` with last fall degree 2.
+Formalizing a witness would require showing `x ∉ V F 1`, a genuine closure
+lower bound. The example is mathematical evidence, not a Lean declaration.
 -/
 import Mathlib.RingTheory.MvPolynomial.Basic
 import Mathlib.RingTheory.Ideal.Span
@@ -41,9 +42,9 @@ ring that contains every element of `F` of total degree at most `i` and is
 closed under multiplying by anything that keeps the total degree within `i`.
 
 The closure condition is written `f.totalDegree + g.totalDegree ≤ i` rather
-than `g.totalDegree ≤ i - f.totalDegree`. On `ℕ` that subtraction TRUNCATES, so
-the second form would become satisfiable by every `g` as soon as
-`f.totalDegree > i` -- a different, and wrong, closure. -/
+than `g.totalDegree ≤ i - f.totalDegree`. On `ℕ` that subtraction TRUNCATES: if
+`f.totalDegree > i`, the second form still permits degree-zero multipliers,
+while the sum condition permits none. -/
 noncomputable def V (F : Set (MvPolynomial σ k)) (i : ℕ) : Submodule k (MvPolynomial σ k) :=
   sInf {W : Submodule k (MvPolynomial σ k) |
     (∀ f ∈ F, f.totalDegree ≤ i → f ∈ W) ∧
@@ -51,7 +52,7 @@ noncomputable def V (F : Set (MvPolynomial σ k)) (i : ℕ) : Submodule k (MvPol
       f.totalDegree + g.totalDegree ≤ i → f * g ∈ W)}
 
 /-- The family is monotone: a larger budget admits more. Both defining
-conditions weaken as `i` grows, so the constraint set shrinks and its
+conditions strengthen as `i` grows, so the constraint set shrinks and its
 infimum grows. -/
 theorem V_mono (F : Set (MvPolynomial σ k)) {i j : ℕ} (hij : i ≤ j) :
     V F i ≤ V F j := by
