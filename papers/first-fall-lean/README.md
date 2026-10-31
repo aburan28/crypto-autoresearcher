@@ -2,6 +2,8 @@
 
 **Status: manuscript draft (LaTeX, `make check` passes, 7 pages), anonymized,
 not submitted, not cleared for posting.** The checklist below is owed first.
+The built PDF (about 330 KB) is not in git: it exceeds the 64 KiB data limit
+and waits for an artifact-store push (see Build).
 
 ## What it says
 
@@ -47,6 +49,14 @@ exhaustive cofactor search while drafting; that script is not committed.
 ## Build
 
 `make` (pdflatex), `make check`. No bibliography file; references are inline.
+Needs TeX Live's latex-base, latex-recommended and fonts-recommended packages
+and lmodern.
+
+`paper.pdf` is over the repository's 64 KiB data limit (AGENTS.md, "Data files
+live in the artifact store"). Until someone with store credentials runs
+`python3 tools/artifacts/artifacts.py push papers/first-fall-lean/paper.pdf`
+and commits the `.artifacts.json` and `.gitignore` it writes, `paper.pdf` is
+ignored locally and must be rebuilt with `make`.
 
 ## Owed before submission
 
