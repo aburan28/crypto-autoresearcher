@@ -70,10 +70,15 @@ and `{x}` should be described as having no **nonzero** strict fall. This
 convention is explicit here rather than silently altering the blind report.
 
 The source reviewer also found that the producer note's adjacent Theorem 2.9
-restatement omits the paper's fall-existence condition. That note requires a
-separate scoped correction; the present Theorem 2.8 target retains the
-condition.
+restatement omitted the paper's fall-existence condition. A subsequent scoped
+documentation correction restores it and narrows the target note and
+measurement bridge to the finite-profile evidence actually available. The
+formal Theorem 2.8 declaration and its hypotheses are unchanged.
 
 The report PDFs and SVGs are explanatory diagrams, not benchmark plots. No
 measured performance figure or public dashboard value changes as a result of
 this theorem review.
+
+The remaining obligations are tracked in the
+[finite-profile completeness problem](../../../problems/lastfall-finite-profile-completeness.md)
+and the [review identity problem](../../../problems/lastfall-review-task-id-schema.md).

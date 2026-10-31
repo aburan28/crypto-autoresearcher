@@ -12,6 +12,8 @@ Keep resolved and superseded records in the index.
 
 | Problem | Status | What it blocks | What would unblock it |
 | --- | --- | --- | --- |
+| [Last fall degree needs a finite-profile completion certificate](lastfall-finite-profile-completeness.md) | open | Promoting a finite rank profile to an exact global `d_F` claim | Exact iterative-closure row spaces and a proved later-fall cutoff for a named system |
+| [LastFall review task identities do not satisfy the independence checker](lastfall-review-task-id-schema.md) | open | A `validated_scoped` verdict for the current review packet | Prospective native task plan or reviewed identity bridge, negative control, and passing checker |
 | [P-256 second-pass launch metadata needs prospective corrections](p256-pass2-launch-contract-metadata-incomplete.md) | resolved | Original F3/F4 metadata and missing outer guards, corrected prospectively before data | F3/F4 v2 and explicit guarded commands are preserved; actual authentication, gate and execution remain required |
 | [P-256 second-pass checkpoint authentication is unconfigured](p256-pass2-checkpoint-authentication-unconfigured.md) | investigating | Seven frozen second-pass packages cannot launch after disclosure consent; actual gate has no supported upload credential | Configure the scoped token/profile and retain a genuine successful canonical gate before task releases |
 | [Direct holdout rank and target coverage](prime-field-holdout-rank-and-target-coverage.md) | investigating | Three of four fixed larger-field matrices remain deficient; no natural target recovery with uncertainty remaining | Matched source-selection control on unchanged bases/columns, complete kernels/certificates and explicitly charged public-anchor information |
