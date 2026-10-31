@@ -24,7 +24,7 @@ Let `R = k[x_1..x_n]`, `F ⊆ R` a system, `F^top` its top-degree part, `F^h` it
 **Definition 1.5 (last fall degree).** `V_{F,i}` is the smallest `k`-vector space with `F ∩ R_{≤i} ⊆ V_{F,i}` and closed under `f ∈ V_{F,i}, g ∈ R_{≤ i − deg f} ⟹ fg ∈ V_{F,i}`. Then
 `d_F = min{ d ∈ N ∪ {∞} : f ∈ V_{F, max{d, deg f}} for all f ∈ (F) }`.
 
-**The bridge to measurement.** For a **degree-compatible** term order, `V_{F,d} = rowsp(M_d)` — the row space of the degree-`d` Macaulay matrix after reduction (Caminata–Gorla eq. (1), proved in Gorla–Müller–Petit, Thm 1). `V_{F,d}` is therefore *exactly* the object a per-degree rank profile measures, and it is independent of which degree-compatible order is used (Cor. 1.6).
+**The bridge to measurement.** For a **degree-compatible** term order, `V_{F,d} = rowsp(M_d)` when `M_d` is constructed with the paper's iterative reduction and adjoining of permitted multiples until closure (Caminata–Gorla eq. (1), proved in Gorla–Müller–Petit, Thm 1). A one-pass matrix of generator multiples need not have that row space. A per-degree rank profile measures `V_{F,d}` only after this construction is checked; the resulting space is independent of the degree-compatible order (Cor. 1.6). A finite profile still needs a bound excluding later falls to determine `d_F`.
 
 **Definitions 2.5–2.6 (degree fall, made precise).** For `f ∈ (F)`, `d_f = min{d : f ∈ V_{F,d}} ≥ deg(f)`. `f` **has a degree fall in degree `d_f`** iff `d_f > deg(f)`.
 
@@ -32,7 +32,7 @@ Let `R = k[x_1..x_n]`, `F ⊆ R` a system, `F^top` its top-degree part, `F^h` it
 
 **Theorem 2.8 (CG).** If `F` has a degree fall, `d_F = max{ d_f : f ∈ (F), d_f > deg(f) }`. *The last fall degree is exactly the largest degree at which a degree fall occurs.*
 
-**Theorem 2.9 (CG).** For a degree-compatible order and a Gröbner basis `{g_i}`, `d_F = max{ d_{g_i} : deg(g_i) < d_{g_i} }`.
+**Theorem 2.9 (CG).** If `F` has a degree fall, then for a degree-compatible order and a Gröbner basis `{g_i}`, `d_F = max{ d_{g_i} : deg(g_i) < d_{g_i} }`.
 
 **Theorem 3.1 (CG) — the main one.** For any degree-compatible term order `σ`,
 ```
@@ -71,7 +71,7 @@ That is a far sharper statement of the open problem than "it seems to grow slowe
 
 `RQ-DREG-bd6c86` and `THM_SEMAEV_FALL1` both say the last fall degree "provably bounds the solving degree", meaning it as a safe upper-bound substitute. **That is backwards.** Gorla–Müller–Petit proved `d_F` is a **lower** bound for `sd`; the *upper* bound in Huang–Kosters–Yeo is on the complexity of **their own linear-algebra algorithm**, not on the Gröbner solving degree. Theorem 3.1 gives the exact relation, in which `d_F` is one of two maximands. See CORR-20260916-0c9c0a.
 
-The research consequence is **favourable, not damaging**: a lower bound is precisely what refutes an assumption. `IDEA-20260916-4b7c1e` proposes measuring falls off per-degree Macaulay ranks; by Theorem 2.8 that observable *is* `d_F`, and by `d_F ≤ sd` any fall exhibited at degree `D` certifies `sd ≥ D`. The proposal's logic survives intact and is now underwritten by a theorem instead of an analogy.
+The research consequence is a certified lower bound: `IDEA-20260916-4b7c1e` proposes measuring falls from per-degree Macaulay ranks. If the computed rows equal the closed spaces `V_{F,i}`, a fall exhibited at degree `D` certifies `d_F ≥ D` and, by `d_F ≤ sd`, `sd ≥ D`. Under its degree-fall and finiteness hypotheses, Theorem 2.8 identifies the global largest fall with `d_F`; inferring that value from a finite measured profile additionally needs a completeness bound excluding later falls.
 
 ### 3.3 The first fall degree is not a safe proxy, and this is proved
 
