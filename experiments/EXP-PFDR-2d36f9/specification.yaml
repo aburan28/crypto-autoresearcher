@@ -10,11 +10,13 @@ experiment:
     24, 28 and 32 bits, with gamma-slope plants, a Z/N interval positive control, an A/A null line and
     replication on fresh curves'
   experiment_class: heuristic-validation
-  status: review_required
-  frozen: false
-  approved_by: null
-  approval_decision: null
-  execution_authorized: false
+  status: approved
+  frozen: true
+  approved_by: DEC-20261031-47307d
+  approval_decision: DEC-20261031-47307d
+  approved_at: '2026-10-31'
+  approval_basis: AGENTS.md standing user authorization (2026-09-06); preapproval approvable true for these exact bytes.
+  execution_authorized: true
   designed_at: '2026-10-31'
   designed_by: coordinator
   design_decision: DEC-20261031-e8e84b
@@ -23,10 +25,9 @@ experiment:
     on 2026-10-31. Run ids are not yet allocated; the implementation lane mints them with
     tools/allocate_id.py (allocate_many_runs) and binds them in trial-plan.json.
   status_note: >-
-    Protocol complete; not runnable. Blockers recorded in DEC-20261031-e8e84b and on GOAL-PFDR-fd09e0
-    impediment IMP-a0830c-1: no implementation/, trial-plan.json, queue or executor handoff exists, so
-    tools/experiment_preapproval.py cannot report approvable: true. Once they exist the specification is frozen
-    (frozen: true, status approved, approved_by the approving DEC) only in the same act that records approval.
+    Approved and frozen under DEC-20261031-47307d after tools/experiment_preapproval.py reported
+    approvable: true on the exact prospective specification, trial plan, dispatch queue and executor
+    handoff. Approval authorizes the seven planned trials only; it asserts nothing about H-PFDR-ed7ccf.
   objective: >-
     For each of six preregistered structured lines (theta in {0.30, 0.35} x d in {1, 2, 3}) measure kappa_r at
     five rungs (bits 16, 20, 24, 28, 32) on fresh curves exactly as EXP-PFDR-ca5e01 measures kappa per cell, and
@@ -34,6 +35,19 @@ experiment:
     curve-cluster bootstrap 95% interval. Compare each line with the break-even rate delta* = 1/3 (h = 2; a factor
     2^(8/3) = 6.35 per 8 bits). The experiment measures a growth rate of a coincidence count; it measures no cost
     against rho and claims no speedup.
+  input_bindings:
+    base_implementation:
+      path: experiments/EXP-PFDR-ca5e01/implementation/run.py
+      sha256: 5e39cf0c33a7e4789c47adc9409dacf14a8d7314e9e0b192343a34feebb79650
+      role: base builders and census logic adapted by this contract
+    base_kernel:
+      path: experiments/EXP-PFDR-ca5e01/implementation/paircount.c
+      sha256: 151d2fa22e45a6fff7a1219b0a0d4d0b3c0bdf725a3ea853bcb11758116c3169
+      role: pair-sum kernel base; p-bound fix is bound in trial-plan source_sha256
+    vendored_curve:
+      path: src/crypto_autoresearcher/index_calculus/curve.py
+      sha256: fcca2beb699b4785c25820df1d949b757be7a273efd2f4f015625d7aa13c67fa
+      role: certified prime-order curve generator
   inputs:
     implementation_sources:
       note: >-
@@ -151,6 +165,78 @@ experiment:
       The IDEA's Stage 1 (slope of log kappa on log N over bits 16..22 of EXP-PFDR-ca5e01) reads data whose cell
       outcome is already known (O-MIXED). It is kept as a descriptive secondary trial on the committed
       analysis.json and main-jobs.jsonl and never enters the reading.
+  variable_ledger:
+    independent:
+      - name: rung_bits
+        levels: [16, 20, 24, 28, 32]
+      - name: line
+        levels: ['theta=0.30,d=1', 'theta=0.30,d=2', 'theta=0.30,d=3', 'theta=0.35,d=1', 'theta=0.35,d=2', 'theta=0.35,d=3']
+      - name: gamma
+        levels: [0, 0.1666666667, 0.3333333333, 0.5]
+    factors:
+      - name: curve
+        treatment: randomized
+        how: frozen seed rule block_offset + c, c < 4000; cells at one rung share the curve set of their block
+      - name: base_builder
+        treatment: fixed
+        value: window_base, gap_base, null_base, gamma_plant_base, zn_interval_base
+        how: one implementation, sha256-bound in trial-plan.json
+      - name: null
+        treatment: randomized
+        value: 20 uniform symmetric bases of exactly b points
+        how: seeded per (kind, block, rung, theta, d or gamma, curve index)
+      - name: kernel
+        treatment: fixed
+        value: paircount.c with the p < 2^32 key-bound fix
+        how: one build for every arm; selftest gate
+      - name: seed_block
+        treatment: fixed
+        value: pilot 6000000; main 6100000; replication 6200000; selftest 6900000
+        how: disjoint blocks; no cell crosses a block
+      - name: null_replicate
+        treatment: randomized
+        how: 20 seeded uniform symmetric bases; replicate 0 is an A/A pseudo-line
+      - name: host_and_load
+        treatment: measured
+        how: recorded per job; affects wall time only, never a primary metric
+    comparisons:
+      - id: C-line-slope
+        arms: [six preregistered lines]
+        differs_in: []
+        design: absolute
+        note: each line's delta is read against delta* = 1/3
+      - id: C-aa-null
+        arms: [null-replicate-0, null-replicates]
+        differs_in: [null_replicate]
+        design: aa
+      - id: C-plant-recovery
+        arms: [gamma 0, gamma 1/6, gamma 1/3, gamma 1/2]
+        differs_in: [gamma]
+        design: one_factor
+        note: each plant is compared with its realized design slope
+      - id: C-zn
+        arms: [Z/N interval base]
+        differs_in: []
+        design: absolute
+        note: slope 1 - theta within 0.05
+    crosses_map: false
+  prediction_provenance:
+    - prediction: P-delta-star
+      first_recorded_in: ledger/decisions/DEC-20261031-e8e84b.yaml
+      written_at: '2026-10-31'
+      data_seen:
+        - path: experiments/EXP-PFDR-ca5e01/specification.yaml
+          measured: The predecessor contract fixes the pair-sum census; no 2d36f9 rung data has been observed.
+      sample_status: out_of_sample
+      scope: Toy, bits 16-32, h=2; no transfer beyond 32 bits.
+    - prediction: P-control-slopes
+      first_recorded_in: experiments/EXP-PFDR-2d36f9/specification.yaml
+      written_at: '2026-10-31'
+      data_seen:
+        - path: experiments/EXP-PFDR-ca5e01/runs/
+          measured: Historical ca5e01 census is used only for the descriptive reanalysis-ca5e01 trial (R5); no plant or Z/N slope has been observed at these rungs.
+      sample_status: out_of_sample
+      scope: Control and calibration predictions for the frozen builders only.
   controls:
   - id: C1
     name: kernel and builder selftest
