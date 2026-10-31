@@ -88,6 +88,13 @@ An accepted D4 seed prepares the original D5 continuation; it neither completes
 that frontier input nor adds an input to the separate 32-input D4 panel.
 The remaining original panel inputs stay pending and resume after this seed
 preparation. No field, target, subspace, or sample was redrawn.
+After a local D4 attempt is terminal, `collect_panel_result.py` verifies its
+pinned artifacts, controls, exact count, and original checker transcript.
+`normalize_local_certificate.py` then creates a write-once publication view
+from that verified collection without changing the raw attempt. The normalizer
+was exercised against the completed n45 polynomial03 result, including its
+certificate hardlink, and rejects the active n47 random03 attempt before a
+terminal record exists.
 
 ## Soundness argument to review
 
