@@ -25,6 +25,12 @@ from array import array
 from functools import reduce
 from math import comb
 
+# This verifier uses assertions for all certificate predicates. Python -O and
+# PYTHONOPTIMIZE remove them, so reject optimized execution before parsing any
+# untrusted certificate or printing a VALID result.
+if not __debug__:
+    raise SystemExit("cert_check.py requires assertions; optimized Python is unsupported")
+
 
 def mk_field(n, f):
     def mulmod(a, b):
