@@ -1,0 +1,146 @@
+idea:
+  id: IDEA-20261024-741c49
+  title: >-
+    Conflict-priced 5a band for the native-XOR SAT decomposition oracle from
+    recorded ecbench counters: unresolved at w* = 2^-8.84
+  class: measurement
+  question_id: RQ-ECDLP-361f3a
+  claim: >-
+    R1 representation, relation-decomposition stage, n = 17 Koblitz, m = 2,
+    l = 9 (crypto research/ecbench_sat_pdp_20261009, PROTOCOL-3, session
+    ECBS1hb55a1bdabf18, 40 one-target runs per arm). Pricing every unpriced op
+    at w GAE on both arms (scout derivation, repro/c3_band.py): SAT/strong rho
+    = 0.854 [0.825, 0.883] at w = 0, 7.34 at w = 0.1, 51.0 at w = 1. SAT is
+    above rho at w = 0.1 and 1 and below it at w = 0; the order flips at
+    w* = 1/458 = 2^-8.84, so under crypto AGENTS.md 5a the pair is unresolved
+    at w in (0, 0.1) and not ranked (same vs Frobenius MITM: 0.200/1.78/16.0,
+    crossing 0.0508). This rules out the lead's sub-rho branch at this cell,
+    does not meet its closure branch, and finds 7.19 x 2^((m-1)l) conflicts per
+    call, 2^-5.15 of its 2^(ml)/m! clause. Gain 0; no closure.
+  mechanism: >-
+    Pair: x in the F_2-subspace V of F_{2^17} (dim 9), Weil-descended; Sigma =
+    translation by factor-base points (Class I, partial-action); solver ops are
+    propagation, XOR Gauss-Jordan, conflict learning. Band: S(w) = counted
+    GAE + w x listed unpriced counters, same w on every arm.
+    Propagations are not emitted, so SAT(w > 0) is a lower bound: SAT above rho
+    at 0.1 and 1 holds; SAT below rho at w = 0 holds on counted work. The
+    per-call count matches the ideal-XG (m-1)l law of IDEA-20260926-b11cb1 at
+    one cell. Proof complexity motivates pricing but supplies no price.
+    Ordering under 5a needs SAT >= rho at w = 0 at some size, or an owner rule
+    on w = 0 for solver conflicts.
+  novelty_status: unverified
+  citations:
+    - ref: crypto research/ecbench_sat_pdp_20261009/count-qualified-main.resources.json
+      provenance: internal
+      claim: records sha 8f499a1d, receipt a03b673e; all band inputs (notes section 2)
+      verified_by: scout-sat-xor-planted and C3 gate agents, lead-discovery 2026-10-24; re-read by the filing agent
+    - ref: IDEA-20260926-b11cb1
+      provenance: internal
+      claim: L1, m = 2 direct, ideal-XG closes depth-l nodes; (m-1)l law
+      verified_by: C3 gate agent, lead-discovery 2026-10-24
+    - ref: Itsykson-Sokolov, APAL 171(1) 2020, doi 10.1016/j.apal.2019.102722
+      provenance: retrieved
+      claim: defines Res(xor); tree-like Res(xor) lower bounds (Tseitin, PHP); not that Gauss-XOR conflicts are Res(xor) lines
+      verified_by: scout-sat-xor-planted agent, lead-discovery 2026-10-24 (read the source)
+    - ref: Pipatsrisawat-Darwiche, AIJ 175(2) 2011
+      provenance: recalled
+      claim: CDCL p-simulates resolution (gate read the abstract; not load-bearing)
+      verified_by: null
+    - ref: Williams-Gomes-Selman, IJCAI 2003
+      provenance: recalled
+      claim: strong backdoor B bounds DPLL cost by 2^|B| poly
+      verified_by: null
+  assumptions:
+    - Same w on every arm's unpriced counters; propagations missing.
+  proof_search_map:
+    bottleneck: solver work the counted GAE omits (conflicts, propagations)
+    baseline_embedding:
+      parameter_slice: w = 0 is the recorded counted ratio 0.8538 (rho-strong__ic-sat-xor.json)
+      reproduction_check: repro/c3_band.py; recomputed by gate and filer
+    observation_collision:
+      observable: S_SAT(w)/S_rho(w) at w = 0, 0.1, 1 and the crossing w*
+      distinct_preimage_search: equal conflicts, different propagations give one band
+    constructive_transforms: []
+    quantifier_order: at this cell, for each w in {0, 0.1, 1}, ratio(w); a unique crossing w* in (0, 0.1)
+    method_ceiling:
+      strongest_certifiable_claim: the band at one cell; no 5a ranking vs rho
+      nearby_object_control: SAT vs plain MITM holds across the band (0.0088/0.078/0.70) but SAT is a lower bound there
+    proof_obligations: []
+    not_applicable_reason: no theorem proposed; cost computation on recorded counters
+  predictions:
+    - metric: conflicts per call at l in {8, 9, 11, 12} (n = 17, 23)
+      direction: different
+      minimum_effect: 1.0 vs 1.316 bits per unit l differ 1.9x at l = 12
+    - metric: total conflicts per run / r at n = 23
+      direction: different
+      minimum_effect: within [0.5, 2] of 1.05 if H3 holds
+  minimal_test:
+    design: >-
+      (i) Zero-compute band recomputation from the committed resources JSON.
+      (ii) Re-run the PROTOCOL-3 arms at n = 17 and n = 23 with per-curve base
+      and conflict budget (n = 19, 29 have no usable orbit base); report the
+      band per size. Protocol in the notes; approved_by null.
+    controls:
+      - rho A/A arm (ratio 1.000)
+      - band recomputed from committed files, checksums matched
+      - n = 17 replicate reproduces 0.854 at w = 0
+    required_metrics: [band_ratios_w0_w01_w1, crossing_w, conflicts_per_call_by_l, conflicts_per_run_over_r, unpriced_inventory]
+  falsification_conditions:
+    - At n = 23 the w = 0 ratio stays below 1 (CI upper < 1); the band stays unresolved and no closure is licensed (negative for the closure).
+    - Band recomputation fails to give 0.854/7.34/51.0 and w* = 0.002183.
+    - Per-call conflicts at l = 12 off 7.19 x 2^12 by > 2x; the (m-1)l reading fails.
+    - Conflict slope in r <= 0.6; sub-enumeration CDCL effect, lead stays open.
+  confounders:
+    - strong rho is set-up dominated (75% at n = 17; alpha 0.132 in FRONTIER.md)
+    - per-call mixes 385 SAT, 364 UNSAT calls
+    - lean signed-Frobenius rho leads the domain; unmatched here
+  interpretation_limits:
+    - One curve, m = 2, one L0 host; not a cross-size or m = 83 claim.
+    - 7.19 is a one-cell descriptive constant; V is the F_2-linear class KN-OPEN-020 scopes out.
+  heuristic_assumptions:
+    - id: H1
+      statement: a CDCL+XOR conflict costs at least w* = 1/458 GAE on the same host
+      rigorous_support: none; L0 15.1 us/conflict vs ~120 ns/GAE (not admitted)
+      validation_plan: admitted L2 calibration as a further band point
+    - id: H2
+      statement: unemitted propagations have nonnegative cost
+      rigorous_support: counts are nonnegative; omission only lowers SAT
+      validation_plan: emit the propagation counter (5a gap)
+    - id: H3
+      statement: total conflicts per run scale as r^(1.0 +/- 0.15) (scout H6, p = 0.8)
+      rigorous_support: product law m 2^n (KN-FIND-aa2efc) with the (m-1)l law
+      validation_plan: n = 17 vs n = 23 (two sizes, descriptive); per-call l-ladder 8, 9, 11, 12
+  target_complexity:
+    time_exponent: no exponent measured (one size); under H3 w*(r) ~ 2^-8.84 (r/2^16)^-1/2, ~2^-65 at ECC2K-130 (extrapolation)
+    memory_exponent: 8,560 KiB peak RSS (SAT arm); not an exponent
+    best_known: strong signed-Frobenius rho S = 3.998 at this cell
+    hidden_overhead: propagations unrecorded; L0 wall excluded
+    tradeoff_note: n/a
+  estimated_cost: {implementation: low, compute: low}
+  recommended_priority: medium
+  dominated_by: unresolved under 5a; above strong rho at w = 0.1, 1, below at w = 0
+  sota_delta: >-
+    No attack, no closure. Band and break-even 2^-8.84 for
+    LEAD-ICE-sat-xor-pdp-oracle's repricing step; sub-rho branch ruled out at
+    n = 17, m = 2; closure branch not met at w = 0.
+  prior_art:
+    frontier_map: knowledge/frontiers/ecdlp
+    rows_checked: [KR-IC-5765d2, KR-IC-1fcdbc, KR-RHO-1c2928, KR-RHO-482ed3, KR-RHO-18cc42, KR-RHO-825bca, KR-IC-955fd6, KR-RHO-13bf67]
+    nearest:
+      - ref: LEAD-ICE-sat-xor-pdp-oracle
+        provenance: internal
+        relation: same
+        delta: executes its repricing clause by arithmetic; adds band values and w*
+      - ref: KR-IC-5765d2
+        provenance: internal
+        relation: adjacent
+        delta: SAT/XOR PDP does not change the exponent; adds the GAE band at one cell
+      - ref: KN-FIND-aa2efc
+        provenance: internal
+        relation: adjacent
+        delta: product law; conflicts per run 1.05 r at one size only
+    lead: LEAD-ICE-sat-xor-pdp-oracle
+    new_lead_reason: null
+  status: proposed
+  added: 2026-10-24
+  proposed_by: idea-generator (lead-discovery session)
