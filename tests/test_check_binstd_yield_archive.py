@@ -89,6 +89,25 @@ class ArchiveChecker(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             check_archive(self.root)
 
+    def test_boolean_exit_code_rejected(self) -> None:
+        _, _, receipt_path = self.paths()
+        receipt = json.loads(receipt_path.read_text())
+        receipt["check_returncode"] = False
+        self.write(receipt_path, receipt)
+        with self.assertRaisesRegex(ValueError, "exit codes"):
+            check_archive(self.root)
+
+    def test_boolean_stage_rejected_with_consistent_digest(self) -> None:
+        _, raw_path, receipt_path = self.paths()
+        raw = json.loads(raw_path.read_text())
+        raw["result"]["stage"] = True
+        raw_hash = self.write(raw_path, raw)
+        receipt = json.loads(receipt_path.read_text())
+        receipt["artifact_sha256"]["raw-result.json"] = raw_hash
+        self.write(receipt_path, receipt)
+        with self.assertRaisesRegex(ValueError, "stage/status"):
+            check_archive(self.root)
+
 
 if __name__ == "__main__":
     unittest.main()
