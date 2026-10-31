@@ -1,0 +1,640 @@
+{
+  "schema": "experiment.protocol/v1",
+  "protocol_id": "LEAD-EXO-minors-guess-and-determine-v1",
+  "version": 1,
+  "created": "2026-10-31",
+  "repository": "crypto-autoresearcher",
+  "study_dir": "research/minors_guess_and_determine_20261031",
+  "authors": [
+    "design agent (not frozen; Coordinator freezes)"
+  ],
+  "links": {
+    "lead": "LEAD-EXO-minors-guess-and-determine (new; to be filed in knowledge/leads/ecdlp/exotic/)",
+    "related": "LEAD-ICE-generic-oracle-arity-cost-floor; LEAD-EXO-curve-model-representation; LEAD-RHO-matched-rho-calibration; KR-IC-cd159a; KR-IC-401ebf",
+    "note": "Design only. The algorithm is reconstructed from abstracts (the full texts were not opened); open questions are listed in design.md section 'Open risks'."
+  },
+  "question": "At 20 to 40 bit prime group orders, what is the counted cost, in field-multiplication equivalents, of the reconstructed minors guess-and-determine search for the planted discrete log, against matched negation-map rho on the same planted instances, and does the fitted exponent of that cost in N fall below, or stay above, rho's 0.5?",
+  "claims": [
+    {
+      "id": "C1",
+      "text": "Every completed row of every arm recovers the planted scalar, checked by [k]P = Q outside the runner (exact computation).",
+      "class": "exact_computation",
+      "decided_by": []
+    },
+    {
+      "id": "C2",
+      "text": "The reconstructed minors search costs more FM than matched rho on the same instances at every fitted size, and the fitted exponent alpha_minors of its median cost in N exceeds rho's by a margin whose interval excludes 0.",
+      "class": "comparative",
+      "decided_by": [
+        "C-method"
+      ],
+      "if_supported": "closes LEAD-EXO-minors-guess-and-determine as closed_obstructed (measured, toy scope, reconstructed variant); no statement about the papers' unread full-text variants beyond what the open-question list records",
+      "if_not_supported": "if alpha_minors upper interval bound is below 0.5 or the log cost ratio slope has an interval below 0, reopen with next_action to full-text re-implementation and larger sizes"
+    },
+    {
+      "id": "C3",
+      "text": "On the structure-free control matrix the minors search costs the same as on the elliptic-curve matrix within the A/A-calibrated band, i.e. the curve structure gives the search no saving (comparative).",
+      "class": "comparative",
+      "decided_by": [
+        "C-structure"
+      ],
+      "if_supported": "the elliptic-curve matrix confers no structural advantage in this variant",
+      "if_not_supported": "the curve matrix is cheaper than random: a structural effect worth chasing even if rho still wins"
+    },
+    {
+      "id": "C4",
+      "text": "The minors implementation finds the planted relation in the positive-control family (orders <= 2^20, and an injected zero minor) in every row; a miss invalidates the instrument (exact computation).",
+      "class": "exact_computation",
+      "decided_by": []
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "H0 (the lead's own analysis): the minors search is a Semaev-style n-sum relation search in determinant form; its charged cost has exponent >= 0.5 in N and is above matched rho at all sizes. H1 (the papers' implied optimism): some size or the fitted exponent shows minors below rho.",
+      "mechanism": "A zero n x n minor of the evaluation matrix of a Riemann-Roch basis at n points is a relation among points (n points sum to O); finding one among M candidate columns costs about N / C(M, n) minor tests, each charged a determinant, and the product law of LEAD-ICE-generic-oracle-arity-cost-floor says no oracle of this class reaches rho. Prediction: loss, expected null on H1.",
+      "predictions": [
+        {
+          "id": "P1",
+          "metric": "fm",
+          "direction": "higher",
+          "minimum_effect": "median FM(minors)/FM(rho) > 1 at each of the sizes 20,24,28,32,36 with the paired bootstrap 95% interval excluding 1",
+          "provenance": {
+            "written_at": "2026-10-31",
+            "data_seen": [],
+            "sample_status": "out_of_sample"
+          },
+          "role": "decisive"
+        },
+        {
+          "id": "P2",
+          "metric": "fm",
+          "direction": "higher",
+          "minimum_effect": "fitted alpha_minors - alpha_rho > 0.05 with 95% interval excluding 0",
+          "provenance": {
+            "written_at": "2026-10-31",
+            "data_seen": [],
+            "sample_status": "out_of_sample"
+          },
+          "role": "decisive"
+        }
+      ]
+    }
+  ],
+  "arms": [
+    {
+      "id": "rho-neg",
+      "role": "reference",
+      "description": "matched negation-map r-adding rho with distinguished points (vOW), same instances, charged in FM",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "minors_probe"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "rho.negation",
+        "adding_walk_r": 32,
+        "dp_bits": "default_dp_bits(N)"
+      }
+    },
+    {
+      "id": "minors-recon",
+      "role": "candidate",
+      "description": "reconstructed minors guess-and-determine search on the elliptic-curve evaluation matrix; every determinant, every elimination step and every function evaluation charged",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "minors_probe"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "minors.recon",
+        "n_rows": [
+          2,
+          3,
+          4
+        ],
+        "n_chosen_by": "all three n run on every instance; headline per size is the smallest median FM over n (declared before data); n=2 is the BSGS-equivalent sanity case",
+        "columns_M": "ceil(sqrt(N)) + ceil(sqrt(N)) (iP and Q+jP)",
+        "guess_depth": "n-1 columns guessed, remaining column determined by cofactor-vector scan"
+      },
+      "same_instrument_as": "rho-neg"
+    },
+    {
+      "id": "rho-neg-aa",
+      "role": "control_aa",
+      "description": "rho-neg repeated under a second name with disjoint algorithm seeds",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "minors_probe"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "rho.negation"
+      },
+      "same_instrument_as": "rho-neg"
+    },
+    {
+      "id": "minors-randmat",
+      "role": "control_negative",
+      "description": "same minors search and same charging on a matrix of the same shape whose columns are uniform in F_p^n (no curve structure); a found zero minor yields no discrete log, cost is time-to-first-zero-minor",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "minors_probe"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "minors.recon",
+        "matrix": "uniform_columns"
+      },
+      "same_instrument_as": "minors-recon"
+    },
+    {
+      "id": "minors-planted",
+      "role": "control_positive",
+      "description": "same minors code on (a) every prime order curve of 12 to 20 bits and (b) a matrix with an injected dependent column set at a known position; must recover the planted relation",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "minors_probe"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "minors.recon",
+        "plant": "known_relation"
+      },
+      "same_instrument_as": "minors-recon"
+    }
+  ],
+  "controls": {
+    "aa": {
+      "present": true,
+      "comparison": "C-aa",
+      "not_applicable_reason": null
+    },
+    "positive": {
+      "present": true,
+      "arm": "minors-planted",
+      "expected_detection": "all rows recover k (family a) and the injected zero minor (family b), verified externally; a miss means the implementation, not the method, is broken and no comparative claim stands",
+      "not_applicable_reason": null
+    },
+    "negative": {
+      "present": true,
+      "arm": "minors-randmat",
+      "null_population": {
+        "description": "matrices with the shape and field of the curve matrix but uniform columns, so any saving relative to them is attributable to curve structure",
+        "generator": "columns drawn from SHA-256 counter stream keyed by (size, instance, seed_label) mod p",
+        "n": 24,
+        "why_n": "matches instances per size of the decisive arms; 24 gives the bootstrap on a log-cost median a usable interval",
+        "matched_on": [
+          "p",
+          "n_rows",
+          "number of candidate columns",
+          "guess depth",
+          "charging rule"
+        ]
+      },
+      "not_applicable_reason": null
+    }
+  },
+  "variable_ledger": {
+    "independent": [
+      {
+        "name": "method",
+        "levels": [
+          "rho.negation",
+          "minors.recon"
+        ]
+      },
+      {
+        "name": "log2_N",
+        "levels": [
+          20,
+          24,
+          28,
+          32,
+          36,
+          40
+        ]
+      },
+      {
+        "name": "matrix_structure",
+        "levels": [
+          "elliptic_curve",
+          "uniform_columns"
+        ]
+      }
+    ],
+    "factors": [
+      {
+        "name": "curve",
+        "treatment": "randomized",
+        "how": "one prime order curve per (size, instance) from generate_prime_order_curve(bits, seed) with seed from the frozen rule; order cross-checked by PARI ellcard; same curve for every arm"
+      },
+      {
+        "name": "planted_scalar",
+        "treatment": "randomized",
+        "how": "k uniform in [1,N-1] from SHA-256(protocol_sha256|size|instance), identical across arms"
+      },
+      {
+        "name": "algorithm_seed",
+        "treatment": "randomized",
+        "how": "SHA-256(protocol_sha256|arm|size|instance|replicate); rho-neg-aa uses disjoint labels"
+      },
+      {
+        "name": "inversion_weight",
+        "treatment": "crossed",
+        "how": "FM weights I in {5,10,40} M reported for the sensitivity table; headline I=10 fixed before data"
+      },
+      {
+        "name": "n_rows",
+        "treatment": "fixed",
+        "value": "per size by frozen rule",
+        "how": "all of n=2,3,4 run; headline min over n of the median, rule frozen"
+      },
+      {
+        "name": "budget_cap",
+        "treatment": "fixed",
+        "value": "2^40 FM per row",
+        "how": "a row hitting the cap is right-censored, kept as a row"
+      },
+      {
+        "name": "binary",
+        "treatment": "fixed",
+        "value": "one Rust binary hash",
+        "how": "sha256 pinned"
+      },
+      {
+        "name": "threads",
+        "treatment": "fixed",
+        "value": 1,
+        "how": "single threaded; cost is counted not timed"
+      },
+      {
+        "name": "arm_order",
+        "treatment": "randomized",
+        "how": "interleaved per (size, instance)"
+      },
+      {
+        "name": "host_load",
+        "treatment": "measured",
+        "how": "recorded; affects wall only, which is not a metric"
+      }
+    ],
+    "comparisons": [
+      {
+        "id": "C-method",
+        "arms": [
+          "rho-neg",
+          "minors-recon"
+        ],
+        "differs_in": [
+          "method"
+        ],
+        "design": "one_factor"
+      },
+      {
+        "id": "C-aa",
+        "arms": [
+          "rho-neg",
+          "rho-neg-aa"
+        ],
+        "differs_in": [],
+        "design": "aa"
+      },
+      {
+        "id": "C-structure",
+        "arms": [
+          "minors-recon",
+          "minors-randmat"
+        ],
+        "differs_in": [
+          "matrix_structure"
+        ],
+        "design": "one_factor"
+      }
+    ],
+    "aa_not_applicable": null,
+    "crosses_map": false
+  },
+  "randomization": {
+    "arm_order": "interleaved",
+    "arm_order_reason": null,
+    "seed_derivation": {
+      "method": "harness_drawn",
+      "seeds": [],
+      "nonce": null,
+      "note": "all seeds are SHA-256 of the protocol hash and the (arm,size,instance,replicate) label; derivation rule frozen with the protocol and recomputed by the checker"
+    },
+    "instance_sampling": {
+      "rule": "per size in {20,24,28,32,36,40}: 24 instances = (curve, P, Q=kP), curve from generate_prime_order_curve(bits, seed=instance_index) with the first accepted draw; k from SHA-256 stream; the same instance is given to every arm",
+      "independent_of_arm": true
+    },
+    "blinding": {
+      "analysis_labels_masked": true,
+      "how": "arms relabelled A..E by a key file hashed in the export; the key is opened after the analysis script outputs are written",
+      "unmasked_at": "after analysis outputs are hashed"
+    }
+  },
+  "sample_size": {
+    "instances": 144,
+    "replicates": 1,
+    "warmups": 0,
+    "power": {
+      "method": "rank_test",
+      "alpha": 0.05,
+      "tests_in_family": 4,
+      "correction": "bonferroni",
+      "rank_test_n": 9999,
+      "min_attainable_two_sided_p": 0.0002,
+      "passes": true,
+      "note": "permutation resamples N=9999 give min p 2/(N+1)=2e-4 < alpha/m=0.0125 for the 4 decisive tests (P1, P2, C3 slope difference, C4 detection is exact). Intervals are bootstrap over 24 instances per size; this resolves a cost ratio of ~1.5x per size, not a 10 percent difference. Effect-size power is not claimed."
+    },
+    "preflight_runtime": {
+      "fixed_seconds": 600,
+      "per_sample_seconds": 60,
+      "threads": 1,
+      "estimated_total_seconds": 28800,
+      "measured_on": "estimate from a 1-minute probe: gp ellcard on a 1000003-bit-20 curve returned instantly; Python rho 20-30 bit is seconds per instance; minors time is a model, not measured. Rust implementation required. Capped at 2^40 FM per row; at 4 cores, 8 h worst case."
+    }
+  },
+  "metrics": {
+    "primary": [
+      {
+        "id": "fm",
+        "name": "FM",
+        "unit": "field multiplication equivalents",
+        "kind": "counted",
+        "definition": "M + S + 10*I + (0 for add/sub/negate/compare), summed over setup that depends on Q, search, linear algebra and the final verification; table-free one-time curve setup and group-order computation uncharged to all arms equally",
+        "source": "records.jsonl cost.fm and cost.m, cost.s, cost.i",
+        "aggregation": "median",
+        "resolution": "1 FM",
+        "uncertainty": "paired_bootstrap_ci95"
+      },
+      {
+        "id": "alpha",
+        "name": "fitted exponent",
+        "unit": "dimensionless",
+        "kind": "derived",
+        "definition": "slope of log2 median FM against log2 N over sizes with >= 20 of 24 completed rows, per arm",
+        "source": "analysis script",
+        "aggregation": "distribution",
+        "resolution": "0.01",
+        "uncertainty": "bootstrap_ci95",
+        "formula": "alpha = OLS slope of log2(median FM over completed rows) on log2(N), over sizes with >= 20 of 24 completed rows"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "det_count",
+        "name": "determinant evaluations",
+        "unit": "count",
+        "kind": "counted",
+        "definition": "number of n x n determinants or equivalent eliminations charged",
+        "source": "records.jsonl cost.det",
+        "aggregation": "median",
+        "resolution": "1",
+        "uncertainty": "bootstrap_ci95"
+      },
+      {
+        "id": "gae",
+        "name": "group operation equivalents",
+        "unit": "ecbench GAE",
+        "kind": "counted",
+        "definition": "rho adds+doubles plus those used to build minors columns; each curve addition or doubling is 1 whatever its field cost, ecbench-compatible",
+        "source": "records.jsonl cost.gae",
+        "aggregation": "median",
+        "resolution": "1",
+        "uncertainty": "bootstrap_ci95"
+      },
+      {
+        "id": "censored",
+        "name": "censored rows",
+        "unit": "fraction",
+        "kind": "rate",
+        "definition": "rows stopped at the budget cap / rows attempted",
+        "source": "records.jsonl outcome",
+        "aggregation": "mean",
+        "resolution": "1/24",
+        "uncertainty": "clopper_pearson_ci95"
+      }
+    ]
+  },
+  "measurement": {
+    "isolation_required": "L0",
+    "warmups": 0,
+    "order": "alternate",
+    "clock": "counted",
+    "counters": [
+      "field_ops.muls",
+      "field_ops.sqrs",
+      "field_ops.invs",
+      "adds_uncharged",
+      "canonicalisations_uncharged",
+      "det_count",
+      "function_evals",
+      "walk_operations"
+    ],
+    "record": [
+      "cpu_model",
+      "kernel_release",
+      "binary_sha256",
+      "threads",
+      "isolation.level"
+    ],
+    "timed_primary_justification": null
+  },
+  "execution": {
+    "backend": "local",
+    "queue": "none",
+    "placement": {
+      "instance_type": "one 4-core host",
+      "cpus": 4,
+      "spot": false
+    },
+    "measurement_class": "throughput",
+    "timeout_seconds": 3600,
+    "checkpoint": {
+      "policy": "application",
+      "interval_seconds": 600,
+      "grace_seconds": 30,
+      "restore_validation": "manifest_sha256",
+      "after_restore": {
+        "wall_time": "invalid",
+        "counted_units": "valid"
+      }
+    },
+    "retries": {
+      "infrastructure_only": true,
+      "max_attempts": 2
+    }
+  },
+  "stopping_rules": [
+    {
+      "rule": "fixed design: 6 sizes x 24 instances x (rho, rho A/A, minors n=2,3,4, random-matrix n=2,3,4) rows, plus the positive control at <=20 bits; stop; per row stop at the 2^40 FM cap and record censored",
+      "kind": "fixed_n",
+      "preregistered": true
+    },
+    {
+      "rule": "a row whose answer does not verify is recorded as wrong_answer and stops nothing",
+      "kind": "invalidation",
+      "preregistered": true
+    }
+  ],
+  "invalidation_rules": [
+    "a wrong_answer row, or any positive-control miss, invalidates the minors arm for comparative use",
+    "a censored row is kept and is a lower bound; an exponent from a size with fewer than 20 of 24 completed rows is not fitted",
+    "wall-clock values are not metrics here"
+  ],
+  "decision_rule": {
+    "text": "Closed-obstructed (confirm): alpha_minors lower 95% bound above 0.5 AND P1 holds at every fitted size AND C-structure shows no saving. Reopen: alpha_minors upper 95% bound below 0.5, or FM ratio minors/rho below 1 with interval excluding 1 at any size >= 32 bits, or the slope of log FM ratio against log N has an interval wholly below 0. Positive control failing: instrument invalid, verdict invalid_measurement. Fewer than 4 fitted sizes: inconclusive.",
+    "comparison_ids": [
+      "C-method",
+      "C-structure"
+    ],
+    "threshold": "as in text; A/A interval of rho must not itself exclude 1 (Bonferroni over m=4 tests); the C-aa interval of rho FM must contain 1, else invalid_measurement",
+    "statistic": "median FM per size; OLS slope of log2 median FM on log2 N",
+    "interval": "two-stage bootstrap (instances, then sizes) 95%; permutation p with N=9999",
+    "multiple_comparison_correction": "bonferroni",
+    "effect_size_measure": "alpha difference and per size FM ratio",
+    "verdict_vocabulary": [
+      "supported_within_scope",
+      "within_control_distribution",
+      "invalid_measurement",
+      "inconclusive"
+    ]
+  },
+  "analysis_plan": {
+    "script": null,
+    "inputs": [
+      "records.jsonl"
+    ],
+    "outputs": [
+      "per size FM table",
+      "alpha with interval per arm",
+      "ratio table with I sensitivity {5,10,40}"
+    ],
+    "blinded": true,
+    "frozen_before_data": false
+  },
+  "reporting": {
+    "export_schema": "experiment.export/v1",
+    "review_schema": "experiment.review/v1",
+    "graphs": [
+      "log-log FM vs N per arm with fits",
+      "ratio minors/rho vs N"
+    ],
+    "report_dir": "reports"
+  },
+  "inadmissible": [
+    "changing n_rows rule, guess depth, sizes, seeds or the FM weights after seeing a result",
+    "pricing determinants below their elimination operation count, or dropping function-evaluation or column-generation cost",
+    "reading a censored row as a completed cost",
+    "choosing which Q or curves to report",
+    "claiming anything about the papers' full algorithms where the reconstruction differs from them",
+    "a stage ratio or wall time as a speedup",
+    "extrapolating beyond 2^40 or to a deployed curve"
+  ],
+  "literature": [
+    {
+      "ref": "arXiv:1703.07544",
+      "provenance": "retrieved",
+      "claim": "Las Vegas ECDLP algorithm, Riemann-Roch, non-generic (abstract only)",
+      "verified_by": "abstract page opened, no matrix or complexity stated"
+    },
+    {
+      "ref": "arXiv:2005.05039",
+      "provenance": "retrieved",
+      "claim": "initial minors conjecture via Schur complements; solved orders up to 2^50 (abstract only)",
+      "verified_by": "abstract page opened"
+    },
+    {
+      "ref": "arXiv:2310.04132",
+      "provenance": "retrieved",
+      "claim": "zero minor over the same finite field; results mostly computational (abstract only)",
+      "verified_by": "abstract page opened"
+    },
+    {
+      "ref": "arXiv:2607.09814",
+      "provenance": "retrieved",
+      "claim": "reduction to a zero minor, hyperplane arrangement intersection poset, complexity and success probability discussed (abstract only)",
+      "verified_by": "abstract page opened"
+    }
+  ],
+  "amendments": [],
+  "freeze": {
+    "status": "draft",
+    "protocol_sha256": null,
+    "commit": null,
+    "frozen_at": null,
+    "filed_before_affected_data": null
+  }
+}

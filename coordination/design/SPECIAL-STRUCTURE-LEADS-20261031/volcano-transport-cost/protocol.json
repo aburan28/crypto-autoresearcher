@@ -1,0 +1,628 @@
+{
+  "schema": "experiment.protocol/v1",
+  "protocol_id": "DESIGN-volcano-transport-cost",
+  "version": 1,
+  "created": "2026-10-31",
+  "repository": "crypto-autoresearcher",
+  "study_dir": "research/volcano_transport_cost_20261031",
+  "authors": [
+    "design agent (unfrozen draft; freezing and approval belong to the Coordinator)"
+  ],
+  "links": {
+    "lead": "LEAD-STR-isogeny-class-generic-invariance, LEAD-STR-isogeny-transport-preprocessing, LEAD-TRF-prime-field-isogeny-to-weak",
+    "note": "Design draft only. Galbraith ePrint 2024/924 abstract read; the PDF returned HTTP 403 and was not read."
+  },
+  "question": "With transport charged in the same counted unit as rho (field multiplications), does rho on the best-Aut destination member of a prime-field isogeny class, plus transport, ever cost less than matched rho on the original curve at q=2^20..2^40, and with what exponent does transport cost scale?",
+  "claims": [
+    {
+      "id": "C1",
+      "text": "Every rho row recovers the planted scalar and every transport path is verified by an independent re-evaluation of the isogeny chain (exact computation).",
+      "class": "exact_computation",
+      "decided_by": []
+    },
+    {
+      "id": "C2",
+      "text": "In classes with a j=0 or j=1728 member, transport plus rho on that member costs less counted field multiplications than matched rho on the source curve.",
+      "class": "comparative",
+      "decided_by": [
+        "C-total"
+      ],
+      "if_supported": "reopen LEAD-TRF-prime-field-isogeny-to-weak and LEAD-STR-isogeny-class-generic-invariance at scope: constant-factor Aut gain net of transport, toy sizes only",
+      "if_not_supported": "closure stands: transport cost exceeds the Aut gain at every tested size"
+    },
+    {
+      "id": "C3",
+      "text": "Classical (kernel-route) transport cost scales as q^alpha with alpha fitted over 6 sizes; the fitted interval is compared with 0.5 (sqrt N) and with 0.4 (the paper's heuristic).",
+      "class": "heuristic_estimate",
+      "decided_by": [],
+      "if_supported": "update the lead cost model with the measured exponent",
+      "if_not_supported": "report the interval as is"
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "Transport-plus-rho on the best-Aut member loses to matched rho on the source for every tested size in classes with a weak member (expected loss, which is what the lead predicts). Order, trace and embedding degree are class invariants (Tate), so the only gain available is the automorphism orbit, at most sqrt(3) over negation rho.",
+      "mechanism": "destination steps ~ sqrt(pi N/4)/sqrt(3) at best; transport charged by kernel-route structure counts.",
+      "predictions": [
+        {
+          "id": "P1",
+          "metric": "total_fm",
+          "direction": "higher",
+          "minimum_effect": "ratio candidate/reference of summed field multiplications above 1 with 95% interval excluding 1, at every size with a positive-control class",
+          "provenance": {
+            "written_at": "2026-10-31",
+            "data_seen": [
+              {
+                "path": "knowledge/leads/ecdlp/structure/LEAD-STR-isogeny-class-generic-invariance.yaml",
+                "measured": "leads' own prior closure; no data of this design seen"
+              }
+            ],
+            "sample_status": "out_of_sample"
+          },
+          "role": "decisive"
+        }
+      ]
+    },
+    {
+      "id": "H2",
+      "statement": "Positive control: with transport charged zero, rho on the j=0 member costs about 1/sqrt(3) (0.58, band 0.52 to 0.68 after canonicalisation overhead) of rho on the source.",
+      "mechanism": "orbit of size 6 under Aut times negation",
+      "predictions": [
+        {
+          "id": "P2",
+          "metric": "total_fm",
+          "direction": "lower",
+          "minimum_effect": "free-transport ratio interval upper end below 0.75",
+          "provenance": {
+            "written_at": "2026-10-31",
+            "data_seen": [
+              {
+                "path": "knowledge/leads/ecdlp/structure/LEAD-STR-isogeny-class-generic-invariance.yaml",
+                "measured": "leads' own prior closure; no data of this design seen"
+              }
+            ],
+            "sample_status": "out_of_sample"
+          },
+          "role": "calibration"
+        }
+      ]
+    },
+    {
+      "id": "H3",
+      "statement": "Classical transport exponent in the worst-case tall family is near 1.5 in q (kernel over F_{q^d}, d up to l ~ sqrt q); in the d-small family it is near 0.5 to 1.",
+      "mechanism": "cost ~ l * d^2 log q field mults.",
+      "predictions": [
+        {
+          "id": "P3",
+          "metric": "transport_fm",
+          "direction": "higher",
+          "minimum_effect": "fitted exponent interval lower end above 0.5 in the worst-case family",
+          "provenance": {
+            "written_at": "2026-10-31",
+            "data_seen": [
+              {
+                "path": "knowledge/leads/ecdlp/structure/LEAD-STR-isogeny-class-generic-invariance.yaml",
+                "measured": "leads' own prior closure; no data of this design seen"
+              }
+            ],
+            "sample_status": "out_of_sample"
+          },
+          "role": "calibration"
+        }
+      ]
+    }
+  ],
+  "arms": [
+    {
+      "id": "rho-orig",
+      "role": "reference",
+      "description": "matched negation-map rho on the source curve, counted field multiplications",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "voltransport"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "rho.negation",
+        "curve": "source"
+      }
+    },
+    {
+      "id": "rho-orig-aa",
+      "role": "control_aa",
+      "description": "rho-orig repeated: A/A noise floor, independent seed stream",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "voltransport"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "rho.negation",
+        "curve": "source"
+      },
+      "same_instrument_as": "rho-orig"
+    },
+    {
+      "id": "transport-rho",
+      "role": "candidate",
+      "description": "classical kernel-route transport to the max-Aut member (all transport events charged) then Aut-orbit rho on it",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "voltransport"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "transport+rho.aut",
+        "curve": "destination",
+        "kani": false
+      },
+      "same_instrument_as": "rho-orig"
+    },
+    {
+      "id": "rho-dest-free",
+      "role": "control_positive",
+      "description": "Aut-orbit rho on the destination with transport charged zero: the ceiling of any transport",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "voltransport"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "rho.aut",
+        "curve": "destination"
+      },
+      "same_instrument_as": "rho-orig"
+    },
+    {
+      "id": "transport-rho-noweak",
+      "role": "control_negative",
+      "description": "same pipeline on random classes with Aut = {+-1} everywhere; destination = fastest-constant model",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "voltransport"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "transport+rho.aut",
+        "curve": "best_model"
+      },
+      "same_instrument_as": "rho-orig"
+    },
+    {
+      "id": "kani-model",
+      "role": "candidate",
+      "description": "model line c*q^0.4 inserted for transport (not implemented); reports break-even constant c* only",
+      "instrument": {
+        "repo": "crypto-autoresearcher",
+        "commit": null,
+        "build": [
+          [
+            "cargo",
+            "build",
+            "--release",
+            "--bin",
+            "voltransport"
+          ]
+        ],
+        "binary_sha256": null,
+        "flags": {},
+        "env": {
+          "RAYON_NUM_THREADS": "1"
+        },
+        "threads": 1
+      },
+      "parameters": {
+        "method": "model.kani",
+        "implemented": false
+      }
+    }
+  ],
+  "controls": {
+    "aa": {
+      "present": true,
+      "comparison": "C-aa",
+      "not_applicable_reason": null
+    },
+    "positive": {
+      "present": true,
+      "arm": "rho-dest-free",
+      "expected_detection": "ratio to rho-orig 0.58 [0.52,0.68] in classes with a j=0/1728 member",
+      "not_applicable_reason": null
+    },
+    "negative": {
+      "present": true,
+      "arm": "transport-rho-noweak",
+      "null_population": {
+        "description": "random prime-field classes with no j=0/1728 member (Aut = {+-1} on every member)",
+        "generator": "random trace t per prime with squarefree-part of t^2-4p not in {-3,-4}, same f-structure family and same size grid as positive classes",
+        "n": 144,
+        "why_n": "12 classes x 6 sizes x 2 families, equal to the positive set so the ratio intervals have equal resolution",
+        "matched_on": [
+          "prime size",
+          "conductor f shape (d-small or tall)",
+          "target count",
+          "charge table"
+        ]
+      },
+      "not_applicable_reason": null
+    }
+  },
+  "variable_ledger": {
+    "independent": [
+      {
+        "name": "curve_and_transport",
+        "levels": [
+          "source",
+          "destination+transport",
+          "destination free"
+        ]
+      }
+    ],
+    "factors": [
+      {
+        "name": "size_bits",
+        "treatment": "crossed",
+        "how": "q in 2^20,2^24,2^28,2^32,2^36,2^40, prime p nearest below"
+      },
+      {
+        "name": "class",
+        "treatment": "randomized",
+        "how": "12 classes per size and family from the seed rule; positive classes built with 4p=t^2+3f^2 or t^2+4f^2, negative classes by random t with squarefree D"
+      },
+      {
+        "name": "volcano_family",
+        "treatment": "crossed",
+        "how": "F1 d-small (executed), F2 worst-case tall (large prime l | f, priced from exact structure)"
+      },
+      {
+        "name": "target",
+        "treatment": "randomized",
+        "how": "4 planted scalars per class from the seed rule, same across arms"
+      },
+      {
+        "name": "binary",
+        "treatment": "fixed",
+        "how": "one runner binary, sha256 pinned"
+      },
+      {
+        "name": "threads",
+        "treatment": "fixed",
+        "value": 1,
+        "how": "single thread, counted unit only"
+      },
+      {
+        "name": "charge_table",
+        "treatment": "fixed",
+        "how": "field-op charges per primitive frozen; reported under 0.5x, 1x, 2x band for transport charges"
+      },
+      {
+        "name": "arm_order",
+        "treatment": "randomized",
+        "how": "permuted per instance by the seed rule"
+      }
+    ],
+    "comparisons": [
+      {
+        "id": "C-total",
+        "arms": [
+          "rho-orig",
+          "transport-rho"
+        ],
+        "differs_in": [
+          "curve_and_transport"
+        ],
+        "design": "one_factor"
+      },
+      {
+        "id": "C-aa",
+        "arms": [
+          "rho-orig",
+          "rho-orig-aa"
+        ],
+        "differs_in": [],
+        "design": "aa"
+      },
+      {
+        "id": "C-pos",
+        "arms": [
+          "rho-orig",
+          "rho-dest-free"
+        ],
+        "differs_in": [
+          "curve_and_transport"
+        ],
+        "design": "one_factor"
+      },
+      {
+        "id": "C-neg",
+        "arms": [
+          "rho-orig",
+          "transport-rho-noweak"
+        ],
+        "differs_in": [
+          "curve_and_transport"
+        ],
+        "design": "one_factor"
+      }
+    ],
+    "aa_not_applicable": null,
+    "crosses_map": false
+  },
+  "randomization": {
+    "arm_order": "randomized",
+    "arm_order_reason": null,
+    "seed_derivation": {
+      "method": "protocol_hash_sha256",
+      "seeds": [],
+      "nonce": null,
+      "note": "seed = first 8 bytes of SHA256(protocol_sha256 | size_bits | family | class_index | target_index | arm_stream); A/A uses a distinct arm_stream; arm order from the same hash"
+    },
+    "instance_sampling": {
+      "rule": "per size and family, the first 12 admissible primes/traces enumerated from the hashed stream; 4 targets per class; same classes and targets across arms",
+      "independent_of_arm": true
+    },
+    "blinding": {
+      "analysis_labels_masked": false,
+      "how": "arms named by method; analysis script frozen before data, no per-class selection",
+      "unmasked_at": null
+    }
+  },
+  "sample_size": {
+    "instances": 576,
+    "replicates": 3,
+    "warmups": 0,
+    "power": {
+      "method": "paired_bootstrap",
+      "alpha": 0.05,
+      "tests_in_family": 4,
+      "correction": "holm",
+      "rank_test_n": 9999,
+      "min_attainable_two_sided_p": 0.0002,
+      "passes": true,
+      "note": "4 comparisons; 2/(9999+1)=0.0002 < 0.05/4. 12 classes per size cell is the resampling unit; the intended effect is a ratio 1/sqrt(3)=0.58 (positive) vs the A/A half-width, large against rho seed spread (about 0.5/sqrt(targets))."
+    },
+    "preflight_runtime": {
+      "fixed_seconds": 60,
+      "per_sample_seconds": 2.0,
+      "threads": 4,
+      "estimated_total_seconds": 5400,
+      "measured_on": "estimate only, no probe run: 2^40 rho about 1e6 steps per target; transport structure search seconds in PARI"
+    }
+  },
+  "metrics": {
+    "primary": [
+      {
+        "id": "total_fm",
+        "name": "total field multiplications",
+        "unit": "M-equivalents (1 M = 1 mul; sqr = 0.8 M; inv = 20 M, batched inversion 3 M amortised)",
+        "kind": "counted",
+        "definition": "rho steps times exact per-step charge incl. canonicalisation (Aut-orbit canonical form charged, never free) plus transport events times frozen charge table, setup to verified answer",
+        "source": "runner records total_fm",
+        "aggregation": "paired_ratio",
+        "resolution": "1 M",
+        "uncertainty": "paired_bootstrap_ci95"
+      },
+      {
+        "id": "transport_fm",
+        "name": "transport field multiplications",
+        "unit": "M-equivalents",
+        "kind": "counted",
+        "definition": "kernel search scalar mults over F_{q^d}, Velu evaluations of the two points, per prime l | f, from measured structure counts (l, d, steps) times the frozen charge table",
+        "source": "runner records transport_fm",
+        "aggregation": "median",
+        "resolution": "1 M",
+        "uncertainty": "bootstrap_ci95"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "breakeven_c",
+        "name": "Kani break-even constant",
+        "unit": "M per q^0.4",
+        "kind": "derived",
+        "definition": "(rho_orig_fm - rho_dest_free_fm)/q^0.4 per class: the largest constant for which a q^0.4 transport would still win",
+        "source": "derived from total_fm",
+        "aggregation": "median",
+        "resolution": "0.01",
+        "uncertainty": "bootstrap_ci95",
+        "formula": "(total_fm[rho-orig] - total_fm[rho-dest-free]) / q^0.4, per class, medians over targets"
+      }
+    ]
+  },
+  "measurement": {
+    "isolation_required": "L0",
+    "warmups": 0,
+    "order": "randomized",
+    "clock": "counted",
+    "counters": [
+      "steps",
+      "field_ops.muls",
+      "field_ops.sqrs",
+      "field_ops.invs",
+      "transport.events"
+    ],
+    "record": [
+      "cpu_model",
+      "binary_sha256",
+      "threads"
+    ],
+    "timed_primary_justification": null
+  },
+  "execution": {
+    "backend": "local",
+    "queue": "local",
+    "placement": {
+      "instance_type": "one 4-core host",
+      "cpus": 4,
+      "spot": false
+    },
+    "measurement_class": "measurement",
+    "timeout_seconds": 14400,
+    "checkpoint": {
+      "policy": "none",
+      "interval_seconds": null,
+      "grace_seconds": null,
+      "restore_validation": "none",
+      "after_restore": {
+        "wall_time": "invalid",
+        "counted_units": "valid"
+      }
+    },
+    "retries": {
+      "infrastructure_only": true,
+      "max_attempts": 1
+    }
+  },
+  "stopping_rules": [
+    {
+      "rule": "fixed design: 6 sizes x 12 classes x 2 families x 4 targets, 3 replicates, then stop",
+      "kind": "fixed_n",
+      "preregistered": true
+    },
+    {
+      "rule": "a class whose path or answer fails verification is reported, never replaced",
+      "kind": "invalidation",
+      "preregistered": true
+    }
+  ],
+  "invalidation_rules": [
+    "rows failing independent verification are excluded from the comparison and counted",
+    "wall time is never read; counted units stand at any isolation"
+  ],
+  "decision_rule": {
+    "text": "C2 supported if, at some size in positive classes, the 95% paired-bootstrap interval of sum(total_fm transport-rho)/sum(total_fm rho-orig) lies wholly below 1 and its distance from 1 exceeds the A/A half-width, and survives the 2x transport-charge band; otherwise closure stands. Negative control must show ratio above 1 with interval excluding 1; positive control must show the free ratio interval below 0.75; otherwise the detector is invalid.",
+    "comparison_ids": [
+      "C-total",
+      "C-pos",
+      "C-neg"
+    ],
+    "threshold": "ratio interval excludes 1 and beyond A/A half-width",
+    "statistic": "ratio of summed total_fm, candidate over reference, per size",
+    "interval": "paired bootstrap over classes, 95%, 9999 resamples",
+    "multiple_comparison_correction": "holm",
+    "effect_size_measure": "ratio of summed total_fm; exponent alpha of transport_fm with bootstrap interval over 6 sizes",
+    "verdict_vocabulary": [
+      "supported_within_scope",
+      "within_control_distribution",
+      "invalid_measurement",
+      "inconclusive"
+    ]
+  },
+  "analysis_plan": {
+    "script": null,
+    "inputs": [
+      "records.jsonl"
+    ],
+    "outputs": [
+      "per-size ratio table",
+      "log-log fit of transport_fm vs q with class-bootstrap interval",
+      "break-even constant table"
+    ],
+    "blinded": false,
+    "frozen_before_data": true
+  },
+  "reporting": {
+    "export_schema": "experiment.export/v1",
+    "review_schema": "experiment.review/v1",
+    "graphs": [
+      "ratio vs size with A/A band, positive and negative controls",
+      "transport_fm vs q log-log with 0.4, 0.5, 1.5 reference slopes"
+    ],
+    "report_dir": "reports"
+  },
+  "inadmissible": [
+    "dropping classes, sizes or families after seeing results",
+    "charging the Aut canonicalisation as free, or transport as free in the candidate arm",
+    "quoting the Kani model line as a measured cost",
+    "reading a wall clock",
+    "choosing the destination or class by looking at rho cost",
+    "extrapolating the toy ratio to deployed curves"
+  ],
+  "literature": [
+    {
+      "ref": "eprint.iacr.org/2024/924 (Galbraith, Research in Number Theory 11:7, 2025)",
+      "provenance": "retrieved",
+      "claim": "abstract: heuristic O~(q^0.4) transport (was q^1.5), rigorous O~(q^(1/4)) isogeny between any two class members, via Kani",
+      "verified_by": "abstract only; theorem statements and cost unit unverified"
+    }
+  ],
+  "amendments": [],
+  "freeze": {
+    "status": "draft",
+    "protocol_sha256": null,
+    "commit": null,
+    "frozen_at": null,
+    "filed_before_affected_data": null
+  }
+}
