@@ -34,3 +34,16 @@ This is source/contract preparation only. No compilation,tests,benchmark,trial,a
 ## Resolution and history
 
 2026-10-28: Open. Source reachability is established for pinned code; scientific outcomes and IDEA status remain unverified/unchanged. No task,approval or run created. This Codex Coordinator reasoned over sources; no separate orchestration or Bedrock inference call was made and exact serving identity is unverified.
+
+
+---
+
+## PROBLEM_APPENDIX
+
+**Proposed additive update to** `problems/icex-sparse-la-source-adoption-and-matched-matrix-gap.md`; a duplicate problem would split the same obstruction.
+
+At the 2026-10-30 source refresh, crypto main `af6ed463…` still routes all five sparse selectors. Its `mod.rs` adds explicit `partial_counted_cost` qualifications for hashed-affine setup, hashed-tensor contraction and archive work, leaving total cost and `s_over_rho` unavailable when those qualifications apply. The inspected owner PR2596 head `9d9a0f1c…` supplies study prose and artifact metadata, including names of `records.jsonl` objects; those data were not read. The selected source and metadata do not identify a complete, immutable, same-matrix `rows/RHS/modulus/width` export, its custody, or an importer shared by the seven comparison names. The low-level per-attempt reports are discarded by the pipeline wrapper. This is an **interface and identified-input gap**, not evidence that no matrix exists globally and not a negative mathematical result.
+
+**Exit criteria:** pin one eligible complete matrix object and canonical export/consumption contract; verify source context, ordered rows/RHS/modulus/width and hashes; retain every sparse attempt report; specify a same-row full-rank oracle and solution checks; freeze field-add/multiply and group-operation units, controls, finite resources, independent review and task admission. A complete Gaussian transcript must be within native limits or the cell is excluded pending a separately validated oracle. Recheck on source, corpus, owner-PR or archive-interface change. Keep the old ICEX Executor claim and the goal’s implementation/measurement hold unchanged.
+
+

@@ -1,0 +1,180 @@
+# EXPERIMENT CONTRACT -- EXP-FNDSA-cc92c2 (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-FNDSA-cc92c2
+  hypothesis_id: H-FNDSA-5dbbf3
+  derived_from_idea: IDEA-20261018-3e25a1
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Cross-sampler signatures-to-direction at matched KL
+  objective: Decide whether sampler design changes how fast a fixed-size defect reveals the
+    basis.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: >-
+      Python/NumPy toy samplers, exact KL by enumeration at n=16 and by numerical integration
+      otherwise
+    parameters: >-
+      n in {16, 32, 64}; q = 12289; delta in {0, 1e-3, 1e-2, 1e-1, 0.3}; 10 keys per cell;
+      up to 10^6 signatures
+    procedure: >-
+      1. Generate keys (Falcon-style and Antrag-style). 2. Tune planted defect per sampler
+      to delta. 3. Sample, update residual covariance, track angle. 4. Record N_theta.
+  controls:
+  - >-
+    null: delta = 0 in each sampler (learner angle must stay at the random-direction distribution)
+  - 'positive: delta = 0.3'
+  - 'A/A: same sampler on two key-seed blocks'
+  independent_variables:
+  - sampler_arm
+  - planted_kl
+  metrics:
+    primary:
+    - N_theta
+    secondary:
+    - numeric Fisher information
+    - learner angle curves
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: N_theta ratio Mitaka/Falcon at delta=1e-2, n=32
+    formula: outside [0.5, 2]
+    source: mechanism
+  scale_relevance:
+    tier: toy
+    justification: n <= 64; transfer assumes ratio stable across n, checked over 16/32/64
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    - 2026101803
+    - 2026101804
+    - 2026101805
+    - 2026101806
+    - 2026101807
+    - 2026101808
+    - 2026101809
+    independent_instances: 10
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 30
+    maximum_memory_gb: 8
+    maximum_runs: 45
+  stopping_rules:
+  - censor at 10^6 signatures
+  invalidation_rules:
+  - timeout/crash is failed_infrastructure, never negative evidence
+  - measured KL off target by more than 20% invalidates the cell
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: C1 gives P1 at n=32 and 64 beyond the AA1 noise floor, and C2 gives P2.
+  falsification_criterion: C1 ratio within [0.67, 1.5] at all delta and n.
+  decision_impact:
+    on_positive: Report defect budgets per sampler; matched-KL is not a sufficient comparison.
+    on_negative: Use KL alone as the cross-sampler currency for this goal.
+  variable_ledger:
+    independent:
+    - name: sampler_arm
+      levels:
+      - falcon_ffsampling
+      - mitaka_hybrid
+      - mitaka_antrag_keys
+    - name: planted_kl
+      levels:
+      - '0'
+      - 1e-3
+      - 1e-2
+      - 1e-1
+      - '0.3'
+    factors:
+    - name: key_seed_block
+      treatment: randomized
+      value: two blocks of 5
+      how: distinct seeds
+    - name: defect_leaf_index
+      treatment: fixed
+      value: last leaf
+      how: manifest
+    - name: seed_block
+      treatment: randomized
+      value: two disjoint blocks of declared seeds
+      how: seeds drawn from the frozen seed list; block A and block B never overlap
+    comparisons:
+    - id: C1
+      arms:
+      - mitaka_hybrid
+      - falcon_ffsampling
+      differs_in:
+      - sampler_arm
+      design: one_factor
+    - id: C2
+      arms:
+      - mitaka_antrag_keys
+      - mitaka_hybrid
+      differs_in:
+      - sampler_arm
+      design: one_factor
+    - id: AA1
+      arms:
+      - falcon block A
+      - falcon block B
+      differs_in:
+      - key_seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-3e25a1.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-3e25a1.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - manifest.yaml
+  - raw-result.json
+  - angle-vs-signatures plots
+  - PDF report
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-FNDSA-cc92c2/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-3e25a1.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.

@@ -11,7 +11,7 @@
 
 *Question.* Do the published prime-field curves have fewer split primes (odd $ell <= 691$ with $t^2 - 4p$ a nonzero square mod $ell$) than unpublished prime-order seed candidates?
 
-*Prime-order confound (derived).* All 19 named curves have prime order. The exact Chebotarev null conditioned on prime order has mean 59.7--60.2 and s.d. 5.5. Prime order moves the mean by only 0.5--1.4 splits, and small factors of the twist order force 0--4 splits per curve. Validation at 48 bits printed aggregates only and kept no rows (D2).
+*Prime-order confound (derived).* All 19 named curves have prime order. The exact Chebotarev null conditioned on prime order has mean 59.7--60.2 and s.d. 5.5. Prime order moves the mean by only 0.5--1.4 splits, and small factors of the twist order force 0--4 splits per curve. A 48-bit SEA check matches the null (KS D = 0.023); its rerun with rows kept reproduces exactly and passes an independent audit (D2 resolved).
 
 *Cutoff, exploratory, on the named 19.* The 25/25 within-field score holds only for $B in {691, 701, 709, 769}$. Choosing B over 655 prime cutoffs gives $p = 0.0055$ (Monte Carlo, n = 20,000) or $0.0065$ (exact permutation, 4,480 allocations). That correction does not cover the earlier choice of statistic.
 

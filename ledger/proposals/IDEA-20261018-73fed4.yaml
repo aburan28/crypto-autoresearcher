@@ -1,0 +1,159 @@
+# IDEA RECORD -- IDEA-20261018-73fed4
+# RQ-MLDSA-001 / GOAL-MLDSA-001; batch PQC-100-20261018
+# WRITE-ONCE. A proposal only: changes no status, asserts no evidence, runs nothing.
+idea:
+  id: IDEA-20261018-73fed4
+  question_id: RQ-MLDSA-001
+  goal_id: GOAL-MLDSA-001
+  added: '2026-10-18'
+  recorded_at: '2026-10-18'
+  status: proposed
+  approved_by: null
+  proposed_by: idea-generator
+  batch: PQC-100-20261018
+  title: >-
+    Rejection hides odd mask biases to second order: key recovery needs eps^-4 signatures
+    for a linear y tilt, eps^-2 for an even bias
+  class: mechanism
+  claim: >-
+    If the mask y has density proportional to 1 + eps*f(y/gamma1) instead of uniform, the
+    accepted z = y + c s1 has conditional mean E[z_j | u_j] = a + g*u_j with u = c s1, and
+    least squares of z on rot(c) recovers s1 from N* = 16 sigma_z^2 / (tau g^2) signatures.
+    For an ODD defect f(x) = x the gain is second order, g = eps^2 B^2/(3 G^2), so N* scales
+    as eps^-4; for an EVEN defect f(x) = x^2 it is first order, g = -2 eps B^2/(3 G^2), so
+    N* scales as eps^-2 (G = gamma1, B = gamma1 - beta). At toyDSA(32,2,2) with gamma1 = 2^6
+    the two fitted slopes are -4 and -2 within +-0.5, and eps = 0 gives no recovery.
+  mechanism: >-
+    Rejection sampling hides u only because the accepted density of z, p(z - u) restricted
+    to the box, is flat. For a perturbed density the u-dependence of the accepted mean comes
+    from the perturbation's derivative inside the box: an even perturbation (curvature, as
+    produced by summed or edge-biased samplers) has a z-linear cross term -2 eps u z / G^2
+    at first order, while an odd linear tilt moves the mean only through the normalising constant
+    1 - eps u / G, a second-order effect. So the parity of a sampler defect, not its size,
+    sets the exponent of the signature count, which is the quantity a defect triage needs
+    and which the uniform-y proof does not discuss.
+  tracked_object: >-
+    the number of accepted toyDSA signatures N* at which least-squares rounding returns s1
+    exactly, against defect size eps, for odd and even defects
+  novelty_status: unverified
+  novelty_note: >-
+    No novelty screen has run. kb citations were opened by the drafting session; recalled
+    ones are pointers only (AGENTS.md rule 9).
+  citations:
+  - ref: KN-LIT-4828
+    provenance: kb
+    claim: >-
+      ILWE gives sample bounds for unbiased linear leakage without rejection; this measures
+      the post-rejection residual leak that a biased y re-opens in ML-DSA, where the ILWE
+      signal is multiplied by a bias-dependent gain that the paper does not price
+    verified_by: knowledge/literature/KN-LIT-4828.md (opened by the drafting session)
+  - ref: KN-LIT-059
+    provenance: kb
+    claim: >-
+      the paradigm whose hiding argument is exactly the property measured here under a stated
+      defect
+    verified_by: knowledge/literature/KN-LIT-059.md (opened by the drafting session)
+  - ref: null
+    provenance: recalled
+    claim: >-
+      Espitau, Fouque, Gerard, Tibouchi, Side-Channel Attacks on BLISS Lattice-Based Signatures,
+      CCS 2017 (recalled, hedged)
+    verified_by: null
+  predictions:
+  - id: P1
+    metric: slope of log N* vs log eps, odd defect
+    direction: lower
+    minimum_effect: fitted slope in [-4.5, -3.5] over eps in {1, 2^-1, 2^-2}
+    falsified_by: slope above -3 (first-order leak)
+  - id: P2
+    metric: slope of log N* vs log eps, even defect
+    direction: lower
+    minimum_effect: fitted slope in [-2.5, -1.5] over eps in {2^-1..2^-4}
+    falsified_by: slope outside [-3, -1]
+  - id: P3
+    metric: recovery at eps = 0
+    direction: different
+    minimum_effect: >-
+      zero exact recoveries in 2^24 signatures per key and per-coefficient error rate within
+      1 percent of chance
+    falsified_by: any exact recovery at eps = 0
+  minimal_test:
+    design: >-
+      Generate toyDSA keys; sign uniformly random messages with a mask sampler perturbed by
+      eps*f; regress z on rot(c); round; compare with s1; find N* on a doubling grid per (f,
+      eps).
+    controls:
+    - 'null: eps = 0 exact uniform sampler, same N grid'
+    - 'positive: rejection disabled (z = y + c s1 always output, ILWE regime of KN-LIT-4828)'
+    - 'A/A: even defect eps = 2^-2 in two seed blocks'
+  falsification_conditions:
+  - odd-defect slope is first order (above -3)
+  - even-defect slope outside [-3, -1]
+  - eps = 0 yields recovery
+  - positive control fails at 4x its predicted N (instrument broken)
+  confounders:
+  - >-
+    the closed-form gains assume |u| much smaller than B; at toy gamma1 = 2^6 and beta = 8
+    this holds only to about 15 percent
+  - regression conditioning depends on tau/n
+  - plain rounding only, so a lattice finisher cannot mask the law
+  interpretation_limits:
+  - >-
+    toy ring n = 32 and gamma1 = 2^6: transfer to ML-DSA-44 is through the closed-form gain
+    and sigma_z^2 proportional to gamma1^2, a model stated here and not tested at 2^17
+  - two defect shapes only; edge and step defects are a separate idea
+  - no statement about any deployed sampler
+  heuristic_assumptions:
+  - id: H1
+    statement: the accepted-z conditional mean is linear in u with the stated gains
+    rigorous_support: exact integrals of the truncated perturbed density; first-order in u/B
+    validation_plan: >-
+      measure the empirical slope of E[z|u] on 10^6 single-coefficient samples per (f, eps)
+      and compare with the formulas
+  target_complexity:
+    time_exponent: >-
+      N* = Theta(sigma_z^2 / (tau g^2)) with g = Theta(eps^2) (odd) or Theta(eps) (even);
+      time O(N n^2 l^2)
+    memory_exponent: O((n l)^2)
+    best_known: no leak at eps = 0; ILWE without rejection needs Theta(sigma_y^2 / tau)
+    hidden_overhead: the normalising-constant term can dominate at large eps
+    tradeoff_note: constant-level and exponent-in-eps measurement; no exponent claim about
+      lattice cost
+  proof_search_map:
+    not_applicable_reason: >-
+      Empirical measurement proposal; no theorem is claimed. A proof-oriented successor must
+      fill the map.
+  estimated_cost:
+    implementation: medium
+    compute: low
+  recommended_priority: high
+  prior_art:
+    frontier_map: not_applicable
+    not_applicable_reason: >-
+      Not an ECDLP question; the only frontier map (knowledge/frontiers/ecdlp) has no rows
+      for lattice, code-based or hash-based schemes.
+    nearest:
+    - ref: KN-LIT-4828
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        ILWE gives sample bounds for unbiased linear leakage without rejection; this measures
+        the post-rejection residual leak that a biased y re-opens in ML-DSA, where the ILWE
+        signal is multiplied by a bias-dependent gain that the paper does not price
+    - ref: KN-LIT-059
+      provenance: kb
+      relation: adjacent
+      delta: >-
+        the paradigm whose hiding argument is exactly the property measured here under a stated
+        defect
+    internal_neighbours:
+    - IDEA-20260821-4d4e5f
+    - IDEA-20260821-60ba98
+  dominated_by: >-
+    Unscreened. The nearest prior work is listed under prior_art; a novelty screen may find
+    this dominated.
+  sota_delta: No attack-cost delta is claimed. The deliverable is the measurement named in
+    predictions.
+  designed_as:
+    hypothesis_id: H-MLDSA-128680
+    experiment_id: EXP-MLDSA-3625ec

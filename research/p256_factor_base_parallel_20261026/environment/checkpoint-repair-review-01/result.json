@@ -1,0 +1,416 @@
+{
+  "schema": "p256-checkpoint-software-inspection/v1",
+  "task_id": "TASK-20261026-6764a2",
+  "archived_by": "TASK-20261026-54bcce",
+  "recorded_utc": "2026-10-26 18:14:49 UTC",
+  "source_snapshot": "616878bcf0c8a749f38dd3ad0dbb1153478d4010",
+  "source_branch": "research/p256-pass2-checkpoint-20261026",
+  "declared_main_base": "6a69b2d02ecd53f1649bcf56e23e4ffe91d953ad",
+  "source_sha256": {
+    "AGENTS.md": "b93676d9b0bb043bef67aba722fa31df95b257df26449e8b984848adbc7b638c",
+    "scripts/checkpoint.sh": "de5d922d7b38a14d16843901b5fb182434ff8fdd1b3a81085e66c49ce2dc8f1f",
+    "tools/test_checkpoint_stat.py": "0fe869fcae640e2a45fbf81df208f32c92fabbba162256f202f9208bd132c4f8",
+    "research/p256_factor_base_parallel_20261026/handoffs/TASK-20261026-6764a2.json": "e042620a1eae4bddd87a0339f7c2246ad9aca9cc2e7560a6183eea01620f879f",
+    "research/p256_factor_base_parallel_20261026/environment/checkpoint-gate-02/result.json": "96286c8f4f744af8404909d1d2b636d630a3492537a8ee07cc3e98b6462633e3",
+    "research/p256_factor_base_parallel_20261026/environment/checkpoint-gate-03/result.json": "be74db60582d9b3a0a2b47851134161ee2554f1a02fe9d58e18ae4f6d750aaea"
+  },
+  "outcome": "software_inspection_complete_with_cached_receipt_finding",
+  "scientific_review_claimed": false,
+  "canonical_model_admission_claimed": false,
+  "model_binding": "Native inherited Codex; unprobed; no model substitutions or probes",
+  "scope": "Isolated software inspection and refusing-upload fixtures only; source-bound to the snapshot above",
+  "observations": {
+    "successful_stat_content_preserved_in_tested_formats": true,
+    "failed_invocation_stdout_discarded_in_tested_paths": true,
+    "fresh_receipt_absent_on_tested_stat_and_authentication_failures": true,
+    "universal_stat_failure_gate_refusal": false,
+    "universal_stat_failure_refusal_exception": "Metadata error suppression can omit a new untracked file from state_hash and accept an older matching receipt before size/auth checks.",
+    "no_new_receipt_in_cache_counterexample": true,
+    "actual_repository_gate_invocations": 0,
+    "actual_uploads": 0,
+    "mathematical_programs_launched": 0,
+    "shared_git_mutations": 0,
+    "sibling_review_reports_read": 0
+  },
+  "findings": [
+    {
+      "id": "C1",
+      "priority": "high",
+      "type": "existing_hash_cache_control_flow",
+      "title": "Failed metadata stat can leave an older receipt accepted for a new untracked file",
+      "source_references": [
+        {
+          "path": "scripts/checkpoint.sh",
+          "line": 201
+        },
+        {
+          "path": "scripts/checkpoint.sh",
+          "line": 270
+        },
+        {
+          "path": "scripts/checkpoint.sh",
+          "line": 271
+        },
+        {
+          "path": "scripts/checkpoint.sh",
+          "line": 272
+        },
+        {
+          "path": "scripts/checkpoint.sh",
+          "line": 305
+        },
+        {
+          "path": "scripts/checkpoint.sh",
+          "line": 337
+        }
+      ],
+      "observation": "A synthetic prior receipt for the same HEAD/RESUME without an untracked payload was retained. Adding a new payload and failing every stat call left the digest equal; the copied-script fixture gate returned 0 before sizing/authentication and called no upload stub. The existing receipt was unchanged and no new receipt was created.",
+      "evidence": "tests.cache_counterexample",
+      "recommendation": "Propagate metadata stat failures through state_hash and its callers before consulting cached receipts; cover this case with a refusing-upload fixture.",
+      "parent_control_flow_exposure": {
+        "revision": "616878bcf0c8a749f38dd3ad0dbb1153478d4010^",
+        "references": [
+          {
+            "path": "scripts/checkpoint.sh",
+            "line": 187
+          },
+          {
+            "path": "scripts/checkpoint.sh",
+            "line": 257
+          },
+          {
+            "path": "scripts/checkpoint.sh",
+            "line": 258
+          }
+        ],
+        "executed": false
+      },
+      "limits": "The prior receipt was seeded by the fixture; no authentic historical upload was reproduced. Parent revision was inspected, not executed."
+    },
+    {
+      "id": "C2",
+      "priority": "low",
+      "type": "test_coverage",
+      "title": "Committed regressions omit cached-receipt metadata-failure coverage",
+      "source_references": [
+        {
+          "path": "tools/test_checkpoint_stat.py",
+          "line": 65
+        },
+        {
+          "path": "tools/test_checkpoint_stat.py",
+          "line": 75
+        },
+        {
+          "path": "tools/test_checkpoint_stat.py",
+          "line": 79
+        },
+        {
+          "path": "tools/test_checkpoint_stat.py",
+          "line": 97
+        },
+        {
+          "path": "tools/test_checkpoint_stat.py",
+          "line": 106
+        }
+      ],
+      "observation": "The four cases start without a prior receipt and do not compare successful state_hash contributions. Separate reviewer helper probes compare successful metadata/size exactly, but do not modify committed coverage."
+    }
+  ],
+  "tests": {
+    "focused_run": {
+      "command": "python3 -I -B - <<'PY'\nfrom pathlib import Path\nimport hashlib, io, json, os, platform, re, subprocess, sys, tempfile, time, types, unittest\nfrom datetime import datetime, timezone\n\nrepo = Path('/workspace/crypto-autoresearcher')\nrevision = '616878bcf0c8a749f38dd3ad0dbb1153478d4010'\npaths = ['scripts/checkpoint.sh', 'tools/test_checkpoint_stat.py']\nsource = {p: subprocess.check_output(['git', 'show', f'{revision}:{p}'], cwd=repo) for p in paths}\nfor p in paths:\n    assert (repo / p).read_bytes() == source[p], f'working source differs: {p}'\nstarted = datetime.now(timezone.utc).isoformat()\nrecord = {'kind': 'isolated-software-fixtures', 'source_revision': revision,\n          'started_utc': started, 'source_sha256': {p: hashlib.sha256(b).hexdigest() for p, b in source.items()},\n          'python': sys.version, 'platform': platform.platform(), 'cases': []}\nclean_path = '/usr/local/bin:/usr/bin:/bin'\nwith tempfile.TemporaryDirectory(prefix='checkpoint-repair-review-') as outer:\n    base = Path(outer)\n    for name in ['scripts', 'tools', 'bin', 'tmp', 'empty-template']:\n        (base / name).mkdir()\n    for p, b in source.items():\n        (base / p).write_bytes(b)\n    for name in ['aws', 'curl']:\n        p = base / 'bin' / name\n        p.write_text('#!/bin/sh\\necho unexpected-network-call >&2\\nexit 97\\n')\n        p.chmod(0o755)\n    clean_env = {'PATH': str(base / 'bin') + ':' + clean_path,\n                 'TMPDIR': str(base / 'tmp'), 'LC_ALL': 'C',\n                 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null',\n                 'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.hooksPath',\n                 'GIT_CONFIG_VALUE_0': '/dev/null', 'GIT_TEMPLATE_DIR': str(base / 'empty-template'),\n                 'CHECKPOINT_TOKEN_FILE': str(base / 'absent-token'),\n                 'CHECKPOINT_AWS_PROFILE': 'checkpoint-test-absent-profile'}\n    suite_command = [sys.executable, '-I', '-B', str(base / 'tools/test_checkpoint_stat.py'), '-v']\n    suite = subprocess.run(suite_command, cwd=base, env=clean_env, text=True,\n                           capture_output=True, timeout=60)\n    record['committed_suite'] = {'command_template': 'python3 -I -B <temporary snapshot>/tools/test_checkpoint_stat.py -v',\n                                  'returncode': suite.returncode, 'stdout': suite.stdout, 'stderr': suite.stderr,\n                                  'passed': suite.returncode == 0}\n    assert suite.returncode == 0, suite.stderr\n    body = source['scripts/checkpoint.sh'].decode()\n    helper = re.search(r'(?ms)^file_stat\\(\\) \\{\\n.*?^\\}', body).group(0)\n    payload = base / 'untracked payload.txt'\n    payload.write_bytes(b'fixture payload\\n')\n    os.utime(payload, (1234567890, 1234567890))\n    script = 'set -euo pipefail\\n' + helper + '\\nfile_stat \"$@\"\\n'\n    trace = base / 'stat-trace'\n    helper_env = dict(clean_env, STAT_TRACE=str(trace))\n    stat_path = base / 'bin' / 'stat'\n    stat_native = subprocess.check_output(['/usr/bin/stat', '--version'], text=True).splitlines()[0]\n    record['native_stat'] = stat_native\n    record['bash'] = subprocess.check_output(['/bin/bash', '--version'], text=True).splitlines()[0]\n    def probe(name, gnu_fmt, bsd_fmt, expected_stdout, expected_rc=0, expected_calls=None):\n        if trace.exists():\n            trace.unlink()\n        call = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-c', script, 'fixture', gnu_fmt, bsd_fmt, payload.name],\n                              cwd=base, env=helper_env, text=True, capture_output=True, timeout=10)\n        calls = trace.read_text().splitlines() if trace.exists() else []\n        ok = call.returncode == expected_rc and call.stdout == expected_stdout\n        if expected_calls is not None:\n            ok = ok and calls == expected_calls\n        if expected_rc:\n            ok = ok and call.stderr == 'checkpoint: cannot stat untracked payload.txt\\n'\n        else:\n            ok = ok and call.stderr == ''\n        record['cases'].append({'name': name, 'returncode': call.returncode,\n                                'stdout': call.stdout, 'stderr': call.stderr, 'stat_calls': calls,\n                                'expected_stdout': expected_stdout, 'expected_returncode': expected_rc,\n                                'expected_stat_calls': expected_calls, 'passed': ok})\n        assert ok, record['cases'][-1]\n    native_meta = subprocess.check_output(['/usr/bin/stat', '-c', '%n %s %Y', payload.name], cwd=base, text=True)\n    native_size = subprocess.check_output(['/usr/bin/stat', '-c', '%s', payload.name], cwd=base, text=True)\n    assert native_meta == 'untracked payload.txt 16 1234567890\\n'\n    assert native_size == '16\\n'\n    probe('native_gnu_metadata_matches_native_stat', '%n %s %Y', '%N %z %m', native_meta)\n    probe('native_gnu_size_matches_native_stat', '%s', '%z', native_size)\n    stub = '''#!/usr/bin/env python3\nimport os, sys\nfrom pathlib import Path\nwith open(os.environ['STAT_TRACE'], 'a') as f:\n    f.write(sys.argv[1] + '\\\\n')\nmode = MODE\nif mode == 'failure' or (mode == 'bsd' and sys.argv[1] == '-c'):\n    print('failed-stat-output')\n    sys.exit(1)\nif mode == 'gnu' and sys.argv[1] != '-c':\n    print('unexpected-fallback-output')\n    sys.exit(97)\nname = sys.argv[3]\ns = os.stat(name)\nif sys.argv[2] in ['%s', '%z']:\n    print(s.st_size)\nelse:\n    print(name, s.st_size, int(s.st_mtime))\n'''\n    for mode in ['gnu', 'bsd', 'failure']:\n        stat_path.write_text(stub.replace('MODE', repr(mode)))\n        stat_path.chmod(0o755)\n        if mode == 'failure':\n            probe('both_stat_dialects_fail_and_emit_no_stdout', '%s', '%z', '', 1, ['-c', '-f'])\n        else:\n            calls = ['-c'] if mode == 'gnu' else ['-c', '-f']\n            probe(f'{mode}_metadata_success_is_exact', '%n %s %Y', '%N %z %m', native_meta, 0, calls)\n            probe(f'{mode}_size_success_is_exact', '%s', '%z', native_size, 0, calls)\n    # Run one additional copy-of-script fixture in a supported-transport failure.\n    # No token or real credentials exist; the advertised profile and refused upload are synthetic.\n    module = types.ModuleType('checkpoint_stat_review_fixture')\n    module.__file__ = str(base / 'tools/test_checkpoint_stat.py')\n    previous_env = dict(os.environ)\n    os.environ.clear()\n    os.environ.update(clean_env)\n    try:\n        exec(compile(source['tools/test_checkpoint_stat.py'], module.__file__, 'exec'), module.__dict__)\n        case = module.CheckpointStatTests('test_native_stat_reaches_auth_refusal_with_untracked_files')\n        case.setUp()\n        try:\n            calls_path = case.base / 'aws-calls'\n            case.env['FIXTURE_UPLOAD_CALLS'] = str(calls_path)\n            case.stub('aws', '#!/bin/sh\\nif [ \"$1\" = configure ]; then\\n  echo checkpoint-test-absent-profile\\n  exit 0\\nfi\\necho refused-upload >> \"$FIXTURE_UPLOAD_CALLS\"\\nexit 97\\n')\n            # Ensure the outer helper-only stat stub does not affect this fixture.\n            case.env['PATH'] = str(case.bin) + ':' + clean_path\n            call = case.gate()\n            upload_calls = calls_path.read_text().splitlines() if calls_path.exists() else []\n            last_push = (case.repo / '.resume/.last-push').exists()\n            ok = call.returncode != 0 and 'failed (aws)' in call.stderr and not last_push and upload_calls == ['refused-upload']\n            record['cases'].append({'name': 'synthetic_profile_upload_refused_without_receipt',\n                                    'returncode': call.returncode, 'stdout': call.stdout, 'stderr': call.stderr,\n                                    'upload_attempts': upload_calls, 'receipt_exists': last_push, 'passed': ok})\n            assert ok, record['cases'][-1]\n        finally:\n            case.doCleanups()\n    finally:\n        os.environ.clear()\n        os.environ.update(previous_env)\nrecord['finished_utc'] = datetime.now(timezone.utc).isoformat()\nrecord['all_passed'] = record['committed_suite']['passed'] and all(c['passed'] for c in record['cases'])\nprint(json.dumps(record, indent=2))\nPY",
+      "tool_result": {
+        "chunk_id": "705ed6",
+        "wall_time_seconds": 0.928201905,
+        "exit_code": 0,
+        "original_token_count": 1108,
+        "output": "{\n  \"kind\": \"isolated-software-fixtures\",\n  \"source_revision\": \"616878bcf0c8a749f38dd3ad0dbb1153478d4010\",\n  \"started_utc\": \"2026-10-26T18:08:25.463789+00:00\",\n  \"source_sha256\": {\n    \"scripts/checkpoint.sh\": \"de5d922d7b38a14d16843901b5fb182434ff8fdd1b3a81085e66c49ce2dc8f1f\",\n    \"tools/test_checkpoint_stat.py\": \"0fe869fcae640e2a45fbf81df208f32c92fabbba162256f202f9208bd132c4f8\"\n  },\n  \"python\": \"3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]\",\n  \"platform\": \"Linux-6.18.55-x86_64-with-glibc2.41\",\n  \"cases\": [\n    {\n      \"name\": \"native_gnu_metadata_matches_native_stat\",\n      \"returncode\": 0,\n      \"stdout\": \"untracked payload.txt 16 1234567890\\n\",\n      \"stderr\": \"\",\n      \"stat_calls\": [],\n      \"expected_stdout\": \"untracked payload.txt 16 1234567890\\n\",\n      \"expected_returncode\": 0,\n      \"expected_stat_calls\": null,\n      \"passed\": true\n    },\n    {\n      \"name\": \"native_gnu_size_matches_native_stat\",\n      \"returncode\": 0,\n      \"stdout\": \"16\\n\",\n      \"stderr\": \"\",\n      \"stat_calls\": [],\n      \"expected_stdout\": \"16\\n\",\n      \"expected_returncode\": 0,\n      \"expected_stat_calls\": null,\n      \"passed\": true\n    },\n    {\n      \"name\": \"gnu_metadata_success_is_exact\",\n      \"returncode\": 0,\n      \"stdout\": \"untracked payload.txt 16 1234567890\\n\",\n      \"stderr\": \"\",\n      \"stat_calls\": [\n        \"-c\"\n      ],\n      \"expected_stdout\": \"untracked payload.txt 16 1234567890\\n\",\n      \"expected_returncode\": 0,\n      \"expected_stat_calls\": [\n        \"-c\"\n      ],\n      \"passed\": true\n    },\n    {\n      \"name\": \"gnu_size_success_is_exact\",\n      \"returncode\": 0,\n      \"stdout\": \"16\\n\",\n      \"stderr\": \"\",\n      \"stat_calls\": [\n        \"-c\"\n      ],\n      \"expected_stdout\": \"16\\n\",\n      \"expected_returncode\": 0,\n      \"expected_stat_calls\": [\n        \"-c\"\n      ],\n      \"passed\": true\n    },\n    {\n      \"name\": \"bsd_metadata_success_is_exact\",\n      \"returncode\": 0,\n      \"stdout\": \"untracked payload.txt 16 1234567890\\n\",\n      \"stderr\": \"\",\n      \"stat_calls\": [\n        \"-c\",\n        \"-f\"\n      ],\n      \"expected_stdout\": \"untracked payload.txt 16 1234567890\\n\",\n      \"expected_returncode\": 0,\n      \"expected_stat_calls\": [\n        \"-c\",\n        \"-f\"\n      ],\n      \"passed\": true\n    },\n    {\n      \"name\": \"bsd_size_success_is_exact\",\n      \"returncode\": 0,\n      \"stdout\": \"16\\n\",\n      \"stderr\": \"\",\n      \"stat_calls\": [\n        \"-c\",\n        \"-f\"\n      ],\n      \"expected_stdout\": \"16\\n\",\n      \"expected_returncode\": 0,\n      \"expected_stat_calls\": [\n        \"-c\",\n        \"-f\"\n      ],\n      \"passed\": true\n    },\n    {\n      \"name\": \"both_stat_dialects_fail_and_emit_no_stdout\",\n      \"returncode\": 1,\n      \"stdout\": \"\",\n      \"stderr\": \"checkpoint: cannot stat untracked payload.txt\\n\",\n      \"stat_calls\": [\n        \"-c\",\n        \"-f\"\n      ],\n      \"expected_stdout\": \"\",\n      \"expected_returncode\": 1,\n      \"expected_stat_calls\": [\n        \"-c\",\n        \"-f\"\n      ],\n      \"passed\": true\n    },\n    {\n      \"name\": \"synthetic_profile_upload_refused_without_receipt\",\n      \"returncode\": 1,\n      \"stdout\": \"\",\n      \"stderr\": \"checkpoint: upload to s3://setec-astronomy-artifacts/checkpoints/repo/master/20261026T180826Z-4e7d8057b897/ failed (aws)\\n\",\n      \"upload_attempts\": [\n        \"refused-upload\"\n      ],\n      \"receipt_exists\": false,\n      \"passed\": true\n    }\n  ],\n  \"committed_suite\": {\n    \"command_template\": \"python3 -I -B <temporary snapshot>/tools/test_checkpoint_stat.py -v\",\n    \"returncode\": 0,\n    \"stdout\": \"\",\n    \"stderr\": \"test_bsd_fallback_discards_failed_gnu_stdout (__main__.CheckpointStatTests.test_bsd_fallback_discards_failed_gnu_stdout) ... ok\\ntest_failed_stat_refuses_without_accepting_partial_output (__main__.CheckpointStatTests.test_failed_stat_refuses_without_accepting_partial_output) ... ok\\ntest_native_stat_reaches_auth_refusal_with_untracked_files (__main__.CheckpointStatTests.test_native_stat_reaches_auth_refusal_with_untracked_files) ... ok\\ntest_size_limit_still_excludes_nonempty_untracked_payload (__main__.CheckpointStatTests.test_size_limit_still_excludes_nonempty_untracked_payload) ... ok\\n\\n----------------------------------------------------------------------\\nRan 4 tests in 0.567s\\n\\nOK\\n\",\n    \"passed\": true\n  },\n  \"native_stat\": \"stat (GNU coreutils) 9.7\",\n  \"bash\": \"GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)\",\n  \"finished_utc\": \"2026-10-26T18:08:26.457675+00:00\",\n  \"all_passed\": true\n}\n"
+      },
+      "parsed_result": {
+        "kind": "isolated-software-fixtures",
+        "source_revision": "616878bcf0c8a749f38dd3ad0dbb1153478d4010",
+        "started_utc": "2026-10-26T18:08:25.463789+00:00",
+        "source_sha256": {
+          "scripts/checkpoint.sh": "de5d922d7b38a14d16843901b5fb182434ff8fdd1b3a81085e66c49ce2dc8f1f",
+          "tools/test_checkpoint_stat.py": "0fe869fcae640e2a45fbf81df208f32c92fabbba162256f202f9208bd132c4f8"
+        },
+        "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+        "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+        "cases": [
+          {
+            "name": "native_gnu_metadata_matches_native_stat",
+            "returncode": 0,
+            "stdout": "untracked payload.txt 16 1234567890\n",
+            "stderr": "",
+            "stat_calls": [],
+            "expected_stdout": "untracked payload.txt 16 1234567890\n",
+            "expected_returncode": 0,
+            "expected_stat_calls": null,
+            "passed": true
+          },
+          {
+            "name": "native_gnu_size_matches_native_stat",
+            "returncode": 0,
+            "stdout": "16\n",
+            "stderr": "",
+            "stat_calls": [],
+            "expected_stdout": "16\n",
+            "expected_returncode": 0,
+            "expected_stat_calls": null,
+            "passed": true
+          },
+          {
+            "name": "gnu_metadata_success_is_exact",
+            "returncode": 0,
+            "stdout": "untracked payload.txt 16 1234567890\n",
+            "stderr": "",
+            "stat_calls": [
+              "-c"
+            ],
+            "expected_stdout": "untracked payload.txt 16 1234567890\n",
+            "expected_returncode": 0,
+            "expected_stat_calls": [
+              "-c"
+            ],
+            "passed": true
+          },
+          {
+            "name": "gnu_size_success_is_exact",
+            "returncode": 0,
+            "stdout": "16\n",
+            "stderr": "",
+            "stat_calls": [
+              "-c"
+            ],
+            "expected_stdout": "16\n",
+            "expected_returncode": 0,
+            "expected_stat_calls": [
+              "-c"
+            ],
+            "passed": true
+          },
+          {
+            "name": "bsd_metadata_success_is_exact",
+            "returncode": 0,
+            "stdout": "untracked payload.txt 16 1234567890\n",
+            "stderr": "",
+            "stat_calls": [
+              "-c",
+              "-f"
+            ],
+            "expected_stdout": "untracked payload.txt 16 1234567890\n",
+            "expected_returncode": 0,
+            "expected_stat_calls": [
+              "-c",
+              "-f"
+            ],
+            "passed": true
+          },
+          {
+            "name": "bsd_size_success_is_exact",
+            "returncode": 0,
+            "stdout": "16\n",
+            "stderr": "",
+            "stat_calls": [
+              "-c",
+              "-f"
+            ],
+            "expected_stdout": "16\n",
+            "expected_returncode": 0,
+            "expected_stat_calls": [
+              "-c",
+              "-f"
+            ],
+            "passed": true
+          },
+          {
+            "name": "both_stat_dialects_fail_and_emit_no_stdout",
+            "returncode": 1,
+            "stdout": "",
+            "stderr": "checkpoint: cannot stat untracked payload.txt\n",
+            "stat_calls": [
+              "-c",
+              "-f"
+            ],
+            "expected_stdout": "",
+            "expected_returncode": 1,
+            "expected_stat_calls": [
+              "-c",
+              "-f"
+            ],
+            "passed": true
+          },
+          {
+            "name": "synthetic_profile_upload_refused_without_receipt",
+            "returncode": 1,
+            "stdout": "",
+            "stderr": "checkpoint: upload to s3://setec-astronomy-artifacts/checkpoints/repo/master/20261026T180826Z-4e7d8057b897/ failed (aws)\n",
+            "upload_attempts": [
+              "refused-upload"
+            ],
+            "receipt_exists": false,
+            "passed": true
+          }
+        ],
+        "committed_suite": {
+          "command_template": "python3 -I -B <temporary snapshot>/tools/test_checkpoint_stat.py -v",
+          "returncode": 0,
+          "stdout": "",
+          "stderr": "test_bsd_fallback_discards_failed_gnu_stdout (__main__.CheckpointStatTests.test_bsd_fallback_discards_failed_gnu_stdout) ... ok\ntest_failed_stat_refuses_without_accepting_partial_output (__main__.CheckpointStatTests.test_failed_stat_refuses_without_accepting_partial_output) ... ok\ntest_native_stat_reaches_auth_refusal_with_untracked_files (__main__.CheckpointStatTests.test_native_stat_reaches_auth_refusal_with_untracked_files) ... ok\ntest_size_limit_still_excludes_nonempty_untracked_payload (__main__.CheckpointStatTests.test_size_limit_still_excludes_nonempty_untracked_payload) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.567s\n\nOK\n",
+          "passed": true
+        },
+        "native_stat": "stat (GNU coreutils) 9.7",
+        "bash": "GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)",
+        "finished_utc": "2026-10-26T18:08:26.457675+00:00",
+        "all_passed": true
+      }
+    },
+    "cache_counterexample": {
+      "command": "python3 -I -B - <<'PY'\nfrom pathlib import Path\nimport hashlib, json, os, re, subprocess, sys, tempfile, types\nfrom datetime import datetime, timezone\n\nrepo = Path('/workspace/crypto-autoresearcher')\nrevision = '616878bcf0c8a749f38dd3ad0dbb1153478d4010'\nscript = subprocess.check_output(['git', 'show', revision + ':scripts/checkpoint.sh'], cwd=repo)\ntests = subprocess.check_output(['git', 'show', revision + ':tools/test_checkpoint_stat.py'], cwd=repo)\nbody = script.decode()\nhelper = re.search(r'(?ms)^file_stat\\(\\) \\{\\n.*?^\\}', body).group(0)\nstate_hash = re.search(r'(?ms)^state_hash\\(\\) \\{\\n.*?^\\}', body).group(0)\nexclude = re.search(r'(?m)^EXCLUDE_RE=.*$', body).group(0)\nhash_script = 'set -euo pipefail\\n' + exclude + '\\n' + helper + '\\n' + state_hash + '\\nstate_hash\\n'\nstarted = datetime.now(timezone.utc).isoformat()\nclean_path = '/usr/local/bin:/usr/bin:/bin'\nwith tempfile.TemporaryDirectory(prefix='checkpoint-repair-cache-review-') as outer:\n    base = Path(outer)\n    for part in ['scripts', 'tools', 'tmp', 'empty-template']:\n        (base / part).mkdir()\n    (base / 'scripts/checkpoint.sh').write_bytes(script)\n    clean_env = {'PATH': clean_path, 'TMPDIR': str(base / 'tmp'), 'LC_ALL': 'C',\n                 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null',\n                 'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.hooksPath',\n                 'GIT_CONFIG_VALUE_0': '/dev/null', 'GIT_TEMPLATE_DIR': str(base / 'empty-template'),\n                 'CHECKPOINT_TOKEN_FILE': str(base / 'absent-token'),\n                 'CHECKPOINT_AWS_PROFILE': 'checkpoint-test-absent-profile'}\n    module = types.ModuleType('checkpoint_cache_review_fixture')\n    module.__file__ = str(base / 'tools/test_checkpoint_stat.py')\n    previous_env = dict(os.environ)\n    os.environ.clear()\n    os.environ.update(clean_env)\n    try:\n        exec(compile(tests, module.__file__, 'exec'), module.__dict__)\n        case = module.CheckpointStatTests('test_native_stat_reaches_auth_refusal_with_untracked_files')\n        case.setUp()\n        try:\n            payload = case.repo / 'untracked payload.txt'\n            payload.unlink()\n            baseline = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-c', hash_script],\n                                      cwd=case.repo, env=case.env, text=True, capture_output=True, timeout=10)\n            assert re.fullmatch('[0-9a-f]{64}', baseline.stdout.strip()) and baseline.stderr == '', repr(baseline)\n            initial_hash = baseline.stdout.strip()\n            receipt = case.repo / '.resume/.last-push'\n            receipt_bytes = (initial_hash + ' 20000101T000000Z-synthetic-prior-success s3://fixture-only/old-checkpoint/\\n').encode()\n            receipt.write_bytes(receipt_bytes)\n            payload.write_bytes(b'new uncheckpointed payload\\n')\n            network_log = case.base / 'blocked-upload-calls'\n            case.env['FIXTURE_NETWORK_LOG'] = str(network_log)\n            for name in ['aws', 'curl']:\n                case.stub(name, '#!/bin/sh\\necho blocked-call >> \"$FIXTURE_NETWORK_LOG\"\\nexit 97\\n')\n            case.stub('stat', '#!/bin/sh\\necho failed-stat-output\\nexit 1\\n')\n            current = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-c', hash_script],\n                                     cwd=case.repo, env=case.env, text=True, capture_output=True, timeout=10)\n            call = case.gate()\n            observed = {'kind': 'isolated-cache-receipt-counterexample', 'source_revision': revision,\n                        'started_utc': started, 'finished_utc': datetime.now(timezone.utc).isoformat(),\n                        'receipt_seeded_by_fixture': True,\n                        'receipt_represents': 'synthetic prior successful checkpoint of same HEAD/RESUME with no untracked payload',\n                        'new_payload_bytes': len(payload.read_bytes()),\n                        'baseline_hash': initial_hash, 'baseline_hash_returncode': baseline.returncode, 'current_hash': current.stdout.strip(),\n                        'hash_equal_after_new_file_and_failed_stat': initial_hash == current.stdout.strip(),\n                        'hash_returncode': current.returncode, 'hash_stderr': current.stderr,\n                        'fixture_gate_returncode': call.returncode, 'fixture_gate_stdout': call.stdout,\n                        'fixture_gate_stderr': call.stderr, 'receipt_unchanged': receipt.read_bytes() == receipt_bytes,\n                        'upload_or_auth_command_called': network_log.exists(),\n                        'new_receipt_created_by_script': False,\n                        'finding_reproduced': current.returncode == 0 and current.stdout.strip() == initial_hash and call.returncode == 0 and receipt.read_bytes() == receipt_bytes and not network_log.exists()}\n            assert observed['finding_reproduced'], observed\n            print(json.dumps(observed, indent=2))\n        finally:\n            case.doCleanups()\n    finally:\n        os.environ.clear()\n        os.environ.update(previous_env)\nPY",
+      "tool_result": {
+        "chunk_id": "4a8abb",
+        "wall_time_seconds": 0.043247667,
+        "exit_code": 0,
+        "original_token_count": 284,
+        "output": "{\n  \"kind\": \"isolated-cache-receipt-counterexample\",\n  \"source_revision\": \"616878bcf0c8a749f38dd3ad0dbb1153478d4010\",\n  \"started_utc\": \"2026-10-26T18:10:14.585670+00:00\",\n  \"finished_utc\": \"2026-10-26T18:10:14.729811+00:00\",\n  \"receipt_seeded_by_fixture\": true,\n  \"receipt_represents\": \"synthetic prior successful checkpoint of same HEAD/RESUME with no untracked payload\",\n  \"new_payload_bytes\": 27,\n  \"baseline_hash\": \"f0d9663ac9ad3eae85f1c25f4a9e491632051efb852e3126088ecbea7a1b62f0\",\n  \"baseline_hash_returncode\": 1,\n  \"current_hash\": \"f0d9663ac9ad3eae85f1c25f4a9e491632051efb852e3126088ecbea7a1b62f0\",\n  \"hash_equal_after_new_file_and_failed_stat\": true,\n  \"hash_returncode\": 0,\n  \"hash_stderr\": \"checkpoint: cannot stat untracked payload.txt\\n\",\n  \"fixture_gate_returncode\": 0,\n  \"fixture_gate_stdout\": \"checkpoint: unchanged since 20000101T000000Z-synthetic-prior-success s3://fixture-only/old-checkpoint/\\n\",\n  \"fixture_gate_stderr\": \"checkpoint: cannot stat untracked payload.txt\\n\",\n  \"receipt_unchanged\": true,\n  \"upload_or_auth_command_called\": false,\n  \"new_receipt_created_by_script\": false,\n  \"finding_reproduced\": true\n}\n"
+      },
+      "parsed_result": {
+        "kind": "isolated-cache-receipt-counterexample",
+        "source_revision": "616878bcf0c8a749f38dd3ad0dbb1153478d4010",
+        "started_utc": "2026-10-26T18:10:14.585670+00:00",
+        "finished_utc": "2026-10-26T18:10:14.729811+00:00",
+        "receipt_seeded_by_fixture": true,
+        "receipt_represents": "synthetic prior successful checkpoint of same HEAD/RESUME with no untracked payload",
+        "new_payload_bytes": 27,
+        "baseline_hash": "f0d9663ac9ad3eae85f1c25f4a9e491632051efb852e3126088ecbea7a1b62f0",
+        "baseline_hash_returncode": 1,
+        "current_hash": "f0d9663ac9ad3eae85f1c25f4a9e491632051efb852e3126088ecbea7a1b62f0",
+        "hash_equal_after_new_file_and_failed_stat": true,
+        "hash_returncode": 0,
+        "hash_stderr": "checkpoint: cannot stat untracked payload.txt\n",
+        "fixture_gate_returncode": 0,
+        "fixture_gate_stdout": "checkpoint: unchanged since 20000101T000000Z-synthetic-prior-success s3://fixture-only/old-checkpoint/\n",
+        "fixture_gate_stderr": "checkpoint: cannot stat untracked payload.txt\n",
+        "receipt_unchanged": true,
+        "upload_or_auth_command_called": false,
+        "new_receipt_created_by_script": false,
+        "finding_reproduced": true
+      }
+    },
+    "cache_setup_attempts": [
+      {
+        "attempt": 1,
+        "command": "python3 -I -B - <<'PY'\nfrom pathlib import Path\nimport hashlib, json, os, re, subprocess, sys, tempfile, types\nfrom datetime import datetime, timezone\n\nrepo = Path('/workspace/crypto-autoresearcher')\nrevision = '616878bcf0c8a749f38dd3ad0dbb1153478d4010'\nscript = subprocess.check_output(['git', 'show', revision + ':scripts/checkpoint.sh'], cwd=repo)\ntests = subprocess.check_output(['git', 'show', revision + ':tools/test_checkpoint_stat.py'], cwd=repo)\nbody = script.decode()\nhelper = re.search(r'(?ms)^file_stat\\(\\) \\{\\n.*?^\\}', body).group(0)\nstate_hash = re.search(r'(?ms)^state_hash\\(\\) \\{\\n.*?^\\}', body).group(0)\nexclude = re.search(r'(?m)^EXCLUDE_RE=.*$', body).group(0)\nhash_script = 'set -euo pipefail\\n' + exclude + '\\n' + helper + '\\n' + state_hash + '\\nstate_hash\\n'\nstarted = datetime.now(timezone.utc).isoformat()\nclean_path = '/usr/local/bin:/usr/bin:/bin'\nwith tempfile.TemporaryDirectory(prefix='checkpoint-repair-cache-review-') as outer:\n    base = Path(outer)\n    for part in ['scripts', 'tools', 'tmp', 'empty-template']:\n        (base / part).mkdir()\n    (base / 'scripts/checkpoint.sh').write_bytes(script)\n    clean_env = {'PATH': clean_path, 'TMPDIR': str(base / 'tmp'), 'LC_ALL': 'C',\n                 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null',\n                 'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.hooksPath',\n                 'GIT_CONFIG_VALUE_0': '/dev/null', 'GIT_TEMPLATE_DIR': str(base / 'empty-template'),\n                 'CHECKPOINT_TOKEN_FILE': str(base / 'absent-token'),\n                 'CHECKPOINT_AWS_PROFILE': 'checkpoint-test-absent-profile'}\n    module = types.ModuleType('checkpoint_cache_review_fixture')\n    module.__file__ = str(base / 'tools/test_checkpoint_stat.py')\n    previous_env = dict(os.environ)\n    os.environ.clear()\n    os.environ.update(clean_env)\n    try:\n        exec(compile(tests, module.__file__, 'exec'), module.__dict__)\n        case = module.CheckpointStatTests('test_native_stat_reaches_auth_refusal_with_untracked_files')\n        case.setUp()\n        try:\n            payload = case.repo / 'untracked payload.txt'\n            payload.unlink()\n            baseline = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-c', hash_script],\n                                      cwd=case.repo, env=case.env, text=True, capture_output=True, timeout=10)\n            assert baseline.returncode == 0 and baseline.stderr == ''\n            initial_hash = baseline.stdout.strip()\n            receipt = case.repo / '.resume/.last-push'\n            receipt_bytes = (initial_hash + ' 20000101T000000Z-synthetic-prior-success s3://fixture-only/old-checkpoint/\\n').encode()\n            receipt.write_bytes(receipt_bytes)\n            payload.write_bytes(b'new uncheckpointed payload\\n')\n            network_log = case.base / 'blocked-upload-calls'\n            case.env['FIXTURE_NETWORK_LOG'] = str(network_log)\n            for name in ['aws', 'curl']:\n                case.stub(name, '#!/bin/sh\\necho blocked-call >> \"$FIXTURE_NETWORK_LOG\"\\nexit 97\\n')\n            case.stub('stat', '#!/bin/sh\\necho failed-stat-output\\nexit 1\\n')\n            current = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-c', hash_script],\n                                     cwd=case.repo, env=case.env, text=True, capture_output=True, timeout=10)\n            call = case.gate()\n            observed = {'kind': 'isolated-cache-receipt-counterexample', 'source_revision': revision,\n                        'started_utc': started, 'finished_utc': datetime.now(timezone.utc).isoformat(),\n                        'receipt_seeded_by_fixture': True,\n                        'receipt_represents': 'synthetic prior successful checkpoint of same HEAD/RESUME with no untracked payload',\n                        'new_payload_bytes': len(payload.read_bytes()),\n                        'baseline_hash': initial_hash, 'current_hash': current.stdout.strip(),\n                        'hash_equal_after_new_file_and_failed_stat': initial_hash == current.stdout.strip(),\n                        'hash_returncode': current.returncode, 'hash_stderr': current.stderr,\n                        'fixture_gate_returncode': call.returncode, 'fixture_gate_stdout': call.stdout,\n                        'fixture_gate_stderr': call.stderr, 'receipt_unchanged': receipt.read_bytes() == receipt_bytes,\n                        'upload_or_auth_command_called': network_log.exists(),\n                        'new_receipt_created_by_script': False,\n                        'finding_reproduced': current.returncode == 0 and current.stdout.strip() == initial_hash and call.returncode == 0 and receipt.read_bytes() == receipt_bytes and not network_log.exists()}\n            assert observed['finding_reproduced'], observed\n            print(json.dumps(observed, indent=2))\n        finally:\n            case.doCleanups()\n    finally:\n        os.environ.clear()\n        os.environ.update(previous_env)\nPY",
+        "tool_result": {
+          "chunk_id": "5fb415",
+          "wall_time_seconds": 0.000037486,
+          "exit_code": 1,
+          "original_token_count": 23,
+          "output": "Traceback (most recent call last):\n  File \"<stdin>\", line 41, in <module>\nAssertionError\n"
+        },
+        "classification": "fixture_setup_assertion_failure_before_gate",
+        "explanation": "Incorrectly required the no-untracked baseline hash process to return 0; it printed a digest with return code 1."
+      },
+      {
+        "attempt": 2,
+        "command": "python3 -I -B - <<'PY'\nfrom pathlib import Path\nimport hashlib, json, os, re, subprocess, sys, tempfile, types\nfrom datetime import datetime, timezone\n\nrepo = Path('/workspace/crypto-autoresearcher')\nrevision = '616878bcf0c8a749f38dd3ad0dbb1153478d4010'\nscript = subprocess.check_output(['git', 'show', revision + ':scripts/checkpoint.sh'], cwd=repo)\ntests = subprocess.check_output(['git', 'show', revision + ':tools/test_checkpoint_stat.py'], cwd=repo)\nbody = script.decode()\nhelper = re.search(r'(?ms)^file_stat\\(\\) \\{\\n.*?^\\}', body).group(0)\nstate_hash = re.search(r'(?ms)^state_hash\\(\\) \\{\\n.*?^\\}', body).group(0)\nexclude = re.search(r'(?m)^EXCLUDE_RE=.*$', body).group(0)\nhash_script = 'set -euo pipefail\\n' + exclude + '\\n' + helper + '\\n' + state_hash + '\\nstate_hash\\n'\nstarted = datetime.now(timezone.utc).isoformat()\nclean_path = '/usr/local/bin:/usr/bin:/bin'\nwith tempfile.TemporaryDirectory(prefix='checkpoint-repair-cache-review-') as outer:\n    base = Path(outer)\n    for part in ['scripts', 'tools', 'tmp', 'empty-template']:\n        (base / part).mkdir()\n    (base / 'scripts/checkpoint.sh').write_bytes(script)\n    clean_env = {'PATH': clean_path, 'TMPDIR': str(base / 'tmp'), 'LC_ALL': 'C',\n                 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null',\n                 'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'core.hooksPath',\n                 'GIT_CONFIG_VALUE_0': '/dev/null', 'GIT_TEMPLATE_DIR': str(base / 'empty-template'),\n                 'CHECKPOINT_TOKEN_FILE': str(base / 'absent-token'),\n                 'CHECKPOINT_AWS_PROFILE': 'checkpoint-test-absent-profile'}\n    module = types.ModuleType('checkpoint_cache_review_fixture')\n    module.__file__ = str(base / 'tools/test_checkpoint_stat.py')\n    previous_env = dict(os.environ)\n    os.environ.clear()\n    os.environ.update(clean_env)\n    try:\n        exec(compile(tests, module.__file__, 'exec'), module.__dict__)\n        case = module.CheckpointStatTests('test_native_stat_reaches_auth_refusal_with_untracked_files')\n        case.setUp()\n        try:\n            payload = case.repo / 'untracked payload.txt'\n            payload.unlink()\n            baseline = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-c', hash_script],\n                                      cwd=case.repo, env=case.env, text=True, capture_output=True, timeout=10)\n            assert re.fullmatch(r'[0-9a-f]{64}\\\\n', baseline.stdout) and baseline.stderr == ''\n            initial_hash = baseline.stdout.strip()\n            receipt = case.repo / '.resume/.last-push'\n            receipt_bytes = (initial_hash + ' 20000101T000000Z-synthetic-prior-success s3://fixture-only/old-checkpoint/\\n').encode()\n            receipt.write_bytes(receipt_bytes)\n            payload.write_bytes(b'new uncheckpointed payload\\n')\n            network_log = case.base / 'blocked-upload-calls'\n            case.env['FIXTURE_NETWORK_LOG'] = str(network_log)\n            for name in ['aws', 'curl']:\n                case.stub(name, '#!/bin/sh\\necho blocked-call >> \"$FIXTURE_NETWORK_LOG\"\\nexit 97\\n')\n            case.stub('stat', '#!/bin/sh\\necho failed-stat-output\\nexit 1\\n')\n            current = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-c', hash_script],\n                                     cwd=case.repo, env=case.env, text=True, capture_output=True, timeout=10)\n            call = case.gate()\n            observed = {'kind': 'isolated-cache-receipt-counterexample', 'source_revision': revision,\n                        'started_utc': started, 'finished_utc': datetime.now(timezone.utc).isoformat(),\n                        'receipt_seeded_by_fixture': True,\n                        'receipt_represents': 'synthetic prior successful checkpoint of same HEAD/RESUME with no untracked payload',\n                        'new_payload_bytes': len(payload.read_bytes()),\n                        'baseline_hash': initial_hash, 'baseline_hash_returncode': baseline.returncode, 'current_hash': current.stdout.strip(),\n                        'hash_equal_after_new_file_and_failed_stat': initial_hash == current.stdout.strip(),\n                        'hash_returncode': current.returncode, 'hash_stderr': current.stderr,\n                        'fixture_gate_returncode': call.returncode, 'fixture_gate_stdout': call.stdout,\n                        'fixture_gate_stderr': call.stderr, 'receipt_unchanged': receipt.read_bytes() == receipt_bytes,\n                        'upload_or_auth_command_called': network_log.exists(),\n                        'new_receipt_created_by_script': False,\n                        'finding_reproduced': current.returncode == 0 and current.stdout.strip() == initial_hash and call.returncode == 0 and receipt.read_bytes() == receipt_bytes and not network_log.exists()}\n            assert observed['finding_reproduced'], observed\n            print(json.dumps(observed, indent=2))\n        finally:\n            case.doCleanups()\n    finally:\n        os.environ.clear()\n        os.environ.update(previous_env)\nPY",
+        "tool_result": {
+          "chunk_id": "cdd88c",
+          "wall_time_seconds": 0.000051988,
+          "exit_code": 1,
+          "original_token_count": 23,
+          "output": "Traceback (most recent call last):\n  File \"<stdin>\", line 41, in <module>\nAssertionError\n"
+        },
+        "classification": "fixture_setup_assertion_failure_before_gate",
+        "explanation": "Incorrectly escaped the newline in the replacement baseline assertion; corrected to validate the stripped digest."
+      }
+    ],
+    "isolation": {
+      "source_execution": "Exact committed bytes copied into temporary directories",
+      "credential_policy": "Minimal subprocess environment; absent token path; no real credential files inspected",
+      "upload_policy": "aws/curl executable stubs always refuse; one synthetic profile is advertised solely to reach refused upload",
+      "git_policy": "Temporary fixture repositories only; no shared repository mutation",
+      "cleanup": "TemporaryDirectory cleanup removed all fixture trees"
+    }
+  },
+  "reading_exposure": [
+    {
+      "provenance": "internal",
+      "verified_by": "TASK-20261026-6764a2",
+      "paths": [
+        "AGENTS.md",
+        "research/p256_factor_base_parallel_20261026/handoffs/TASK-20261026-6764a2.json",
+        "scripts/checkpoint.sh",
+        "tools/test_checkpoint_stat.py",
+        "research/p256_factor_base_parallel_20261026/environment/checkpoint-gate-02/result.json",
+        "research/p256_factor_base_parallel_20261026/environment/checkpoint-gate-03/result.json"
+      ],
+      "scope": "Complete source/input records at declared snapshot, committed repair diff; earlier result logs and other sibling reports not read"
+    },
+    {
+      "provenance": "internal",
+      "verified_by": "TASK-20261026-6764a2",
+      "paths": [
+        "docs/agent-contract-extended.md",
+        "docs/agent-contract-supplement.md"
+      ],
+      "scope": "Literature-first and observation-first sections; obstruction rule"
+    },
+    {
+      "provenance": "internal",
+      "verified_by": "TASK-20261026-6764a2",
+      "paths": [
+        "docs/skill-routing.md",
+        ".claude/skills/route/SKILL.md",
+        ".claude/skills/ops/SKILL.md",
+        "docs/skill-catalog.json",
+        "docs/skill-tool-inventory.json"
+      ],
+      "scope": "Routing action/subject guidance; full route and ops skill files; matching catalog entries; inventory scan for exact checkpoint/test paths found no entries"
+    },
+    {
+      "provenance": "retrieved",
+      "verified_by": "TASK-20261026-6764a2",
+      "source": "stat --help",
+      "scope": "GNU stat option/format definitions; -f is filesystem status; -c and %n/%s/%Y file formats"
+    },
+    {
+      "provenance": "retrieved",
+      "verified_by": "TASK-20261026-6764a2",
+      "source": "bash --noprofile --norc -c 'help if; help local; help return; help set; help command'",
+      "scope": "Builtin conditional, assignment-local, return, shell-option and command status help"
+    },
+    {
+      "provenance": "retrieved",
+      "verified_by": "TASK-20261026-6764a2",
+      "source": "python3 -I -B -m pydoc subprocess.run tempfile.TemporaryDirectory unittest.TestCase.assertEqual",
+      "scope": "Runtime API documentation for output capture, return codes, timeout and fixture cleanup"
+    },
+    {
+      "provenance": "retrieved",
+      "verified_by": "TASK-20261026-6764a2",
+      "source": "skill://plugin_connector_1p_c5b7d5df5d7081918f2c4be5a633ed5d/cloud-environment-runtime/SKILL.md",
+      "scope": "Complete runtime skill and current managed-environment status; no configured secrets or outbound identities reported"
+    },
+    {
+      "provenance": "internal",
+      "verified_by": "TASK-20261026-6764a2",
+      "source": "git show 616878bcf0c8a749f38dd3ad0dbb1153478d4010^:scripts/checkpoint.sh",
+      "scope": "Parent hash/cache snippets only; not executed"
+    }
+  ],
+  "untested": [
+    "Native BSD/macOS stat and its primary manual; no local Bash/stat man/info files found in checked directories; no external manuals retrieved",
+    "Cross-platform hash identity or BSD quoting beyond the fixture",
+    "Authentic prior cloud receipts, real authentication, successful uploads or restore/download",
+    "Partial later-object upload failures, file races, newline-containing names, symlink semantics or arbitrary malformed successful stat output",
+    "Mathematical/scientific programs, experiment admission and all revisions after the bound snapshot"
+  ],
+  "provenance_limits": {
+    "remote_push": "Declared by dispatch. Local feature branch and HEAD matched snapshot, and origin/main matched declared base; remote-tracking feature branch ref was absent. No remote verification or fetch performed.",
+    "source_worktree_check": "Scoped git diff against snapshot was empty before report; all source execution uses committed bytes. Later root changes are outside this review.",
+    "historical_gate_records": "Read only declared result.json records. Gate-03 script digest equals reviewed script digest; logs and actual gate were not read/replayed.",
+    "review_admission": "Unprobed inherited model; software inspection only; no canonical scientific-review admission or official transition"
+  }
+}

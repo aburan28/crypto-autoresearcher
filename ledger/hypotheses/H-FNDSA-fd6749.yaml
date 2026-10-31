@@ -1,0 +1,79 @@
+# HYPOTHESIS -- H-FNDSA-fd6749, specified from IDEA-20261018-b12c19. Write-once; status changes only by Coordinator decision.
+hypothesis:
+  id: H-FNDSA-fd6749
+  question_id: RQ-FNDSA-001
+  goal_id: GOAL-FNDSA-001
+  derived_from_idea: IDEA-20261018-b12c19
+  added: '2026-10-18'
+  statement: >-
+    Sampler deviation depends on per-key leaf widths sigma_i = sigma / ||b~_i||, and analyses
+    quote the worst case allowed by keygen acceptance. Key generation is cheap, so the per-key
+    distribution of the minimum leaf width can be measured at deployed dimension on self-generated
+    keys. Claim: the minimum leaf width over accepted keys has a lower tail reaching within
+    1% of the base sampler's declared floor sigma_min (RECALLED about 1.2778 for n = 512)
+    for at least 1 key in 10^4, and the argmin falls in the last eighth of the tree order
+    in at least 80% of keys. Falsified if no key in 10^5 comes within 3% of the floor, or
+    the argmin is spread uniformly.
+  mechanism: >-
+    Leaf widths are sigma over Gram-Schmidt norms of the secret basis in ffLDL order. Keygen
+    accepts on norm bounds that limit, but do not pin, the largest Gram-Schmidt norm. Gram-Schmidt
+    norms decay along the basis, so the largest b~_i (smallest leaf width) sits at a predictable
+    position. Base-sampler approximation error grows as width approaches its floor, so the
+    keys near the floor are the ones where any arithmetic defect is largest: risk is a tail
+    property of the key population, not an average.
+  assumptions:
+  - Base-sampler approximation error is monotone decreasing in width over its admissible range
+  proof_search_map:
+    not_applicable_reason: Empirical hypothesis; decided by the measurement in the linked
+      experiment, not by a proof.
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+  - id: HEUR-001
+    formal_statement: Base-sampler approximation error is monotone decreasing in width over
+      its admissible range
+    random_model_justification: plausible from the Bernoulli-exponential and table construction;
+      not proven here
+    supporting_results: []
+    validation_experiment_ids:
+    - EXP-FNDSA-8c601c
+    falsification_condition: compute exact leaf output divergence at 10 widths across the
+      range
+  predictions:
+  - metric: fraction of keys with m < 1.01
+    direction: higher
+    minimum_effect: '>= 1e-4 at n = 512'
+  - metric: fraction of argmin in last eighth of tree order
+    direction: higher
+    minimum_effect: '>= 0.8'
+  test_boundary:
+    instances:
+    - >-
+      n in {64, 256, 512, 1024}; 10^5 keys per n for reference arm, 10^4 for null and planted
+      arms
+    parameters:
+      scale_tier: medium
+      scale_justification: >-
+        keygen at deployed n on self-generated keys; no signatures and no attack, so no transfer
+        gap for the tracked object itself
+    implementation: >-
+      C reference keygen (self-built from a public reference implementation) instrumented
+      to dump ffLDL leaves; Python analysis
+    budget:
+      wall_clock_seconds_per_run: 3600
+      total_cpu_hours: 6
+      maximum_memory_gb: 4
+      maximum_runs: 12
+  distinguishable_outcomes:
+  - zero keys with m < 1.03 in 10^5
+  - < 0.3
+  falsification_conditions:
+  - no key within 3% of floor in 10^5 at n = 512
+  - argmin position uniform (chi-square p > 0.05)
+  interpretation_limits:
+  - >-
+    Scale and transfer: runs at deployed n but measures only key-population tree constants
+    of self-generated keys; it says nothing about leakage of any fielded key
+  - A low margin is not a measured divergence; that needs a leaf-level divergence model
+  status: specified
+  proposed_by: idea-generator

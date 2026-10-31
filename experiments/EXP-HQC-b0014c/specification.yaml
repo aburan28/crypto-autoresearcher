@@ -1,0 +1,171 @@
+# EXPERIMENT CONTRACT -- EXP-HQC-b0014c (review_required, unapproved, zero runs).
+experiment:
+  id: EXP-HQC-b0014c
+  hypothesis_id: H-HQC-1671be
+  derived_from_idea: IDEA-20261018-013d6b
+  question_id: RQ-HQC-001
+  goal_id: GOAL-HQC-001
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+  designed_at: '2026-10-18'
+  batch: PQC-100-20261018
+  title: Boosting curve at reduced HQC
+  objective: Whether ciphertext-only grinding raises failure probability enough to matter.
+  what_this_is_not:
+  - >-
+    Not an attack on any deployed system, real key or third-party service: every instance
+    is self-generated at the stated reduced scale.
+  - >-
+    Not approval, freezing, execution authorization, a run, or evidence. No run has been executed
+    under this contract.
+  - >-
+    Not a security level for the standardized scheme; any reduced-scale number transfers only
+    under the stated scale_relevance assumption.
+  inputs:
+    instrument: C reduced HQC; Python analysis
+    parameters: >-
+      n=2003 reduced set with DFR ~2^-20; 2^30 candidate ciphertexts; proxy thresholds at
+      quantiles 2^-1..2^-16; 50 keys
+    procedure: >-
+      1. Generate ciphertexts with proxy. 2. Decrypt under keys. 3. Failure rate per bin.
+      4. Fit curve.
+  controls:
+  - 'null: random proxy uncorrelated with ciphertext, gain must be 0'
+  - 'positive: key-aware oracle proxy (uses x,y) giving upper bound on achievable gain'
+  - 'A/A: proxy arm under two seed blocks'
+  independent_variables:
+  - proxy
+  - threshold_quantile
+  metrics:
+    primary:
+    - failure gain per bin
+    secondary:
+    - work to first failure
+  heuristic_under_test: HEUR-001
+  preregistered_prediction:
+    quantity: gain slope
+    formula: from tail of w(e') distribution conditional on proxy
+    source: KN-LIT-1c9474 error model
+  scale_relevance:
+    tier: toy
+    justification: 'reduced n; transfer: slope of boosting'
+    correspondence: null
+  tail_checks: []
+  replication:
+    seeds:
+    - 2026101800
+    - 2026101801
+    - 2026101802
+    independent_instances: 3
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 7200
+    total_cpu_hours: 48
+    maximum_memory_gb: 8
+    maximum_runs: 40
+  stopping_rules:
+  - stop at 2^30 candidates
+  invalidation_rules:
+  - timeout/crash is failed_infrastructure, never negative evidence
+  - decoder mismatch vs reference invalidates
+  - >-
+    A timeout, crash, memory exhaustion or dependency failure makes the run failed_infrastructure
+    and is never negative mathematical evidence (AGENTS.md rule 5).
+  success_criterion: >-
+    Success if C1 and C2 show slope >= 0.5 beyond the AA1 noise floor (P1) and work reduction
+    >= 2^6 (P2).
+  falsification_criterion: Falsified if C1 slope <= 0.2 or reduction < 2^2.
+  decision_impact:
+    on_positive: Feed the boosting curve into the DFR-to-CCA sensitivity analysis.
+    on_negative: Record that ciphertext-only boosting is ineffective for HQC-RMRS at reduced
+      n.
+  variable_ledger:
+    independent:
+    - name: proxy
+      levels:
+      - weight_proxy
+      - random_proxy
+    - name: threshold_quantile
+      levels:
+      - 2^-4
+      - 2^-16
+    factors:
+    - name: seed_block
+      treatment: randomized
+      value: seed blocks A and B, disjoint master seeds
+      how: >-
+        two disjoint master seeds derived by SHAKE256 from a frozen label; every arm run under
+        both
+    - name: key_id
+      treatment: randomized
+      value: 50 keys
+      how: crossed with bins
+    comparisons:
+    - id: C1
+      arms:
+      - weight_proxy 2^-16
+      - random_proxy 2^-16
+      differs_in:
+      - proxy
+      design: one_factor
+    - id: C2
+      arms:
+      - weight_proxy 2^-4
+      - weight_proxy 2^-16
+      differs_in:
+      - threshold_quantile
+      design: one_factor
+    - id: C3
+      arms:
+      - key-aware oracle upper bound
+      differs_in: []
+      design: absolute
+    - id: AA1
+      arms:
+      - weight_proxy 2^-4 seed-block A
+      - weight_proxy 2^-4 seed-block B
+      differs_in:
+      - seed_block
+      design: aa
+    crosses_map: false
+  prediction_provenance:
+  - prediction: P1
+    first_recorded_in: ledger/proposals/IDEA-20261018-013d6b.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  - prediction: P2
+    first_recorded_in: ledger/proposals/IDEA-20261018-013d6b.yaml
+    written_at: '2026-10-18'
+    data_seen: []
+    sample_status: out_of_sample
+    overlap: 'none: written before any run'
+  required_artifacts:
+  - manifest.yaml with frozen parameters, seeds, code commit and tool versions
+  - raw-result.json with per-trial records and verification flags
+  - bin table CSV
+  - curve SVG
+  - PDF
+  - >-
+    report.md, at least one graph (SVG/PNG) and a PDF per the research-visuals skill, negative
+    results included
+  assigned_to: executor
+  approved_by: null
+  approval_gate:
+    state: review_required
+    blockers:
+    - >-
+      No launcher or implementation is committed for this contract; experiments/EXP-HQC-b0014c/implementation/
+      is empty.
+    - >-
+      No preapproval packet exists; python3 tools/experiment_preapproval.py --packet must
+      report approvable: true before Coordinator approval.
+    - No runbook or task card is compiled (experiment-director, compile mode).
+    - Novelty screen not run on IDEA-20261018-013d6b.
+    standing_authorization: >-
+      AGENTS.md 'Standing user authorization' lets the Coordinator approve once the contract
+      is complete and runnable; no user re-approval is required.
