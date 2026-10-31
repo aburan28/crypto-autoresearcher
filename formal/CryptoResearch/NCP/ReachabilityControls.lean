@@ -17,7 +17,7 @@ theorem empty_negative :
   rw [shadow_reachable_iff (-1) (fun _ : Fin 0 => (0 : Int)) (Or.inr rfl) 1]
   decide
 
-private def mixedVector : Fin 2 → Int := ![(-1 : Int), 2]
+private def mixedVector : Fin 2 → Int := fun i => if i.val = 0 then -1 else 2
 
 theorem mixed_positive_minimum :
     vectorWeight mixedVector + shadowPenalty 1 mixedVector = 5 := by decide
