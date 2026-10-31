@@ -1,0 +1,41 @@
+# Curve-aware generic-group simulation battery (CAGGM)
+
+Design only; protocol.json is unfrozen and validates (validate.txt). Claim boundary: toy curves, planted scalars, no deployed key.
+
+## Lead and question
+LEAD-STR-class-group-ecdlp-bridge (open_next_step; next_action is the simulation lemma). Question: at toy N, is each curve-structure oracle (endomorphism image T1, class-group step T2, class-group path with level/transport scalar T3, level-structure datum T4, E[ell] torsion evaluation T5, Miller value T6, its N-th root T7, joint use T9) indistinguishable from a lazy generic-group simulator S0 by a fixed distinguisher battery, or is there exactly one that is not? T0 is the pure group-law oracle.
+
+## What the lead already says
+KN-FIND-002, KN-FIND-b7e091 and EV-GGM-79e710 close jet, endomorphism-image and incidence oracles by an analytic classification (EXP-GGM-001), not a transcript test; LEAD-EXO-augmented-oracle-ggm and LEAD-STR-endo-scalar-action-generic are closed_obstructed with revisit_when "an oracle that returns field or curve data". Miller leads (LEAD-EXO-miller-pairing-cocycle, LEAD-TRF-miller-cocycle-nonhom-transfer) are open on exactly such field-valued oracles. KN-OPEN-ed922d row 3 (ring knowledge as trapdoor) needs the End/Cl(O) cell. The report's claim "only reciprocity identities" is unverified. Corrections found: (i) a prime-order curve with N | p-1 does not exist for N > 2 (N | p-1 and #E = N force N = p-1), so the k=1 positive control uses a cofactor-2 subgroup; (ii) the report's 2^16 queries per transcript exceed sqrt(N) at toy N, where the simulator's error q^2/N is not small, so k-mixed queries are capped at floor(sqrt(N)/4) and k-free queries (forms in Z·P, no k involved) are separated out.
+
+## Hypotheses
+H0: real and S0 transcripts are exchangeable within curve strata for every cell. H1: some k-mixed cell is not. Prediction from the lead's own analysis: H0 on k-mixed cells (expected null), P1. Honest extra expectation (P4): the lead's K2 formula U(iP)=c r_i C^(i/N) is a k-free algebraic structure, so a k-free flag for T6/T7 or T5 is expected; it contradicts the report's inventory but not the bound and says nothing about k. T1-T3 are simulable by construction (S0 is built with the public scalars), so their cells test the implementation and the claimed identity inventory, not a surprise. FALSIFIER of the closure disposition: a k-mixed cell flagged, gates passed, replicated on holdout curves.
+
+## Instances
+Admission: p prime in a band, curve y^2=x^3+ax+b, #E = N prime, ordinary, N does not divide p-1 or p^2-1, k_emb >= 64, conductor and class number of Z[pi] recorded, at least 3 split primes ell <= 31 for T2. Bands by N: [2^12,2^14), [2^14,2^17), [2^17,2^20]; 6 test curves per band (18), plus 4 per band of each control family (AN: N=p anomalous; K1: N=(p-1)/2 prime, #E=p-1; K2: y^2=x^3+x, N | p+1 prime). Seed rule: SHA-256(protocol hash, role, band, index); curves are the first hits of a seed-ordered scan; holdout (18 fresh curves) uses a second role string. Per curve and world 64 transcripts, each with fresh uniform generator P, k, query plan and random injective relabelling.
+Probe (not a result): `gp -q probe_feas.gp` over p in [4099,7000]: 240 prime-order curves, all with k_emb>2 (so admission is easy); supersingular k=2 families: 241 with N=(p+1)/4 prime; `gp -q probe2.gp`: 27 cofactor-2 k=1 curves for p<60000 (first p=5387, N=2693); anomalous curves: 12 for p in [4591,24591].
+
+## Arms and controls
+Reference a-sim (S0: random labels, formal linear-form table over unknown scalar, public scalars only: endomorphism eigenvalue, class-group cycle scalars, reciprocity-symmetry rule, Miller normalisation at O). Candidate a-real (T1-T7, T9). Baseline a-base (real T0). A/A: a-sim-aa and a-real-aa (second independent draws). Positive: p-anom (p-adic log, additive), p-tate1 (bilinear, k=1), p-tate2 (distortion, k=2), p-xcoord (non-homomorphic algebraic identity; D3 and D4 must NOT flag it, proving D7 is not a homomorphism test), p-dilute (eps in 1/4, 1/16, 1/64, sets the minimum detectable dilution). Negative: n-pure and n-shuffle (Miller values shuffled by a seeded function, harness/ctrl_valueshuffle.py idea).
+Distinguishers (fixed, with the stated depth): D1 marginal character chi-square on logs mod small primes of p-1; D2 label/value coincidence count; D3 additivity/cocycle defect on (R,S,R+S); D4 scalar-commutation defect (xR vs x times); D5 reciprocity defect concentration M(T,R) vs M(R,T); D6 Berlekamp-Massey linear complexity of log v(iP) over F_ell, ell | p-1; D7 exact nullspace of monomial matrices: pairs (v(R),v(2R)) bidegree <= 4 and triples (v(R),v(S),v(R+S)) degree <= 2 per variable; D8 predicted-identity check (class-group cycle closure = public scalar). Identities above this depth are untested.
+
+## Counted metrics
+flagged_cells (exact); cell p (derived); oracle_cost counted per kind: group add/dbl/neg 1 each, F_p mul/sqr/inv separately, Miller iteration charged as its measured field ops, isogeny evaluation as its field ops; canonicalisation and relabelling uncharged, listed as counters; log-table lookups in post-processing uncharged. No clock is read. No matched-rho comparison applies: nothing here claims an ECDLP speedup; any flagged oracle must be priced against matched rho under a new protocol (bounds-and-frontiers.md unit).
+
+## Decision rule
+Multiplicity: 144 cells (9 oracles x 8 distinguishers x 2 query classes, inapplicable cells counted), Bonferroni alpha 0.01, per-cell 6.94e-5. Per-cell test: label permutation within curve strata, 199,999 resamples, minimum p 2/(N+1)=1.0e-5 (validator-checked); D6, D7, D8 are exact relation tests entered as the per-transcript 0/1 statistic. Gates: G1 all designated positive cells flagged on all bands; G2 no negative or A/A cell flagged; failure gives invalid_measurement and nothing is read. Then: zero k-mixed flags = closure for the tested oracle set, depth and query budget only (not the simulation lemma's proof, not other oracles, not asymptotics); a replicated k-mixed flag = candidate non-simulable identity and the candidate real lead, priced separately; k-free flags reported only. Disposition effects: all-clear keeps the lead's next_action pending a written proof and supplies the empirical side for the two Miller leads and the ed922d trapdoor row; a flag advances next_action to that identity.
+
+## Inadmissible moves
+Listed in protocol.json: changing distinguishers, degrees, budgets or curves after data; reading test cells before gates; second simulator S1 rerun as the same test; k-free flag as a lead; wall time.
+
+## Cost
+Implementation: large (3-4 weeks): Rust crate for F_p/E arithmetic, Miller loop, Velu ell-isogenies with Cantor-Zassenhaus kernel finding, S0, distinguishers; PARI/GP only in the checker. Compute: about 2 core-hours estimated (unmeasured), wall under 1 h on 4 cores.
+
+## Implementation plan
+Rust (new crate ggm_battery, nothing exists for pairings or the S0). Reuse for orientation only: harness/endosweep/toyverify.py (Velu, curve), harness/isogeny_class.py, harness/rho.py (planted-scalar solver for the AN sanity check), experiments/EXP-GGM-001/simulability_test.py (reproduction check: T1 and T0 must classify as before), tools/experiment_protocol.py (seeds, blind, from-rows, check-export). Python for orchestration and analysis script.
+
+## Independent checker
+PARI/GP + Python, no shared code: replays recorded (curve, P, k, query plan) and recomputes every oracle answer with ellmul, elltatepairing, ellweilpairing, ellisogeny, quadclassunit; re-derives admission and k_emb; recomputes D1-D8 on a 5 percent sample. Tamper tests: flip one oracle answer, swap a world label, shorten a transcript; each must be rejected.
+
+## Open risks
+Biggest: the class-group-with-level-structure oracle (T3/T4) is under-specified in the lead beyond tracking the transport scalar; toy size makes Cl_n(O) and Cl(O) nearly the same object and T4 may be T2 renamed. Others: a null is limited by the MDD table (D7 is all-or-nothing); S0 is hand-built, so T1-T3 cells partly test my own bookkeeping; PARI/Rust disagreement on Miller normalisation is a likely early bug; preflight runtime unmeasured.
