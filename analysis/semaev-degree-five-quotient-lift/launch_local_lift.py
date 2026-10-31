@@ -4,6 +4,7 @@
 import argparse
 import fcntl
 import json
+from math import comb
 import os
 from pathlib import Path
 import re
@@ -12,6 +13,17 @@ import subprocess
 import time
 
 from launch_local_panel import save, sha, wait_for_memory
+
+
+def validate_request_dimensions(request):
+    variables = 2 * len(request['record']['V_basis_hex'])
+    policy = request['disk_policy']
+    if policy['N'] != variables:
+        raise ValueError('disk_policy.N must equal the Boolean variable count 2k')
+    seed_columns = sum(comb(variables, degree) for degree in range(policy['degree']))
+    seed_words = (request['seed_codimension'] + 63) // 64
+    if request['seed_bytes'] != 32 + 8 * seed_columns * (1 + seed_words):
+        raise ValueError('seed size disagrees with frozen dimensions')
 
 
 def main():
@@ -27,6 +39,7 @@ def main():
         if sha(name) != digest:
             raise ValueError('pinned source mismatch: ' + name)
     request = json.loads(Path(plan['request']).read_text())
+    validate_request_dimensions(request)
     root = Path(plan['output_root']).resolve()
     if request['memory_bytes'] != plan['memory_bytes']:
         raise ValueError('request/plan memory cap mismatch')
