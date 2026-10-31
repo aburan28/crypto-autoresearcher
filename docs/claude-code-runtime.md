@@ -109,6 +109,11 @@ Code specifically.
   startup log. When and how agents must query it — and the prohibition on any
   agent writing to it — is AGENTS.md "Knowledge retrieval policy", which binds
   regardless of runtime.
+- **Curve database** (`.mcp.json` → `ecdb`): the lab's curve database on RDS, an
+  MCP server over HTTP (curves, isogenies, transfers, polynomials, the IC
+  leaderboard, ecbench sessions, and this repository's curve capsules and
+  datasets). It needs `ECDB_TOKEN` exported before the runtime starts. How to
+  connect, what it holds and the rules for using it: [`docs/ecdb.md`](ecdb.md).
 
 ## Non-negotiable rules (summary of AGENTS.md)
 
